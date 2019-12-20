@@ -1,0 +1,33 @@
+inherit_gem:
+  google-style: google-style.yml
+
+AllCops:
+  Exclude:
+    - "spanner-activerecord.gemspec"
+    - "Gemfile"
+    - "Rakefile"
+    - "bin/*"
+    - "test/**/*"
+
+Documentation:
+  Enabled: false
+Layout/AlignHash:
+  Enabled: false
+Metrics/ClassLength:
+  Enabled: false
+Naming/RescuedExceptionsVariableName:
+  Enabled: false
+Naming/UncommunicativeMethodParamName:
+  Enabled: false
+Style/EmptyMethod:
+  Enabled: false
+Style/IfUnlessModifier:
+  Enabled: false
+Style/NumericLiterals:
+  Enabled: false
+Style/NumericPredicate:
+  Enabled: false
+Style/SymbolArray:
+  Enabled: false
+Style/WordArray:
+  Enabled: false
