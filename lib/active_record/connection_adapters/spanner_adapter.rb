@@ -169,6 +169,10 @@ module ActiveRecord
 
         # TODO: Array and Struct
       end
+
+      def spanner_database
+        @spanner_database ||= @connection.database
+      end
     end
   end
 end

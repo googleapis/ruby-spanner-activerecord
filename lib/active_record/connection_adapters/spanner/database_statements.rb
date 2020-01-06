@@ -15,11 +15,23 @@ module ActiveRecord
           end
         end
 
+        def query sql, name = nil
+          execute sql, name
+        end
+
         def exec_query sql, name = "SQL", binds = [], prepare: false
         end
 
+        def execute_ddl sql
+          job = spanner_database.update statements: [sql]
+          job.wait_until_done!
+          return job unless job.error?
+
+          raise Google::Cloud::Error.from_error job.error if job.error?
+        end
+
         def truncate _, _
-          raise ActiveRecordError, "Truncate table is not supporrted"
+          raise ActiveRecordError, "Truncate table is not supported"
         end
       end
     end
