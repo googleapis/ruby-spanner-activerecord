@@ -6,6 +6,7 @@ require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
 
+
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
@@ -58,12 +59,13 @@ module ActiveRecord
       include Spanner::DatabaseStatements
       include Spanner::SchemaStatements
 
-      attr_reader :max_identifier_length
-
       def initialize connection, logger, connection_options, config
         super connection, logger, config
         @connection_options = connection_options
-        @max_identifier_length = 128
+      end
+
+      def max_identifier_length
+        128
       end
 
       def native_database_types

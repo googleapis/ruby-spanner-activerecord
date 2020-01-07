@@ -63,30 +63,110 @@ module ActiveRecord
                AND index_name=#{quote index_data[:INDEX_NAME]}
             SQL
             index_colums_info = execute(column_sql).to_a
-            columns = index_colums_info.map { |c| c[:COLUMN_NAME] }
+            columns = []
+            orders = {}
+            storing = []
+            index_colums_info.each do |column|
+              if column[:ORDINAL_POSITION]
+                columns << column[:COLUMN_NAME]
+              else
+                storing << column[:COLUMN_NAME]
+              end
 
-            orders = index_colums_info.each_wth_object do |column, result|
               if column[:COLUMN_ORDERING] == "DESC"
-                result[column[:COLUMN_NAME]] = :desc
+                orders[column[:COLUMN_NAME]] = :desc
               end
             end
 
-            IndexDefinition.new(
+            Spanner::IndexDefinition.new \
               index_data[:TABLE_NAME],
               index_data[:INDEX_NAME],
               index_data[:IS_UNIQUE],
               columns,
-              orders: orders
-            )
+              orders: orders,
+              null_filtered: index_data[:IS_NULL_FILTERED],
+              storing: storing,
+              interleve_in: index_data[:PARENT_TABLE_NAME]
           end
         end
 
         def add_index table_name, column_name, options = {}
-          # CHECK: Use existing query generator
+          index_name, index_type, index_columns, index_options = \
+            add_index_options table_name, column_name, options
+
+          sql = +"CREATE #{index_type} INDEX #{index_name}"
+          sql << "ON #{table_name} (#{index_columns})"
+          sql << ", #{index_options}" unless index_options.empty?
+
+          execute_ddl sql
+        end
+
+        #
+        # DOC - https://cloud.google.com/spanner/docs/data-definition-language#index_statements
+        #
+        #
+        def add_index_options table_name, column_name, **options
+          options.assert_valid_keys \
+            :name, :unique, :null_filtered, :order, :interleve_in, :storing
+
+          column_names = index_column_names column_name
+          index_name = options[:name].to_s if options.key? :name
+          index_name ||= index_name table_name, column_names
+
+          index_type = options[:type].to_s if options.key? :type
+          index_type ||= [
+            (options[:unique] ? "UNIQUE" : ""),
+            (options[:null_filtered] ? "NULL_FILTERED" : "")
+          ].join " "
+
+          options[:order]&.each do |column, order|
+            next unless order == :desc
+            column_index = column_names.index column.to_s
+            next unless column_index
+            column_names[column_index] = "#{column_names[column_index]} DESC"
+          end
+
+          index_options = []
+          if options[:storing]
+            index_options << "STORING (#{Array(options[:storing]).join ', ' })"
+          end
+
+          if options[:interleve_in]
+            index_options << "INTERLEAVE IN #{options[:interleve_in]}"
+          end
+
+          if data_source_exists?(table_name) && index_name_exists?(table_name, index_name)
+            raise ArgumentError, \
+                  "Index name '#{name}' on table '#{table_name}' already exists"
+          end
+
+          [
+            index_name,
+            index_type,
+            column_names.join(", "),
+            index_options.join(", ")
+          ]
         end
 
         def remove_index _table_name, options = {}
           execute_ddl "DROP INDEX #{options[:name]}"
+        end
+
+        def rename_index table_name, old_name, new_name
+          validate_index_length table_name, new_name
+
+          old_index_def = indexes(table_name).find { |i| i.name == old_name }
+          return unless old_index_def
+
+          add_index \
+            table_name,
+            old_index_def.columns,
+            name: new_name,
+            unique: old_index_def.unique,
+            orders: old_index_def.orders,
+            null_filtered: old_index_def.null_filtered,
+            storing: old_index_def.storing,
+            interleve_in: old_index_def.interleve_in
         end
 
         def fetch_type_metadata sql_type, ordinal_position = nil
@@ -104,6 +184,7 @@ module ActiveRecord
         def table_exists? table_name
           execute(data_source_sql(table_name)).any?
         end
+        alias data_source_exists? table_exists?
 
         def create_table table_name, **options
           td = create_table_definition table_name, options
@@ -130,6 +211,7 @@ module ActiveRecord
         end
 
         def drop_table table_name, _options = {}
+          return unless table_exists? table_name
           execute_ddl "DROP TABLE #{table_name}"
         end
 
@@ -143,7 +225,7 @@ module ActiveRecord
         end
 
         def create_table_definition *args
-          Spanner::TableDefinition.new(self, *args)
+          Spanner::TableDefinition.new self, *args
         end
 
         def data_source_sql name = nil, type: nil
@@ -157,9 +239,10 @@ module ActiveRecord
         end
 
         def quoted_scope name = nil, type: nil
-          scope = {}
-          scope[:schema] = quote ""
-          scope[:type] = quote(type || "")
+          scope = {
+            schema: quote(""),
+            type: quote(type || "")
+          }
           scope[:name] = quote name if name
           scope
         end

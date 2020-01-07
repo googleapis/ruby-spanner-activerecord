@@ -19,7 +19,7 @@ module ActiveRecord
           raise ActiveRecord::Tasks::DatabaseAlreadyExists
         end
 
-        raise ActiveRecord::StatementInvalid, error.message
+        raise ActiveRecord::StatementInvalid, error
       end
 
       def drop

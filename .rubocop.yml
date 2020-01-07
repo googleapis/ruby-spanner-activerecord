@@ -35,3 +35,7 @@ Style/WordArray:
   Enabled: false
 Style/RegexpLiteral:
   Enabled: false
+Metrics/MethodLength:
+  Max: 40
+Metrics/BlockLength:
+  Max: 30

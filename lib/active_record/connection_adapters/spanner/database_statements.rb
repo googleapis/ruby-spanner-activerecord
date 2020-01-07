@@ -19,7 +19,9 @@ module ActiveRecord
           execute sql, name
         end
 
+        # TODO: Implement to fetch data with prepared statements.
         def exec_query sql, name = "SQL", binds = [], prepare: false
+          ActiveRecord::Result.new [], []
         end
 
         def execute_ddl sql
@@ -28,6 +30,8 @@ module ActiveRecord
           return job unless job.error?
 
           raise Google::Cloud::Error.from_error job.error if job.error?
+        rescue Google::Cloud::Error => error
+          raise ActiveRecord::StatementInvalid, error
         end
 
         def truncate _, _
