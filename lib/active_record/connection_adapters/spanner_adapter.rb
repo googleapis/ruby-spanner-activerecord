@@ -1,35 +1,28 @@
-require "google/cloud/spanner"
-require "spanner_client_ext"
 require "active_record/base"
 require "active_record/connection_adapters/abstract_adapter"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
+require "spanner_activerecord/connection"
 
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
       config = config.symbolize_keys
-      if config[:client_config]
-        config[:client_config] = config[:client_config].symbolize_keys
-      end
 
-      spanner = Google::Cloud.spanner \
+      connection = SpannerActiverecord::Connection.new \
         config[:project],
-        config[:credentials],
-        scope: config[:scope],
-        timeout: config[:timeout],
-        client_config: config[:client_config]
-
-      config[:pool] = config[:pool].symbolize_keys if config[:pool]
-
-      client = spanner.client \
         config[:instance],
         config[:database],
-        pool: config[:pool] || {}
+        credentials: config[:credentials],
+        scope: config[:scope],
+        timeout: config[:timeout],
+        client_config: config[:client_config],
+        pool_config: config[:pool],
+        load_client: true
 
-      ConnectionAdapters::SpannerAdapter.new client, logger, nil, config
+      ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
     rescue Google::Cloud::Error => error
       if error.instance_of? Google::Cloud::NotFoundError
         raise ActiveRecord::NoDatabaseError
@@ -41,7 +34,7 @@ module ActiveRecord
   module ConnectionAdapters
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
-
+      MAX_IDENTIFIER_LENGTH = 128
       NATIVE_DATABASE_TYPES = {
         primary_key:  "INT64 NOT NULL",
         string:       { name: "STRING", limit: "MAX" },
@@ -52,7 +45,7 @@ module ActiveRecord
         datetime:     { name: "TIMESTAMP" },
         time:         { name: "TIMESTAMP" },
         date:         { name: "DATE" },
-        binary:       { name: "BYTES" },
+        binary:       { name: "BYTES", limit: "MAX" },
         boolean:      { name: "BOOL" }
       }.freeze
 
@@ -65,7 +58,7 @@ module ActiveRecord
       end
 
       def max_identifier_length
-        128
+        MAX_IDENTIFIER_LENGTH
       end
 
       def native_database_types
@@ -75,25 +68,23 @@ module ActiveRecord
       # Connection management
 
       def active?
-        @connection.execute_query "SELECT 1"
-        true
-      rescue Google::Cloud::NotFoundError
-        false
+        @connection.active?
       end
 
       def disconnect!
         super
-        @connection.close
+        @connection.disconnect!
       end
 
-      def reconnect!
+      def reset!
         super
-        @connection.reset
+        @connection.reset!
       end
-      alias reset! reconnect!
+      alias reconnect! reset!
 
       def self.database_exists? config
-        ActiveRecord::Base.spanner_connection(config).close
+        adapter = ActiveRecord::Base.spanner_connection config
+        adapter.close
         true
       rescue ActiveRecord::NoDatabaseError
         false
