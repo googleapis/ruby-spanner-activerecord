@@ -1,8 +1,7 @@
+require "spanner_activerecord/index/column"
+
 module SpannerActiverecord
   class Index
-    # INFORMATION_SCHEMA.INDEX_COLUMNS
-    Column = Struct.new :name, :order, :ordinal_position
-
     attr_reader :table, :name, :unique, :columns, :orders,
                 :null_filtered, :storing, :interleve_in
 
@@ -36,7 +35,10 @@ module SpannerActiverecord
     def rename new_name
     end
 
-    def index_columns
+    def change
+    end
+
+    def columns
     end
   end
 end

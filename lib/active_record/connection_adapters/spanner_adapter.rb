@@ -20,7 +20,7 @@ module ActiveRecord
         timeout: config[:timeout],
         client_config: config[:client_config],
         pool_config: config[:pool],
-        load_client: true
+        init_client: true
 
       ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
     rescue Google::Cloud::Error => error
@@ -65,6 +65,16 @@ module ActiveRecord
         NATIVE_DATABASE_TYPES
       end
 
+      # Database
+
+      def self.database_exists? config
+        connection = ActiveRecord::Base.spanner_connection config
+        connection.close
+        true
+      rescue ActiveRecord::NoDatabaseError
+        false
+      end
+
       # Connection management
 
       def active?
@@ -81,14 +91,6 @@ module ActiveRecord
         @connection.reset!
       end
       alias reconnect! reset!
-
-      def self.database_exists? config
-        adapter = ActiveRecord::Base.spanner_connection config
-        adapter.close
-        true
-      rescue ActiveRecord::NoDatabaseError
-        false
-      end
 
       # Supported features
 
@@ -161,10 +163,6 @@ module ActiveRecord
         m.register_type "TIMESTAMP", Type::DateTime.new
 
         # TODO: Array and Struct
-      end
-
-      def spanner_database
-        @spanner_database ||= @connection.database
       end
     end
   end

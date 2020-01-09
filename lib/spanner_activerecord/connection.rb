@@ -1,5 +1,6 @@
 require "google/cloud/spanner"
 require "spanner_client_ext"
+require "spanner_activerecord/information_schema"
 
 module SpannerActiverecord
   class Connection
@@ -14,7 +15,7 @@ module SpannerActiverecord
         timeout: nil,
         client_config: nil,
         pool_config: nil,
-        load_client: nil
+        init_client: nil
       @instance_id = instance_id
       @database_id = database_id
       @pool_config = (pool_config || {}).symbolize_keys
@@ -25,8 +26,8 @@ module SpannerActiverecord
         timeout: timeout,
         client_config: client_config&.symbolize_keys
 
-      return unless load_client
-      @client = @spanner.client instance_id, database_id, pool: pool_config
+      return unless init_client
+      @client = @spanner.client @instance_id, @database_id, pool: @pool_config
     end
 
     def active?

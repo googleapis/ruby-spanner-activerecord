@@ -72,6 +72,8 @@ module ActiveRecord
 
       def database
         @connection.database
+      rescue Google::Cloud::NotFoundError => error
+        raise ActiveRecord::NoDatabaseError, error
       end
     end
   end
