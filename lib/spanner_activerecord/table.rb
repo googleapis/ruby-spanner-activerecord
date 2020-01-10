@@ -1,8 +1,11 @@
+require "spanner_activerecord/table/column"
+
 module SpannerActiverecord
   class Table
-    attr_reader :name, :parent_table, :on_delete, :schema_name, :catalog
+    attr_reader :name, :on_delete, :parent_table, :schema_name, :catalog
 
-    def initalize \
+    # parent_table == interleave_in
+    def initialize \
         connection,
         name,
         parent_table: nil,
@@ -17,6 +20,28 @@ module SpannerActiverecord
       @catalog = catalog
     end
 
+    def columns force: false
+      if force || @columns.nil?
+        @columns ||= information_schema.table_columns name
+      end
+      @columns
+    end
+
+    def indexes force: false
+      if force || @indexes.nil?
+        @indexes ||= information_schema.indexes name
+      end
+      @indexes
+    end
+
+    def primary_key
+      indexes.find(&:primary?)&.columns&.map(&:name)
+    end
+
+    def cascade?
+      @on_delete == "CASCADE"
+    end
+
     def create
     end
 
@@ -29,24 +54,10 @@ module SpannerActiverecord
     def drop
     end
 
-    def columns
-      information_schema.columns
-    end
-
-    def column column_name
-      # Column.new name, column_name, service
-    end
-
-    def indexes
-    end
-
-    def index name
-    end
-
     private
 
     def information_schema
-      @information_schema ||= InformationSchema.new @connection
+      InformationSchema.new @connection
     end
   end
 end

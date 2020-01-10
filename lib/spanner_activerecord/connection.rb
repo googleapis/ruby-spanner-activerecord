@@ -4,7 +4,7 @@ require "spanner_activerecord/information_schema"
 
 module SpannerActiverecord
   class Connection
-    attr_reader :instance_id, :database_id, :pool_config, :spanner, :client
+    attr_reader :spanner, :client
 
     def initialize \
         project_id,
@@ -52,7 +52,7 @@ module SpannerActiverecord
     end
 
     def create_database
-      job = @spanner.create_database instance_id, database_id
+      job = @spanner.create_database @instance_id, database_id
       job.wait_until_done!
       raise Google::Cloud::Error.from_error job.error if job.error?
       Database.new job.database
@@ -60,10 +60,14 @@ module SpannerActiverecord
 
     def database
       @database ||= begin
-        database = @spanner.database instance_id, database_id
-        raise Google::Cloud::NotFoundError, database_id unless database
+        database = @spanner.database @instance_id, @database_id
+        raise Google::Cloud::NotFoundError, @database_id unless database
         Database.new database
       end
+    end
+
+    def inspect
+      "#{self.class}(#{@spanner.project_id}/#{@instance_id}/#{@database_id})"
     end
   end
 end

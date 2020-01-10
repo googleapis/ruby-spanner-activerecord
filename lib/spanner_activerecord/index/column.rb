@@ -1,7 +1,7 @@
 module SpannerActiverecord
   class Index
     class Column
-      attr_reader :name, :order, :ordinal_position
+      attr_reader :table_name, :index_name, :name, :order, :ordinal_position
 
       def initialize \
           connection,
@@ -19,7 +19,15 @@ module SpannerActiverecord
       end
 
       def storing?
-        ordinal_position.nil?
+        @ordinal_position.nil?
+      end
+
+      def desc?
+        @order == "DESC"
+      end
+
+      def desc!
+        @order = "DESC"
       end
     end
   end

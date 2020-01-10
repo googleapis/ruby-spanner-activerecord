@@ -10,7 +10,7 @@ module ActiveRecord
 
           log sql, name do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_query(sql).rows
+              @connection.execute_query sql
             end
           end
         end

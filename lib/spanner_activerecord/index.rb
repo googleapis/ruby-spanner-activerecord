@@ -2,28 +2,48 @@ require "spanner_activerecord/index/column"
 
 module SpannerActiverecord
   class Index
-    attr_reader :table, :name, :unique, :columns, :orders,
-                :null_filtered, :storing, :interleve_in
+    attr_reader :table, :name, :columns, :type, :unique, :null_filtered,
+                :interleve_in, :state
 
     def initialize \
+        connection,
         table,
         name,
+        columns,
+        type: nil,
         unique: false,
-        columns: [],
-        orders: {},
-        null_filtered: nil,
-        storing: nil,
+        null_filtered: false,
         interleve_in: nil,
-        service: nil
+        state: nil
+      @connection = connection
       @table = table
       @name = name
+      @columns = columns
+      @type = type
       @unique = unique
-      @columns = Array(columns)
-      @orders = orders
       @null_filtered = null_filtered
-      @storing = storing
-      @interleve_in = interleve_in
-      @service = service
+      @interleve_in = interleve_in unless interleve_in.to_s.empty?
+      @state = state
+    end
+
+    def primary?
+      @type == "PRIMARY_KEY"
+    end
+
+    def primary!
+      @type = "PRIMARY_KEY"
+    end
+
+    def orders
+      @columns.select(&:ordinal_position).sort do |c1, c2|
+        c1.ordinal_position <=> c2.ordinal_position
+      end
+    end
+
+    def storing
+      @columns.select { |c| c.ordinal_position.nil? }.sort do |c1, c2|
+        c1.ordinal_position <=> c2.ordinal_position
+      end
     end
 
     def create
@@ -36,9 +56,6 @@ module SpannerActiverecord
     end
 
     def change
-    end
-
-    def columns
     end
   end
 end

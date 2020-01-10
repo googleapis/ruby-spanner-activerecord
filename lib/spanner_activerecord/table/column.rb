@@ -1,7 +1,8 @@
 module SpannerActiverecord
   class Table
     class Column
-      attr_reader :table_name, :name, :type, :nullable, :ordinal_position
+      attr_reader :table_name, :name, :type, :nullable, :ordinal_position, \
+                  :allow_commit_timestamp
 
       def initialize \
           connection,
@@ -9,14 +10,20 @@ module SpannerActiverecord
           name,
           type,
           ordinal_position: nil,
-          nullable: nil
+          nullable: nil,
+          allow_commit_timestamp: nil
         @connection = connection
         @table_name = table_name
         @name = name
         @type = type
         @nullable = nullable
         @ordinal_position = ordinal_position
+        @allow_commit_timestamp = allow_commit_timestamp
       end
+    end
+
+    def nullable?
+      @nullable == "YES"
     end
 
     def add

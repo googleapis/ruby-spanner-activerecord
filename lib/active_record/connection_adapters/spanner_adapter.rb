@@ -151,6 +151,10 @@ module ActiveRecord
       #   true
       # end
 
+      def information_schema
+        SpannerActiverecord::InformationSchema.new @connection
+      end
+
       private
 
       def initialize_type_map m = type_map

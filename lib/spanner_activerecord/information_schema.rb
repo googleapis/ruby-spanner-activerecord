@@ -4,16 +4,14 @@ module SpannerActiverecord
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
 
-    def initalize connection
+    def initialize connection
       @connection = connection
     end
 
-    def tables schema_name: "", load_columns: false
+    def tables schema_name: ""
       sql = "SELECT * FROM information_schema.tables" \
           " WHERE table_schema=%<schema_name>s"
       rows = execute_query sql, schema_name: schema_name
-
-      return rows.map { |r| r["TABLE_NAME"] } unless load_columns
 
       rows.map do |row|
         Table.new \
@@ -41,29 +39,34 @@ module SpannerActiverecord
       end
     end
 
-    # TODO: WIP
     def indexes table_name
-      sql = "SELET * FROM information_schema.indexes " \
-        "WHERE table_name=%<table_name>s"
-      execute_query(sql, table_name: table_name).map do |index|
-        columns = index_columns table_name, index["INDEX_NAME"]
+      table_indexes_columns = index_columns table_name
+
+      sql = "SELECT * FROM information_schema.indexes" \
+        " WHERE table_name=%<table_name>s"
+      execute_query(sql, table_name: table_name).map do |row|
+        columns = table_indexes_columns.select do |c|
+          c.index_name == row["INDEX_NAME"]
+        end
 
         Index.new \
+          @connection,
           table_name,
-          index_data["INDEX_NAME"],
-          index_data["IS_UNIQUE"],
+          row["INDEX_NAME"],
           columns,
-          orders: orders,
-          null_filtered: index["IS_NULL_FILTERED"],
-          storing: storing,
-          interleve_in: index["PARENT_TABLE_NAME"]
+          type: row["INDEX_TYPE"],
+          unique: row["IS_UNIQUE"],
+          null_filtered: row["IS_NULL_FILTERED"],
+          interleve_in: row["PARENT_TABLE_NAME"],
+          state: row["INDEX_STATE"]
       end
     end
 
-    def index_columns table_name, index_name
-      sql = "SELECT * FROM information_schema.index_columns" \
-            " WHERE table_name=%<table_name>s" \
-            " AND index_name=%<index_name>s"
+    def index_columns table_name, index_name: nil
+      sql = +"SELECT * FROM information_schema.index_columns" \
+            " WHERE table_name=%<table_name>s"
+      sql << " AND index_name=%<index_name>s" if index_name
+
       execute_query(
         sql,
         table_name: table_name, index_name: index_name
@@ -71,7 +74,7 @@ module SpannerActiverecord
         Index::Column.new \
           @connection,
           table_name,
-          index_name,
+          row["INDEX_NAME"],
           row["COLUMN_NAME"],
           order: row["COLUMN_ORDERING"],
           ordinal_position: row["ORDINAL_POSITION"]
@@ -79,6 +82,9 @@ module SpannerActiverecord
     end
 
     private
+
+    def index_column_orders columns
+    end
 
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
