@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "active_record/connection_adapters/spanner/schema_creation"
-require "active_record/connection_adapters/spanner/schema_definitions"
+#require "active_record/connection_adapters/spanner/schema_definitions"
+# require "active_record/connection_adapters/spanner/column"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -18,6 +19,46 @@ module ActiveRecord
           @connection.database_id
         end
 
+        # Table
+
+        def data_sources
+          information_schema.tables.map(&:name)
+        end
+        alias tables data_sources
+
+        def table_exists? table_name
+          !information_schema.table(table_name).nil?
+        end
+        alias data_source_exists? table_exists?
+
+        def create_table table_name, **options
+          td = create_table_definition table_name, options
+
+          if options[:id] != false
+            pk = options.fetch :primary_key do
+              Base.get_primary_key table_name.to_s.singularize
+            end
+
+            if pk.is_a? Array
+              td.primary_keys pk
+            else
+              td.primary_key pk, options.fetch(:id, :primary_key), options.except(:comment)
+            end
+          end
+
+          yield td if block_given?
+
+          table = information_schema.from_defination td
+          table.create drop_table: options[:force]
+          execute_ddl schema_creation.accept td
+        end
+
+        def drop_table table_name, _options = {}
+          statements = information_schema.table(table_name)&.drop_table_sql
+          execute_ddl statements if statements
+        end
+
+        # Column
         def add_column table_name, column_name, type, **options
         end
 
@@ -39,55 +80,29 @@ module ActiveRecord
         end
 
         def column_definitions table_name
-          execute(
-            "SELECT * FROM information_schema.columns WHERE table_name=#{quote table_name}"
-          ).to_a
+          information_schema.table_columns table_name
         end
 
-        def new_column_from_field _table_name, field
-          Column.new \
-            field[:COLUMN_NAME],
-            field[:COLUMN_DEFAULT],
-            fetch_type_metadata(field[:SPANNER_TYPE], field[:ORDINAL_POSITION]),
-            field[:IS_NULLABLE] == "YES",
-            nil
+        def new_column_from_field _table_name, info_schema_column
+          type_metdata = fetch_type_metadata \
+            index_column_names.type, index_column_names.ordinal_position
+
+          Spanner::Column.new \
+            info_schema_column.name,
+            index_column_names.default,
+            type_metdata,
+            info_schema_column.nullable?
         end
+
+        def fetch_type_metadata sql_type, ordinal_position = nil
+          Spanner::TypeMetadata.new \
+            super(sql_type), ordinal_position: ordinal_position
+        end
+
+        # Index
 
         def indexes table_name
-          execute(
-            "SELECT * FROM information_schema.indexes WHERE table_name=#{quote table_name}"
-          ).map do |index_data|
-            column_sql = <<~SQL
-              SELECT * FROM information_schema.index_columns
-               WHERE table_name=#{quote table_name}
-               AND index_name=#{quote index_data[:INDEX_NAME]}
-            SQL
-            index_colums_info = execute(column_sql).to_a
-            columns = []
-            orders = {}
-            storing = []
-            index_colums_info.each do |column|
-              if column[:ORDINAL_POSITION]
-                columns << column[:COLUMN_NAME]
-              else
-                storing << column[:COLUMN_NAME]
-              end
-
-              if column[:COLUMN_ORDERING] == "DESC"
-                orders[column[:COLUMN_NAME]] = :desc
-              end
-            end
-
-            Spanner::IndexDefinition.new \
-              index_data[:TABLE_NAME],
-              index_data[:INDEX_NAME],
-              index_data[:IS_UNIQUE],
-              columns,
-              orders: orders,
-              null_filtered: index_data[:IS_NULL_FILTERED],
-              storing: storing,
-              interleve_in: index_data[:PARENT_TABLE_NAME]
-          end
+          information_schema.indexes table_name
         end
 
         def add_index table_name, column_name, options = {}
@@ -101,10 +116,7 @@ module ActiveRecord
           execute_ddl sql
         end
 
-        #
-        # DOC - https://cloud.google.com/spanner/docs/data-definition-language#index_statements
-        #
-        #
+        # TODO: Change - information_schema
         def add_index_options table_name, column_name, **options
           options.assert_valid_keys \
             :name, :unique, :null_filtered, :order, :interleve_in, :storing
@@ -148,10 +160,11 @@ module ActiveRecord
           ]
         end
 
-        def remove_index _table_name, options = {}
-          execute_ddl "DROP INDEX #{options[:name]}"
+        def remove_index table_name, options = {}
+          information_schema.index(table_name, options[:name])&.drop
         end
 
+        # TODO: Change - information_schema
         def rename_index table_name, old_name, new_name
           validate_index_length table_name, new_name
 
@@ -169,20 +182,15 @@ module ActiveRecord
             interleve_in: old_index_def.interleve_in
         end
 
-        def fetch_type_metadata sql_type, ordinal_position = nil
-          Spanner::TypeMetadata.new \
-            super(sql_type), ordinal_position: ordinal_position
-        end
+        # Table
 
-        # Returns the relation names useable to back Active Record models.
-        # For most adapters this means all #tables
         def data_sources
-          execute(data_source_sql).map { |row| row[:table_name] }
+          information_schema.tables.map(&:name)
         end
         alias tables data_sources
 
         def table_exists? table_name
-          execute(data_source_sql(table_name)).any?
+          !information_schema.table(table_name).nil?
         end
         alias data_source_exists? table_exists?
 
@@ -203,16 +211,15 @@ module ActiveRecord
 
           yield td if block_given?
 
-          if options[:force]
-            drop_table table_name, options.merge(if_exists: true)
-          end
+          table = information_schema.new_table td, drop_table: options[:force]
+
 
           execute_ddl schema_creation.accept td
         end
 
         def drop_table table_name, _options = {}
-          return unless table_exists? table_name
-          execute_ddl "DROP TABLE #{table_name}"
+          statements = information_schema.table(table_name)&.drop_table_sql
+          execute_ddl statements if statements
         end
 
         # Foreign keys are not supported.
@@ -226,25 +233,6 @@ module ActiveRecord
 
         def create_table_definition *args
           Spanner::TableDefinition.new self, *args
-        end
-
-        def data_source_sql name = nil, type: nil
-          scope = quoted_scope name, type: type
-
-          sql = +"SELECT table_name FROM information_schema.tables"
-          sql << " WHERE table_schema = #{scope[:schema]}"
-          sql << " AND table_catalog = #{scope[:type]}"
-          sql << " AND table_name = #{scope[:name]}" if scope[:name]
-          sql
-        end
-
-        def quoted_scope name = nil, type: nil
-          scope = {
-            schema: quote(""),
-            type: quote(type || "")
-          }
-          scope[:name] = quote name if name
-          scope
         end
       end
     end

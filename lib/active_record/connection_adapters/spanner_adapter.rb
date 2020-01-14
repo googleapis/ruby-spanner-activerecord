@@ -102,15 +102,15 @@ module ActiveRecord
         true
       end
 
-      # def supports_ddl_transactions?
-      #   true
-      # end
-
       def supports_explain?
         true
       end
 
       def supports_index_sort_order?
+        true
+      end
+
+      def supports_indexes_in_create?
         true
       end
 
@@ -125,14 +125,6 @@ module ActiveRecord
         true
       end
 
-      # def supports_json?
-      #   true
-      # end
-
-      # def supports_lazy_transactions?
-      #   true
-      # end
-
       def supports_multi_insert?
         true
       end
@@ -140,16 +132,6 @@ module ActiveRecord
       def supports_optimizer_hints?
         true
       end
-
-      # TODO: Look into detail - can be achivable using rollback
-      # def supports_savepoints?
-      #   true
-      # end
-
-      # TODO: Look into detail
-      # def supports_transaction_isolation?
-      #   true
-      # end
 
       def information_schema
         SpannerActiverecord::InformationSchema.new @connection

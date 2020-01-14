@@ -33,7 +33,7 @@ module SpannerActiverecord
     def active?
       execute_query "SELECT 1"
       true
-    rescue Google::Cloud::Error
+    rescue StandardError
       false
     end
 
@@ -51,18 +51,26 @@ module SpannerActiverecord
       ).rows
     end
 
+    # @params [Array<String>, String] sql Single or list of statements
+    def execute_ddl statements, operation_id: nil, wait_until_done: true
+      job = database.update statements: statements, operation_id: operation_id
+      job.wait_until_done! if wait_until_done
+      raise Google::Cloud::Error.from_error job.error if job.error?
+      job.done?
+    end
+
     def create_database
       job = @spanner.create_database @instance_id, database_id
       job.wait_until_done!
       raise Google::Cloud::Error.from_error job.error if job.error?
-      Database.new job.database
+      job.database
     end
 
     def database
       @database ||= begin
         database = @spanner.database @instance_id, @database_id
         raise Google::Cloud::NotFoundError, @database_id unless database
-        Database.new database
+        database
       end
     end
 

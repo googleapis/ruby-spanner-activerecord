@@ -65,7 +65,7 @@ module ActiveRecord
 
       def structure_load filename, _extra_flags
         statements = File.read(filename).split(/(?=^CREATE)/)
-        database.update statements
+        database.update statements: statements
       end
 
       private

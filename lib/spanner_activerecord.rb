@@ -1,5 +1,5 @@
 require "spanner_activerecord/version"
-require "spanner_activerecord/error"
+require "spanner_activerecord/errors"
 require "active_record/connection_adapters/spanner_adapter"
 require "active_record_ext"
 require "google/cloud/spanner"

@@ -6,7 +6,7 @@ module ActiveRecord
 
         # rubocop:disable Naming/MethodName
         def visit_TableDefinition o
-          create_sql = +"CREATE TABLE #{quote_table_name o.name}"
+          create_sql = +"CREATE TABLE #{o.name}"
 
           statements = o.columns.map { |c| accept c }
           create_sql << "(#{statements.join ', '}) " if statements.present?

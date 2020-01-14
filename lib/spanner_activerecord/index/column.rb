@@ -14,7 +14,7 @@ module SpannerActiverecord
         @table_name = table_name
         @index_name = index_name
         @name = name
-        @order = order
+        @order = order.to_s.upcase if order
         @ordinal_position = ordinal_position
       end
 

@@ -4,49 +4,97 @@ module SpannerActiverecord
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
 
+    attr_reader :connection
+
     def initialize connection
       @connection = connection
     end
 
-    def tables schema_name: ""
-      sql = "SELECT * FROM information_schema.tables" \
+    def tables table_name: nil, schema_name: nil, view: nil
+      sql = +"SELECT * FROM information_schema.tables" \
           " WHERE table_schema=%<schema_name>s"
-      rows = execute_query sql, schema_name: schema_name
+      sql << " AND table_name=%<table_name>s" if table_name
+
+      rows = execute_query(
+        sql,
+        schema_name: (schema_name || ""), table_name: table_name
+      )
 
       rows.map do |row|
-        Table.new \
+        table = Table.new(
           @connection,
           row["TABLE_NAME"],
           parent_table: row["PARENT_TABLE_NAME"],
           on_delete: row["ON_DELETE_ACTION"],
           schema_name: row["TABLE_SCHEMA"],
           catalog: row["TABLE_CATALOG"]
+        )
+        if [:full, :columns].include? view
+          table.columns = table_columns table.name
+        end
+        if [:full, :indexes].include? view
+          table.indexes = indexes table.name
+        end
+        table
       end
     end
 
-    def table_columns table_name
-      sql = "SELECT * FROM information_schema.columns" \
+    def table table_name, schema_name: nil, view: nil
+      tables(
+        table_name: table_name,
+        schema_name: schema_name,
+        view: view
+      ).first
+    end
+
+    def table_columns table_name, column_name: nil
+      sql = +"SELECT * FROM information_schema.columns" \
           " WHERE table_name=%<table_name>s"
 
-      execute_query(sql, table_name: table_name).map do |row|
+      if column_name
+        sql << " AND column_name=%<column_name>s"
+      end
+
+      execute_query(
+        sql,
+        table_name: table_name,
+        column_name: column_name
+      ).map do |row|
+        type, limit = parse_type_and_limit row["SPANNER_TYPE"]
         Table::Column.new \
           @connection,
           table_name,
           row["COLUMN_NAME"],
-          row["SPANNER_TYPE"],
+          type,
+          limit: limit,
           ordinal_position: row["ORDINAL_POSITION"],
-          nullable: row["IS_NULLABLE"]
+          not_null: row["IS_NULLABLE"] == "NO",
+          default: row["COLUMN_DEFAULT"]
       end
     end
 
-    def indexes table_name
-      table_indexes_columns = index_columns table_name
+    def table_column table_name, column_name
+      table_columns(table_name, column_name: column_name).first
+    end
+
+    def indexes table_name, index_name: nil
+      table_indexes_columns = index_columns(
+        table_name,
+        index_name: index_name
+      )
 
       sql = "SELECT * FROM information_schema.indexes" \
         " WHERE table_name=%<table_name>s"
       execute_query(sql, table_name: table_name).map do |row|
-        columns = table_indexes_columns.select do |c|
-          c.index_name == row["INDEX_NAME"]
+        columns = []
+        storing = []
+        table_indexes_columns.each do |c|
+          next unless c.index_name == row["INDEX_NAME"]
+          if c.ordinal_position
+            columns << c
+          else
+            storing << c.name
+          end
         end
 
         Index.new \
@@ -58,8 +106,13 @@ module SpannerActiverecord
           unique: row["IS_UNIQUE"],
           null_filtered: row["IS_NULL_FILTERED"],
           interleve_in: row["PARENT_TABLE_NAME"],
+          storing: storing,
           state: row["INDEX_STATE"]
       end
+    end
+
+    def index table_name, index_name
+      indexes(table_name, index_name: index_name).first
     end
 
     def index_columns table_name, index_name: nil
@@ -83,13 +136,20 @@ module SpannerActiverecord
 
     private
 
-    def index_column_orders columns
-    end
-
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
       @connection.execute_query sql
+    end
+
+    def parse_type_and_limit type
+      matched = /^([A-Z]*)\((.*)\)/.match type
+      return [type] unless matched
+
+      limit = matched[2]
+      limit = limit.to_i unless limit == "MAX"
+
+      [matched[1], limit]
     end
   end
 end

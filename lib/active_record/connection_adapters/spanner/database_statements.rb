@@ -24,18 +24,18 @@ module ActiveRecord
           ActiveRecord::Result.new [], []
         end
 
-        def execute_ddl sql
-          job = spanner_database.update statements: [sql]
-          job.wait_until_done!
-          return job unless job.error?
-
-          raise Google::Cloud::Error.from_error job.error if job.error?
-        rescue Google::Cloud::Error => error
-          raise ActiveRecord::StatementInvalid, error
+        def truncate _table_name, _name = nil
+          raise ActiveRecordError, "Truncate table is not supported"
         end
 
-        def truncate _, _
-          raise ActiveRecordError, "Truncate table is not supported"
+        # DDL Statements
+
+        def execute_ddl sql, migration_name: nil
+          log sql do
+            @connection.execute_ddl sql, operation_id: migration_name
+          end
+        rescue Google::Cloud::Error => error
+          raise ActiveRecord::StatementInvalid, error
         end
       end
     end
