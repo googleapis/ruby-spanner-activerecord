@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "active_record/connection_adapters/spanner/schema_creation"
-#require "active_record/connection_adapters/spanner/schema_definitions"
-# require "active_record/connection_adapters/spanner/column"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -32,6 +30,12 @@ module ActiveRecord
         alias data_source_exists? table_exists?
 
         def create_table table_name, **options
+          options[:options] ||= {}
+          options[:options].merge!(
+            parent_table: options[:parent_table],
+            on_delete: options[:on_delete]
+          )
+
           td = create_table_definition table_name, options
 
           if options[:id] != false
@@ -48,8 +52,7 @@ module ActiveRecord
 
           yield td if block_given?
 
-          table = information_schema.from_defination td
-          table.create drop_table: options[:force]
+          drop_table table_name if options[:force]
           execute_ddl schema_creation.accept td
         end
 
@@ -58,11 +61,27 @@ module ActiveRecord
           execute_ddl statements if statements
         end
 
+        def rename_table _table_name, _new_name
+          raise SpannerActiverecord::NotSupportedError, \
+                "rename_table is not implemented"
+        end
+
         # Column
+
         def add_column table_name, column_name, type, **options
+          at = create_alter_table table_name
+          at.add_column column_name, type, options
+          execute_ddl schema_creation.accept at
         end
 
         def remove_column table_name, column_name
+          column = SpannerActiverecord::Table::Column.new(
+            @connection,
+            table_name,
+            column_name
+          )
+
+          execute_ddl column.drop_sql
         end
 
         def change_column table_name, column_name, type, options = {}
@@ -71,27 +90,27 @@ module ActiveRecord
         def change_column_null table_name, column_name, null, default = nil
         end
 
-        def change_column_default *_args
+        def change_column_default _table_name, _column_name, _default_or_changes
           raise SpannerActiverecord::Error, \
                 "change column default not supported"
         end
 
-        def rename_column table_name, column_name, new_column_name
+        def rename_column _table_name, _column_name, _new_column_name
+          raise SpannerActiverecord::Error, \
+                "rename column default not supported"
         end
 
         def column_definitions table_name
           information_schema.table_columns table_name
         end
 
-        def new_column_from_field _table_name, info_schema_column
-          type_metdata = fetch_type_metadata \
-            index_column_names.type, index_column_names.ordinal_position
-
-          Spanner::Column.new \
-            info_schema_column.name,
-            index_column_names.default,
+        def new_column_from_field _table_name, field
+          type_metdata = fetch_type_metadata field.type, field.ordinal_position
+          ConnectionAdapters::Column.new \
+            field.name,
+            field.default,
             type_metdata,
-            info_schema_column.nullable?
+            field.nullable
         end
 
         def fetch_type_metadata sql_type, ordinal_position = nil
@@ -182,57 +201,18 @@ module ActiveRecord
             interleve_in: old_index_def.interleve_in
         end
 
-        # Table
-
-        def data_sources
-          information_schema.tables.map(&:name)
-        end
-        alias tables data_sources
-
-        def table_exists? table_name
-          !information_schema.table(table_name).nil?
-        end
-        alias data_source_exists? table_exists?
-
-        def create_table table_name, **options
-          td = create_table_definition table_name, options
-
-          if options[:id] != false
-            pk = options.fetch :primary_key do
-              Base.get_primary_key table_name.to_s.singularize
-            end
-
-            if pk.is_a? Array
-              td.primary_keys pk
-            else
-              td.primary_key pk, options.fetch(:id, :primary_key), options.except(:comment)
-            end
-          end
-
-          yield td if block_given?
-
-          table = information_schema.new_table td, drop_table: options[:force]
-
-
-          execute_ddl schema_creation.accept td
-        end
-
-        def drop_table table_name, _options = {}
-          statements = information_schema.table(table_name)&.drop_table_sql
-          execute_ddl statements if statements
-        end
-
         # Foreign keys are not supported.
         def foreign_keys _table_name
           []
         end
 
-        def schema_creation
-          Spanner::SchemaCreation.new self
+        def type_to_sql type
+          native_type = native_database_types[type.to_sym]
+          native_type ? native_type[:name] : type
         end
 
-        def create_table_definition *args
-          Spanner::TableDefinition.new self, *args
+        def schema_creation
+          SchemaCreation.new self
         end
       end
     end

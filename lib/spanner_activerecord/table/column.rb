@@ -1,40 +1,54 @@
 module SpannerActiverecord
   class Table
     class Column
-      attr_reader :table_name, :name, :type, :limit, :nullable,
-                  :ordinal_position, :allow_commit_timestamp,
-                  :reference_index
+      attr_reader :table_name, :name, :type, :limit, :ordinal_position,
+                  :allow_commit_timestamp, :reference_index, :default
+      attr_accessor :nullable
 
       def initialize \
-          connection,
           table_name,
           name,
           type,
           limit: nil,
           ordinal_position: nil,
-          nullable: true,
+          nullable: nil,
           allow_commit_timestamp: nil,
           default: nil,
-          reference_index_name: nil
+          reference_index_name: nil,
+          connection: nil
         @connection = connection
-        @table_name = table_name
-        @name = name
+        @table_name = table_name.to_s
+        @name = name.to_s
         @type = type
         @limit = limit
-        @nullable = nullable
+        @nullable = nullable.nil? || nullable == false
         @ordinal_position = ordinal_position
         @allow_commit_timestamp = allow_commit_timestamp
         @default = default
-        self.reference_index = reference_index_name
+        @primary_key = false
+        self.reference_index = reference_index_name if reference_index_name
       end
 
       def reference_index= index_name
         @reference_index = Index.new(
-          @connection,
           table_name,
           index_name,
-          Index::Column.new(@connection, table_name, index_name, name)
+          Index::Column.new(
+            table_name,
+            index_name, name,
+            connection: @connection
+          ),
+          connection: @connection
         )
+      end
+
+      def primary_key!
+        @primary_key = true
+        @nullable = false
+      end
+
+      def primary_key?
+        @primary_key
       end
 
       def add
@@ -75,8 +89,7 @@ module SpannerActiverecord
       end
 
       def rename _new_name
-        raise SpannerActiverecord::NotSupoorted, \
-              "rename of column not supported"
+        raise NotSupportedError, "rename of column not supported"
       end
 
       def spanner_type

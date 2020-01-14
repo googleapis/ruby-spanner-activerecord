@@ -6,7 +6,6 @@ module SpannerActiverecord
                 :interleve_in, :storing, :state
 
     def initialize \
-        connection,
         table,
         name,
         columns,
@@ -15,10 +14,11 @@ module SpannerActiverecord
         null_filtered: false,
         interleve_in: nil,
         storing: nil,
-        state: nil
+        state: nil,
+        connection: nil
       @connection = connection
-      @table = table
-      @name = name
+      @table = table.to_s
+      @name = name.to_s
       @columns = Array(columns)
       @type = type
       @unique = unique
@@ -30,10 +30,6 @@ module SpannerActiverecord
 
     def primary?
       @type == "PRIMARY_KEY"
-    end
-
-    def primary!
-      @type = "PRIMARY_KEY"
     end
 
     def orders_columns
@@ -77,7 +73,7 @@ module SpannerActiverecord
     end
 
     def rename _new_name
-      raise SpannerActiverecord::NotSupoorted, "rename of index not supported"
+      raise NotSupportedError, "rename of index not supported"
     end
   end
 end

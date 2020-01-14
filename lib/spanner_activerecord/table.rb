@@ -6,15 +6,15 @@ module SpannerActiverecord
 
     # parent_table == interleave_in
     def initialize \
-        connection,
         name,
         parent_table: nil,
         on_delete: nil,
         schema_name: nil,
-        catalog: nil
+        catalog: nil,
+        connection: nil
       @connection = connection
-      @name = name
-      @parent_table = parent_table
+      @name = name.to_s
+      @parent_table = parent_table.to_s if parent_table
       @on_delete = on_delete
       @schema_name = schema_name
       @catalog = catalog
@@ -49,49 +49,56 @@ module SpannerActiverecord
         nullable: false,
         allow_commit_timestamp: false
       @columns_hash[column_name] = Table::Column.new(
-        @connection,
         name,
         column_name,
         type,
         limit: limit,
         nullable: nullable,
-        allow_commit_timestamp: allow_commit_timestamp
+        allow_commit_timestamp: allow_commit_timestamp,
+        connection: @connection
       )
     end
 
     def add_index \
         index_name,
         columns,
-        primary: false,
         unique: false,
         null_filtered: false,
         interleve_in: nil,
         storing: nil
       columns = columns.map do |column, order|
-        Index::Column.new @connection, name, index_name, column, order: order
+        Index::Column.new \
+          name,
+          index_name,
+          column,
+          order: order,
+          connection: @connection
       end
 
       index = Index.new \
-        @connection,
         name,
         index_name,
         columns,
         unique: unique,
         null_filtered: null_filtered,
         interleve_in: interleve_in,
-        storing: storing
-      index.primary! if primary
+        storing: storing,
+        connection: @connection
       @indexes_hash[index_name] = index
     end
 
     def primary_keys= columns
-      @indexes_hash.delete_if { |_, index| index.primary? }
-      add_index "PRIMARY_KEY", Array(columns), primary: true
+      columns = Array(columns)
+      columns.each do |c|
+        column = @columns_hash[c.to_s]
+        column.nullable = false if column
+      end
     end
 
     def primary_keys
-      index = indexes.find(&:primary?)
-      index ? index.columns.map(&:name) : []
+      columns.each_with_object [] do |c, r|
+        r << c.name if c.primary_key?
+      end
     end
 
     def cascade?
@@ -99,7 +106,7 @@ module SpannerActiverecord
     end
 
     def rename _new_name
-      raise SpannerActiverecord::NotSupoorted, "rename of table not supported"
+      raise NotSupportedError, "rename of table not supported"
     end
 
     def drop
@@ -139,12 +146,8 @@ module SpannerActiverecord
     def create_sql
       statements = []
       columns_sql = columns.map(&:new_column_sql)
-
-      sql = +<<~SQL.strip
-        CREATE TABLE #{name}(
-          #{columns_sql.join ",\n  "}
-        ) PRIMARY KEY(#{primary_keys.join ','})
-      SQL
+      sql = +"CREATE TABLE #{name}(\n  #{columns_sql.join ",\n  "} \n)"
+      sql << " PRIMARY KEY(#{primary_keys.join ','})" if primary_keys.any?
 
       if parent_table
         sql << ", INTERLEAVE IN PARENT #{parent_table}"
@@ -168,7 +171,7 @@ module SpannerActiverecord
     end
 
     def cascade_change
-      @connection.execute_ddl on_delete_change_sql
+      @connection.execute_ddl cascade_change_sql
     end
 
     def cascade_change_sql

@@ -2,6 +2,6 @@ module SpannerActiverecord
   class Error < StandardError
   end
 
-  class NotSupoorted < Error
+  class NotSupportedError < Error
   end
 end

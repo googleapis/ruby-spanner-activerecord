@@ -22,12 +22,12 @@ module SpannerActiverecord
 
       rows.map do |row|
         table = Table.new(
-          @connection,
           row["TABLE_NAME"],
           parent_table: row["PARENT_TABLE_NAME"],
           on_delete: row["ON_DELETE_ACTION"],
           schema_name: row["TABLE_SCHEMA"],
-          catalog: row["TABLE_CATALOG"]
+          catalog: row["TABLE_CATALOG"],
+          connection: @connection
         )
         if [:full, :columns].include? view
           table.columns = table_columns table.name
@@ -62,14 +62,14 @@ module SpannerActiverecord
       ).map do |row|
         type, limit = parse_type_and_limit row["SPANNER_TYPE"]
         Table::Column.new \
-          @connection,
           table_name,
           row["COLUMN_NAME"],
           type,
           limit: limit,
           ordinal_position: row["ORDINAL_POSITION"],
-          not_null: row["IS_NULLABLE"] == "NO",
-          default: row["COLUMN_DEFAULT"]
+          nullable: row["IS_NULLABLE"] == "YES",
+          default: row["COLUMN_DEFAULT"],
+          connection: @connection
       end
     end
 
@@ -98,7 +98,6 @@ module SpannerActiverecord
         end
 
         Index.new \
-          @connection,
           table_name,
           row["INDEX_NAME"],
           columns,
@@ -107,7 +106,8 @@ module SpannerActiverecord
           null_filtered: row["IS_NULL_FILTERED"],
           interleve_in: row["PARENT_TABLE_NAME"],
           storing: storing,
-          state: row["INDEX_STATE"]
+          state: row["INDEX_STATE"],
+          connection: @connection
       end
     end
 
@@ -125,12 +125,12 @@ module SpannerActiverecord
         table_name: table_name, index_name: index_name
       ).map do |row|
         Index::Column.new \
-          @connection,
           table_name,
           row["INDEX_NAME"],
           row["COLUMN_NAME"],
           order: row["COLUMN_ORDERING"],
-          ordinal_position: row["ORDINAL_POSITION"]
+          ordinal_position: row["ORDINAL_POSITION"],
+          connection: @connection
       end
     end
 
