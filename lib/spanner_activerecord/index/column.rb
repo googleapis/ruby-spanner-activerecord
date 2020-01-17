@@ -1,7 +1,7 @@
 module SpannerActiverecord
   class Index
     class Column
-      attr_reader :table_name, :index_name, :name, :order, :ordinal_position
+      attr_accessor :table_name, :index_name, :name, :order, :ordinal_position
 
       def initialize \
           table_name,

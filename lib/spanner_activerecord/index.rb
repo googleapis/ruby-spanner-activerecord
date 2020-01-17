@@ -2,8 +2,8 @@ require "spanner_activerecord/index/column"
 
 module SpannerActiverecord
   class Index
-    attr_reader :table, :name, :columns, :type, :unique, :null_filtered,
-                :interleve_in, :storing, :state
+    attr_accessor :table, :name, :columns, :type, :unique, :null_filtered,
+                  :interleve_in, :storing, :state
 
     def initialize \
         table,
@@ -41,6 +41,23 @@ module SpannerActiverecord
     def orders
       orders_columns.each_with_object({}) do |c, r|
         r[c.name] = c.desc? ? :desc : :asc
+      end
+    end
+
+    def add_column column_name, order: nil
+      column_name = column_name.to_s
+      column = Column.new(
+        table,
+        name,
+        column_name,
+        order: order
+      )
+      pos = @columns.find_index { |c| c.name == column_name }
+
+      if pos
+        @columns[pos] = column
+      else
+        @columns << column
       end
     end
 

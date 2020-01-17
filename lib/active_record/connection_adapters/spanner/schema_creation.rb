@@ -6,18 +6,7 @@ module ActiveRecord
           @connection = connection
         end
 
-        def accept obj
-          case obj
-          when TableDefinition
-            visit_table_definition obj
-          when AlterTable
-            visit_alter_table obj
-          end
-        end
-
-        private
-
-        def visit_table_definition obj
+        def create_table obj
           table = SpannerActiverecord::Table.new(
             obj.name,
             parent_table: obj.options[:parent_table],
@@ -32,17 +21,21 @@ module ActiveRecord
                                  obj.columns.select(&:primary_key?).map(&:name)
                                end
 
-          statements = table.create_sql
-          statements.concat table.indexes_sql
-          statements.concat table.reference_indexes_sql
-          statements
+          obj.indexes.each do |index_columns, options|
+            add_index table, index_columns, options
+          end
+
+          table
         end
 
-        def visit_alter_table obj
-          table = SpannerActiverecord::Table.new obj.name, connection: @connection
-          add_columns table, obj.adds
-          table.columns.map(&:add_sql)
+        def alter_table obj
+          table = SpannerActiverecord::Table.new \
+            obj.name, connection: @connection
+          add_columns table, obj.adds.map(&:column)
+          table
         end
+
+        private
 
         def add_columns table, column_definations
           column_definations.each do |cd|
@@ -52,11 +45,27 @@ module ActiveRecord
               limit: cd.limit,
               nullable: cd.null,
               allow_commit_timestamp: cd.options[:allow_commit_timestamp]
-            column.primary_key! if cd.primary_key?
+            column.primary_key = true if cd.primary_key?
           end
         end
 
-        def visit_create_index
+        def add_index table, column_names, options
+          index_name = options[:name].to_s if options.key? :name
+          index_name ||= @connection.index_name table.name, column_names
+
+          options[:orders] ||= {}
+          columns = Array(column_names).each_with_object({}) do |c, r|
+            r[c.to_sym] = options[c.to_sym]
+          end
+
+          table.add_index(
+            index_name,
+            columns,
+            unique: options[:unique],
+            null_filtered: options[:null_filtered],
+            interleve_in: options[:interleve_in],
+            storing: options[:storing]
+          )
         end
       end
     end

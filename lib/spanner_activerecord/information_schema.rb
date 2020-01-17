@@ -60,7 +60,7 @@ module SpannerActiverecord
         table_name: table_name,
         column_name: column_name
       ).map do |row|
-        type, limit = parse_type_and_limit row["SPANNER_TYPE"]
+        type, limit = Table::Column.parse_type_and_limit row["SPANNER_TYPE"]
         Table::Column.new \
           table_name,
           row["COLUMN_NAME"],
@@ -83,9 +83,13 @@ module SpannerActiverecord
         index_name: index_name
       )
 
-      sql = "SELECT * FROM information_schema.indexes" \
+      sql = +"SELECT * FROM information_schema.indexes" \
         " WHERE table_name=%<table_name>s"
-      execute_query(sql, table_name: table_name).map do |row|
+      sql << " AND index_name=%<index_name>s" if index_name
+
+      execute_query(
+        sql, table_name: table_name, index_name: index_name
+      ).map do |row|
         columns = []
         storing = []
         table_indexes_columns.each do |c|
@@ -134,22 +138,20 @@ module SpannerActiverecord
       end
     end
 
+    def indexes_by_columns table_name, column_names
+      column_names = Array(column_names).map(&:to_s)
+
+      indexes(table_name).select do |index|
+        index.columns.any? { |c| column_names.include? c.name }
+      end
+    end
+
     private
 
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
-      @connection.execute_query sql
-    end
-
-    def parse_type_and_limit type
-      matched = /^([A-Z]*)\((.*)\)/.match type
-      return [type] unless matched
-
-      limit = matched[2]
-      limit = limit.to_i unless limit == "MAX"
-
-      [matched[1], limit]
+      @connection.execute sql
     end
   end
 end

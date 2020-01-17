@@ -40,6 +40,7 @@ module ActiveRecord
         string:       { name: "STRING", limit: "MAX" },
         text:         { name: "STRING", limit: "MAX" },
         integer:      { name: "INT64" },
+        bigint:       { name: "INT64" },
         float:        { name: "FLOAT64" },
         decimal:      { name: "FLOAT64" },
         datetime:     { name: "TIMESTAMP" },
@@ -134,7 +135,7 @@ module ActiveRecord
       end
 
       def information_schema
-        SpannerActiverecord::InformationSchema.new @connection
+        SpannerActiverecord::InformationSchema.new self
       end
 
       private

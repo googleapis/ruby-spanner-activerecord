@@ -59,6 +59,11 @@ module SpannerActiverecord
       )
     end
 
+    def alter
+      statements = columns.map(&:add_sql).flatten
+      @connection.execute_ddl statements if statements.any?
+    end
+
     def add_index \
         index_name,
         columns,
@@ -88,17 +93,14 @@ module SpannerActiverecord
     end
 
     def primary_keys= columns
-      columns = Array(columns)
-      columns.each do |c|
-        column = @columns_hash[c.to_s]
-        column.nullable = false if column
+      columns = Array(columns).map(&:to_s)
+      @columns_hash.each do |_, c|
+        c.primary_key = columns.include? c.name
       end
     end
 
     def primary_keys
-      columns.each_with_object [] do |c, r|
-        r << c.name if c.primary_key?
-      end
+      columns.select(&:primary_key).map(&:name)
     end
 
     def cascade?
@@ -116,6 +118,7 @@ module SpannerActiverecord
     def drop_table_sql
       statements = drop_indexs_sql
       statements << "DROP TABLE #{name}"
+      statements
     end
 
     def drop_indexes
@@ -138,8 +141,6 @@ module SpannerActiverecord
 
       statements.concat create_sql
       statements.concat indexes_sql
-      statements.concat reference_indexes_sql
-
       @connection.execute_ddl statements
     end
 
@@ -147,7 +148,7 @@ module SpannerActiverecord
       statements = []
       columns_sql = columns.map(&:new_column_sql)
       sql = +"CREATE TABLE #{name}(\n  #{columns_sql.join ",\n  "} \n)"
-      sql << " PRIMARY KEY(#{primary_keys.join ','})" if primary_keys.any?
+      sql << " PRIMARY KEY(#{primary_keys.join ', '})" if primary_keys.any?
 
       if parent_table
         sql << ", INTERLEAVE IN PARENT #{parent_table}"
