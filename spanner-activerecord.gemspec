@@ -6,8 +6,8 @@ require "spanner_activerecord/version"
 Gem::Specification.new do |spec|
   spec.name          = "spanner-activerecord"
   spec.version       = SpannerActiverecord::VERSION
-  spec.authors       = ["Jiren Patel"]
-  spec.email         = ["jirenpatel@gmail.com"]
+  spec.authors       = ["Google LLC"]
+  spec.email         = ["cloud-spanner-developers@googlegroups.com"]
 
   spec.summary       = %q{Rails ActiveRecord connector for Google Spanner Database}
   spec.description   = %q{Rails ActiveRecord connector for Google Spanner Database}
