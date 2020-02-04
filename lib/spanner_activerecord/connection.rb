@@ -4,78 +4,101 @@ require "spanner_activerecord/information_schema"
 
 module SpannerActiverecord
   class Connection
-    attr_reader :spanner, :client
+    Transaction = Struct.new :id, :seqno
 
-    def initialize \
-        project_id,
-        instance_id,
-        database_id,
-        credentials: nil,
-        scope: nil,
-        timeout: nil,
-        client_config: nil,
-        pool_config: nil,
-        init_client: nil
-      @instance_id = instance_id
-      @database_id = database_id
-      @pool_config = (pool_config || {}).symbolize_keys
-      @spanner = Google::Cloud.spanner \
-        project_id,
-        credentials,
-        scope: scope,
-        timeout: timeout,
-        client_config: client_config&.symbolize_keys
+    attr_reader :spanner
 
-      return unless init_client
-      @client = @spanner.client @instance_id, @database_id, pool: @pool_config
+    def initialize service, session
+      @service = service
+      @session = session
+    end
+
+    def database_id
+      @session.database_id
     end
 
     def active?
-      execute_query "SELECT 1"
+      @session.execute_query "SELECT 1"
       true
     rescue StandardError
       false
     end
 
     def disconnect!
-      @client.close
+      @session.release!
     end
 
     def reset!
-      @client.reset
+      @session.reload!
     end
 
-    def execute_query sql, params: nil, types: nil, single_use: nil
-      @client.execute_query(
-        sql, params: params, types: types, single_use: single_use
+    # DDL Statement
+
+    # @params [Array<String>, String] sql Single or list of statements
+    def execute_ddl statements, operation_id: nil
+      @service.execute_ddl statements, operation_id: operation_id
+    end
+
+    # DQL, DML Statements
+
+    def execute_query sql, params: nil, types: nil
+      if params
+        params, types = \
+          Gooogle::Cloud::Spanner::Convert.to_input_params_and_types(
+            params, types
+          )
+      end
+
+      @session.execute_query(
+        sql, params: params, types: types, transaction: transaction_selector,
+        seqno: (current_transaction&.seqno += 1)
       ).rows
     end
 
-    # @params [Array<String>, String] sql Single or list of statements
-    def execute_ddl statements, operation_id: nil, wait_until_done: true
-      job = database.update statements: statements, operation_id: operation_id
-      job.wait_until_done! if wait_until_done
-      raise Google::Cloud::Error.from_error job.error if job.error?
-      job.done?
+    def begin_trasaction
+      self.current_transaction = @session.begin_transaction.id
     end
 
-    def create_database
-      job = @spanner.create_database @instance_id, database_id
-      job.wait_until_done!
-      raise Google::Cloud::Error.from_error job.error if job.error?
-      job.database
-    end
+    def commit_trransaction deadline: 120
+      return unless current_transaction
 
-    def database
-      @database ||= begin
-        database = @spanner.database @instance_id, @database_id
-        raise Google::Cloud::NotFoundError, @database_id unless database
-        database
+      start_time = Time.now
+      @session.commit_transaction current_transaction.id
+    rescue GRPC::Aborted, Google::Cloud::AbortedError => err
+      if Time.now - start_time > deadline
+        err = Google::Cloud::Error.from_error err if err.is_a? GRPC::BadStatus
+        raise err
       end
+      # TODO: Handle retry delay delay_from_aborted error
+      begin_transaction
+      retry
+    ensure
+      clear_current_transaction
     end
 
-    def inspect
-      "#{self.class}(#{@spanner.project_id}/#{@instance_id}/#{@database_id})"
+    def rollback_transaction
+      return unless current_transaction
+
+      @session.rollback current_transaction.id
+    ensure
+      clear_current_transaction
+    end
+
+    def transaction_selector
+      return unless current_transaction
+      Google::Spanner::V1::TransactionSelector.new id: current_transaction.id
+    end
+
+    def current_transaction
+      Thread.current[:session_txn]
+    end
+
+    def current_transaction= id
+      Thread.current[:session_txn] = Transaction.new id, 0
+    end
+
+    def clear_current_transaction
+      Thread.current[:session_txn] = nil
     end
   end
 end

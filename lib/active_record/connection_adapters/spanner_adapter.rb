@@ -1,28 +1,20 @@
+require "securerandom"
 require "active_record/base"
 require "active_record/connection_adapters/abstract_adapter"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
-require "spanner_activerecord/connection"
+require "arel/visitors/spanner"
+require "spanner_activerecord/service"
 
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
-      config = config.symbolize_keys
+      service = SpannerActiverecord::Service.services config
 
-      connection = SpannerActiverecord::Connection.new \
-        config[:project],
-        config[:instance],
-        config[:database],
-        credentials: config[:credentials],
-        scope: config[:scope],
-        timeout: config[:timeout],
-        client_config: config[:client_config],
-        pool_config: config[:pool],
-        init_client: true
-
-      ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
+      ConnectionAdapters::SpannerAdapter.new \
+        service.new_connection, logger, nil, config
     rescue Google::Cloud::Error => error
       if error.instance_of? Google::Cloud::NotFoundError
         raise ActiveRecord::NoDatabaseError
@@ -36,7 +28,7 @@ module ActiveRecord
       ADAPTER_NAME = "spanner".freeze
       MAX_IDENTIFIER_LENGTH = 128
       NATIVE_DATABASE_TYPES = {
-        primary_key:  { name: "INT64" },
+        primary_key:  "STRING(36)",
         string:       { name: "STRING", limit: "MAX" },
         text:         { name: "STRING", limit: "MAX" },
         integer:      { name: "INT64" },
@@ -70,7 +62,7 @@ module ActiveRecord
 
       def self.database_exists? config
         connection = ActiveRecord::Base.spanner_connection config
-        connection.close
+        connection.disconnect!
         true
       rescue ActiveRecord::NoDatabaseError
         false
@@ -134,8 +126,28 @@ module ActiveRecord
         true
       end
 
+      def supports_primary_key?
+        true
+      end
+
+      def prefetch_primary_key? _table_name = nil
+        true
+      end
+
+      def next_sequence_value _sequence_name
+        SecureRandom.uuid
+      end
+
+      def arel_visitor
+        Arel::Visitors::Spanner.new self
+      end
+
+      # Information Schema
+
       def information_schema
-        SpannerActiverecord::InformationSchema.new self
+        SpannerActiverecord::InformationSchema.new(
+          SpannerActiverecord::Service.services(@config)
+        )
       end
 
       private

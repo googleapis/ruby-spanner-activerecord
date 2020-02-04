@@ -77,7 +77,12 @@ module SpannerActiverecord
       table_columns(table_name, column_name: column_name).first
     end
 
-    def indexes table_name, index_name: nil
+    def table_primary_keys table_name
+      index = indexes(table_name, index_type: "PRIMARY_KEY").first
+      index&.columns || []
+    end
+
+    def indexes table_name, index_name: nil, index_type: nil
       table_indexes_columns = index_columns(
         table_name,
         index_name: index_name
@@ -86,9 +91,13 @@ module SpannerActiverecord
       sql = +"SELECT * FROM information_schema.indexes" \
         " WHERE table_name=%<table_name>s"
       sql << " AND index_name=%<index_name>s" if index_name
+      sql << " AND index_type=%<index_type>s" if index_type
 
       execute_query(
-        sql, table_name: table_name, index_name: index_name
+        sql,
+        table_name: table_name,
+        index_name: index_name,
+        index_type: index_type
       ).map do |row|
         columns = []
         storing = []
@@ -151,7 +160,7 @@ module SpannerActiverecord
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
-      @connection.execute sql
+      @connection.execute_query sql
     end
   end
 end

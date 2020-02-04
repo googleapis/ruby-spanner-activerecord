@@ -1,24 +1,23 @@
-require "spanner_activerecord/connection"
+require "spanner_activerecord/service"
 
 module ActiveRecord
   module Tasks
     class SpannerDatabaseTasks
-      attr_reader :config
-
       def initialize config
-        @config = config.symbolize_keys
-        @connection = SpannerActiverecord::Connection.new \
-          @config[:project],
-          @config[:instance],
-          @config[:database],
-          credentials: @config[:credentials],
-          scope: @config[:scope],
-          timeout: @config[:timeout],
-          client_config: @config[:client_config]
+        config = config.symbolize_keys
+        @service = SpannerActiverecord::Service.new(
+          config[:project],
+          config[:instance],
+          config[:database],
+          credentials: config[:credentials],
+          scope: config[:scope],
+          timeout: config[:timeout],
+          client_config: config[:client_config]
+        )
       end
 
       def create
-        @connection.create_database
+        @service.create_database
       rescue Google::Cloud::Error => error
         if error.instance_of? Google::Cloud::AlreadyExistsError
           raise ActiveRecord::Tasks::DatabaseAlreadyExists
@@ -37,11 +36,11 @@ module ActiveRecord
       end
 
       def charset
-        config[:charset]
+        nil
       end
 
       def collation
-        config[:collation]
+        nil
       end
 
       def structure_dump filename, _extra_flags
@@ -71,7 +70,7 @@ module ActiveRecord
       private
 
       def database
-        @connection.database
+        @service.database
       rescue Google::Cloud::NotFoundError => error
         raise ActiveRecord::NoDatabaseError, error
       end

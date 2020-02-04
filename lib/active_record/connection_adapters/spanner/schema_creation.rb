@@ -2,7 +2,8 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       class SchemaCreation
-        def initialize connection
+        def initialize adapter, connection
+          @adapter = adapter
           @connection = connection
         end
 
@@ -41,7 +42,7 @@ module ActiveRecord
           column_definations.each do |cd|
             column = table.add_column \
               cd.name,
-              @connection.type_to_sql(cd.type),
+              @adapter.type_to_sql(cd.type),
               limit: cd.limit,
               nullable: cd.null,
               allow_commit_timestamp: cd.options[:allow_commit_timestamp]
@@ -51,7 +52,7 @@ module ActiveRecord
 
         def add_index table, column_names, options
           index_name = options[:name].to_s if options.key? :name
-          index_name ||= @connection.index_name table.name, column_names
+          index_name ||= @adapter.index_name table.name, column_names
 
           options[:orders] ||= {}
           columns = Array(column_names).each_with_object({}) do |c, r|

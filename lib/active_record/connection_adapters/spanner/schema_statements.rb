@@ -167,6 +167,11 @@ module ActiveRecord
           remove_index table_name, name: old_name
         end
 
+        def primary_keys table_name
+          index_columns = information_schema.table_primary_keys table_name
+          index_columns.map(&:name)
+        end
+
         # Foreign keys are not supported.
         def foreign_keys _table_name
           []
@@ -174,11 +179,14 @@ module ActiveRecord
 
         def type_to_sql type
           native_type = native_database_types[type.to_sym]
-          native_type ? native_type[:name] : type
+          return native_type[:name] || type if native_type.is_a? Hash
+          native_type
         end
 
+        private
+
         def schema_creation
-          SchemaCreation.new self
+          SchemaCreation.new self, @connection
         end
       end
     end

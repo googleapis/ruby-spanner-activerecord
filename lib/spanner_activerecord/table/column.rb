@@ -105,11 +105,14 @@ module SpannerActiverecord
       end
 
       def spanner_type
-        if type == "STRING" || type == "BYTES"
-          return "#{type}(#{limit || 'MAX'})"
+        case type
+        when "STRING", "BYTES"
+          "#{type}(#{limit || 'MAX'})"
+        when "UUID"
+          "STRING(36)"
+        else
+          type
         end
-
-        type
       end
 
       def new_column_sql action = nil
