@@ -160,7 +160,7 @@ module SpannerActiverecord
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
-      @connection.execute_query sql
+      @connection.execute_query(sql).rows
     end
   end
 end

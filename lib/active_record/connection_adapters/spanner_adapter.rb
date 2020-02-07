@@ -4,17 +4,17 @@ require "active_record/connection_adapters/abstract_adapter"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
+require "active_record/connection_adapters/spanner/schema_definitions"
 require "arel/visitors/spanner"
-require "spanner_activerecord/service"
+require "spanner_activerecord/connection"
 
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
-      service = SpannerActiverecord::Service.services config
-
-      ConnectionAdapters::SpannerAdapter.new \
-        service.new_connection, logger, nil, config
+      connection = SpannerActiverecord::Connection.new config
+      connection.connect!
+      ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
     rescue Google::Cloud::Error => error
       if error.instance_of? Google::Cloud::NotFoundError
         raise ActiveRecord::NoDatabaseError
@@ -26,7 +26,6 @@ module ActiveRecord
   module ConnectionAdapters
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
-      MAX_IDENTIFIER_LENGTH = 128
       NATIVE_DATABASE_TYPES = {
         primary_key:  "STRING(36)",
         string:       { name: "STRING", limit: "MAX" },
@@ -51,7 +50,7 @@ module ActiveRecord
       end
 
       def max_identifier_length
-        MAX_IDENTIFIER_LENGTH
+        128
       end
 
       def native_database_types
@@ -145,9 +144,7 @@ module ActiveRecord
       # Information Schema
 
       def information_schema
-        SpannerActiverecord::InformationSchema.new(
-          SpannerActiverecord::Service.services(@config)
-        )
+        SpannerActiverecord::InformationSchema.new @connection
       end
 
       private

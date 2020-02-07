@@ -140,7 +140,7 @@ module ActiveRecord
             null_filtered: options[:null_filtered],
             interleve_in: options[:interleve_in],
             storing: options[:storing],
-            connection: self
+            connection: @connection
           )
 
           options[:orders] ||= {}

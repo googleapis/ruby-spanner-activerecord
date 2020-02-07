@@ -7,6 +7,8 @@ module ActiveRecord
         # DDL Statements
 
         def execute_ddl sql, migration_name: nil
+          materialize_transactions
+
           log sql, "SCHEMA" do
             @connection.execute_ddl sql, operation_id: migration_name
           end
@@ -26,50 +28,43 @@ module ActiveRecord
 
           log sql, name do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_query sql
+              result = @connection.execute_query sql
+              ActiveRecord::Result.new(
+                result.fields.keys.map(&:to_s), result.rows.map(&:values)
+              )
             end
           end
         end
 
         def query sql, name = nil
-          execute sql, name
+          exec_query sql, name
         end
 
         def exec_query sql, name = "SQL", binds = [], prepare: false
-          ActiveRecord::Result.new [], []
-        end
-
-        def exec_insert sql, name = nil, binds = [], pk = nil, sequence_name = nil
           params = binds.each_with_object({}) do |attribute, result|
             result[attribute.name] = attribute.value_for_database
           end
 
-          # TODO : Get current session for client session pool
-          # and execute transection with the current sessions and use use transection
-          # method.
-
           log sql, name, binds do
-            @connection.client.transaction do |tx|
-              tx.execute_query sql, params: params
-            end
+            result = @connection.execute_query sql, params: params
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
           end
         end
 
         # Transaction
 
-        # TODO : Support lazy transactions
-        def transaction requires_new: nil, isolation: nil, joinable: true, &block
-          yield
-          # @connection.client.transaction(&block)
-        end
-
         def begin_db_transaction
+          @connection.begin_trasaction
         end
 
         def commit_db_transaction
+          @connection.commit_transaction
         end
 
         def rollback_db_transaction
+          @connection.rollback_transaction
         end
       end
     end

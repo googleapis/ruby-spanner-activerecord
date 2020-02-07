@@ -5,29 +5,21 @@ module ActiveRecord
     class SpannerDatabaseTasks
       def initialize config
         config = config.symbolize_keys
-        @service = SpannerActiverecord::Service.new(
-          config[:project],
-          config[:instance],
-          config[:database],
-          credentials: config[:credentials],
-          scope: config[:scope],
-          timeout: config[:timeout],
-          client_config: config[:client_config]
-        )
+        @connection = SpannerActiverecord::Connection.new config
       end
 
       def create
-        @service.create_database
+        @connection.create_database
       rescue Google::Cloud::Error => error
         if error.instance_of? Google::Cloud::AlreadyExistsError
           raise ActiveRecord::Tasks::DatabaseAlreadyExists
         end
 
-        raise ActiveRecord::StatementInvalid, error
+        raise error
       end
 
       def drop
-        database.drop
+        @connection.database.drop
       end
 
       def purge
@@ -52,7 +44,7 @@ module ActiveRecord
           table_regx = /^CREATE TABLE (#{ignore_tables.join "|"})/
         end
 
-        database.ddl(force: true).each do |statement|
+        @connection.database.ddl(force: true).each do |statement|
           next if ignore_tables.any? &&
                   (table_regx =~ statement || index_regx =~ statement)
           file.write statement
@@ -64,15 +56,7 @@ module ActiveRecord
 
       def structure_load filename, _extra_flags
         statements = File.read(filename).split(/(?=^CREATE)/)
-        database.update statements: statements
-      end
-
-      private
-
-      def database
-        @service.database
-      rescue Google::Cloud::NotFoundError => error
-        raise ActiveRecord::NoDatabaseError, error
+        @connection.execute_ddl statements
       end
     end
   end

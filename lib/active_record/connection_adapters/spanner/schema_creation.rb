@@ -30,8 +30,9 @@ module ActiveRecord
         end
 
         def alter_table obj
-          table = SpannerActiverecord::Table.new \
+          table = SpannerActiverecord::Table.new(
             obj.name, connection: @connection
+          )
           add_columns table, obj.adds.map(&:column)
           table
         end
