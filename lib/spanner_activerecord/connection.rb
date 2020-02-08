@@ -41,11 +41,13 @@ module SpannerActiverecord
 
     def disconnect!
       session.release!
+    ensure
       @session = nil
     end
 
     def reset!
-      session.reload!
+      disconnect!
+      session
     end
 
     # DDL Statements
@@ -81,7 +83,7 @@ module SpannerActiverecord
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, types: nil
+    def execute_query sql, params: nil
       if params
         params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
@@ -93,6 +95,17 @@ module SpannerActiverecord
         sql, params: params, types: types, transaction: transaction_selector,
         seqno: (current_transaction&.seqno += 1)
       )
+    end
+
+    def execute_delete sql, params: nil
+      transaction = begin_trasaction unless current_transaction
+      result = execute_query sql, params: params
+      result.rows.to_a
+      return result.row_count if result.row_count
+
+      raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
+    ensure
+      commit_transaction if transaction
     end
 
     def begin_trasaction
