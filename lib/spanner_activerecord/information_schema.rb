@@ -29,9 +29,11 @@ module SpannerActiverecord
           catalog: row["TABLE_CATALOG"],
           connection: @connection
         )
+
         if [:full, :columns].include? view
           table.columns = table_columns table.name
         end
+
         if [:full, :indexes].include? view
           table.indexes = indexes table.name
         end
@@ -48,12 +50,9 @@ module SpannerActiverecord
     end
 
     def table_columns table_name, column_name: nil
-      sql = +"SELECT * FROM information_schema.columns" \
-          " WHERE table_name=%<table_name>s"
-
-      if column_name
-        sql << " AND column_name=%<column_name>s"
-      end
+      sql = +"SELECT * FROM information_schema.columns"
+      sql << " WHERE table_name=%<table_name>s" if table_name
+      sql << " AND column_name=%<column_name>s" if column_name
 
       execute_query(
         sql,

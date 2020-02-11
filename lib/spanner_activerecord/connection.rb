@@ -83,29 +83,39 @@ module SpannerActiverecord
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil
+    def execute_query sql, params: nil, transaction_required: nil
       if params
-        params, types = \
+        converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
-            params, types
+            params, nil
           )
       end
 
-      session.execute_query(
-        sql, params: params, types: types, transaction: transaction_selector,
+      if transaction_required && current_transaction.nil?
+        transaction = begin_trasaction
+      end
+
+      session.execute_query \
+        sql,
+        params: converted_params,
+        types: types,
+        transaction: transaction_selector,
         seqno: (current_transaction&.seqno += 1)
-      )
+    rescue Google::Cloud::NotFoundError
+      # Session is idle for too long then it will throw an error not found.
+      # In this case reset and retry.
+      reset!
+      retry
+    ensure
+      commit_transaction if transaction
     end
 
     def execute_delete sql, params: nil
-      transaction = begin_trasaction unless current_transaction
       result = execute_query sql, params: params
       result.rows.to_a
       return result.row_count if result.row_count
 
       raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
-    ensure
-      commit_transaction if transaction
     end
 
     def begin_trasaction
@@ -116,17 +126,21 @@ module SpannerActiverecord
       return unless current_transaction
 
       start_time = Time.now
+      backoff = 1.0
       session.commit_transaction current_transaction.id
     rescue GRPC::Aborted, Google::Cloud::AbortedError => err
       if Time.now - start_time > deadline
         err = Google::Cloud::Error.from_error err if err.is_a? GRPC::BadStatus
         raise err
       end
-      # TODO: Handle retry delay delay_from_aborted error
-      begin_transaction
+      sleep(delay_from_aborted(err) || backoff *= 1.3)
       retry
+    rescue StandardError => err
+      rollback_transaction
+      return nil if err.is_a? Google::Cloud::Spanner::Rollback
+      raise err
     ensure
-      clear_current_transaction
+      clear_current_transaction_context
     end
 
     def rollback_transaction
@@ -134,7 +148,7 @@ module SpannerActiverecord
 
       session.rollback current_transaction.id
     ensure
-      clear_current_transaction
+      clear_current_transaction_context
     end
 
     def transaction_selector
@@ -150,8 +164,28 @@ module SpannerActiverecord
       Thread.current[:session_txn] = Transaction.new id, 0
     end
 
-    def clear_current_transaction
+    def clear_current_transaction_context
       Thread.current[:session_txn] = nil
+    end
+
+    private
+
+    ##
+    # Retrieves the delay value from Google::Cloud::AbortedError or
+    # GRPC::Aborted
+    def delay_from_aborted err
+      return nil if err.nil?
+      if err.respond_to?(:metadata) && err.metadata["retryDelay"]
+        seconds = err.metadata["retryDelay"]["seconds"].to_i
+        nanos = err.metadata["retryDelay"]["nanos"].to_i
+        return seconds if nanos.zero?
+        return seconds + (nanos / 1000000000.0)
+      end
+      # No metadata? Try the inner error
+      delay_from_aborted err.cause
+    rescue StandardError
+      # Any error indicates the backoff should be handled elsewhere
+      nil
     end
   end
 end

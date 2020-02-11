@@ -62,7 +62,14 @@ module ActiveRecord
           end
         end
 
-        def exec_delete sql, name = "SQL", binds = []
+        def update arel, name = nil, binds = []
+          sql, binds = to_sql_and_binds arel, binds
+          sql = "#{sql} WHERE (1=1)" if arel.ast.wheres.empty?
+          exec_update sql, name, binds
+        end
+        alias delete update
+
+        def exec_update sql, name = "SQL", binds = []
           if preventing_writes? && write_query?(sql)
             raise ActiveRecord::ReadOnlyError(
               "Write query attempted while in readonly mode: #{sql}"
@@ -70,9 +77,16 @@ module ActiveRecord
           end
 
           log sql, name, binds do
-            @connection.execute_delete sql, params: convert_to_params(binds)
+            result = @connection.execute_query(
+              sql, params: convert_to_params(binds), transaction_required: true
+            )
+            result.rows.to_a
+            return result.row_count if result.row_count
+
+            raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
           end
         end
+        alias exec_delete exec_update
 
         # Transaction
 
