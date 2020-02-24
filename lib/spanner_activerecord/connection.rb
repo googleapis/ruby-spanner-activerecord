@@ -4,8 +4,6 @@ require "spanner_activerecord/information_schema"
 
 module SpannerActiverecord
   class Connection
-    Transaction = Struct.new :id, :seqno
-
     attr_reader :instance_id, :database_id, :spanner
 
     def initialize config
@@ -158,6 +156,7 @@ module SpannerActiverecord
 
     def transaction_selector
       return unless current_transaction
+
       Google::Spanner::V1::TransactionSelector.new \
         id: current_transaction.transaction_id
     end

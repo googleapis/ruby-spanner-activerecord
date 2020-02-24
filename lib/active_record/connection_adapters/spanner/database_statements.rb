@@ -49,21 +49,10 @@ module ActiveRecord
 
         # TODO: Read query with strong read with timestamp.
         def exec_query sql, name = "SQL", binds = [], prepare: false
-          if preventing_writes? && write_query?(sql)
-            raise ActiveRecord::ReadOnlyError(
-              "Write query attempted while in readonly mode: #{sql}"
-            )
-          end
-
-          log sql, name, binds do
-            # result = @connection.execute_query(
-            #   sql, params: convert_to_params(binds)
-            # )
-            result = @connection.execute_query sql
-            ActiveRecord::Result.new(
-              result.fields.keys.map(&:to_s), result.rows.map(&:values)
-            )
-          end
+          result = _exec_query sql, name, binds
+          ActiveRecord::Result.new(
+            result.fields.keys.map(&:to_s), result.rows.map(&:values)
+          )
         end
 
         # rubocop:enable Lint/UnusedMethodArgument)
@@ -76,22 +65,13 @@ module ActiveRecord
         alias delete update
 
         def exec_update sql, name = "SQL", binds = []
-          if preventing_writes? && write_query?(sql)
-            raise ActiveRecord::ReadOnlyError(
-              "Write query attempted while in readonly mode: #{sql}"
-            )
-          end
+          result = _exec_query sql, name, binds, transaction_required: true
+          result.rows.to_a
+          return result.row_count if result.row_count
 
-          log sql, name, binds do
-            # result = @connection.execute_query(
-            #   sql, params: convert_to_params(binds), transaction_required: true
-            # )
-            result = @connection.execute_query sql
-            result.rows.to_a
-            return result.row_count if result.row_count
-
-            raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
-          end
+          raise ActiveRecord::StatementInvalid.new(
+            "DML statement is invalid.", sql
+          )
         end
         alias exec_delete exec_update
 
@@ -114,6 +94,19 @@ module ActiveRecord
         def convert_to_params binds
           binds.each_with_object({}) do |attribute, result|
             result[attribute.name] = attribute.value_for_database
+          end
+        end
+
+        def _exec_query sql, name, binds, transaction_required: nil
+          if preventing_writes? && write_query?(sql)
+            raise ActiveRecord::ReadOnlyError(
+              "Write query attempted while in readonly mode: #{sql}"
+            )
+          end
+
+          log sql, name, binds do
+            @connection.execute_query \
+              sql, transaction_required: transaction_required
           end
         end
       end
