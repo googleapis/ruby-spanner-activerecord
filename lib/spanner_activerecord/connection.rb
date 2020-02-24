@@ -118,8 +118,11 @@ module SpannerActiverecord
       raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
     end
 
+    # Transactions
+
     def begin_trasaction
-      self.current_transaction = session.begin_transaction.id
+      raise "Nested transactions are not allowed" if current_transaction
+      self.current_transaction = session.create_transaction
     end
 
     def commit_transaction deadline: 120
@@ -127,10 +130,12 @@ module SpannerActiverecord
 
       start_time = Time.now
       backoff = 1.0
-      session.commit_transaction current_transaction.id
+      session.commit_transaction current_transaction
     rescue GRPC::Aborted, Google::Cloud::AbortedError => err
       if Time.now - start_time > deadline
-        err = Google::Cloud::Error.from_error err if err.is_a? GRPC::BadStatus
+        if err.is_a? GRPC::BadStatus
+          err = Google::Cloud::Error.from_error err
+        end
         raise err
       end
       sleep(delay_from_aborted(err) || backoff *= 1.3)
@@ -140,32 +145,29 @@ module SpannerActiverecord
       return nil if err.is_a? Google::Cloud::Spanner::Rollback
       raise err
     ensure
-      clear_current_transaction_context
+      self.current_transaction = nil
     end
 
     def rollback_transaction
-      return unless current_transaction
-
-      session.rollback current_transaction.id
+      if current_transaction
+        session.rollback current_transaction.transaction_id
+      end
     ensure
-      clear_current_transaction_context
+      self.current_transaction = nil
     end
 
     def transaction_selector
       return unless current_transaction
-      Google::Spanner::V1::TransactionSelector.new id: current_transaction.id
+      Google::Spanner::V1::TransactionSelector.new \
+        id: current_transaction.transaction_id
     end
 
     def current_transaction
-      Thread.current[:session_txn]
+      Thread.current[:_session_txn]
     end
 
-    def current_transaction= id
-      Thread.current[:session_txn] = Transaction.new id, 0
-    end
-
-    def clear_current_transaction_context
-      Thread.current[:session_txn] = nil
+    def current_transaction= transaction
+      Thread.current[:_session_txn] = transaction
     end
 
     private

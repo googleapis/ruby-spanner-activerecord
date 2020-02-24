@@ -45,6 +45,9 @@ module ActiveRecord
           exec_query sql, name
         end
 
+        # rubocop:disable Lint/UnusedMethodArgument
+
+        # TODO: Read query with strong read with timestamp.
         def exec_query sql, name = "SQL", binds = [], prepare: false
           if preventing_writes? && write_query?(sql)
             raise ActiveRecord::ReadOnlyError(
@@ -53,18 +56,21 @@ module ActiveRecord
           end
 
           log sql, name, binds do
-            result = @connection.execute_query(
-              sql, params: convert_to_params(binds)
-            )
+            # result = @connection.execute_query(
+            #   sql, params: convert_to_params(binds)
+            # )
+            result = @connection.execute_query sql
             ActiveRecord::Result.new(
               result.fields.keys.map(&:to_s), result.rows.map(&:values)
             )
           end
         end
 
+        # rubocop:enable Lint/UnusedMethodArgument)
+
         def update arel, name = nil, binds = []
           sql, binds = to_sql_and_binds arel, binds
-          sql = "#{sql} WHERE (1=1)" if arel.ast.wheres.empty?
+          sql = "#{sql} WHERE true" if arel.ast.wheres.empty?
           exec_update sql, name, binds
         end
         alias delete update
@@ -77,9 +83,10 @@ module ActiveRecord
           end
 
           log sql, name, binds do
-            result = @connection.execute_query(
-              sql, params: convert_to_params(binds), transaction_required: true
-            )
+            # result = @connection.execute_query(
+            #   sql, params: convert_to_params(binds), transaction_required: true
+            # )
+            result = @connection.execute_query sql
             result.rows.to_a
             return result.row_count if result.row_count
 

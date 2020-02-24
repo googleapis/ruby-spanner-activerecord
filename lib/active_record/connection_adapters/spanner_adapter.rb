@@ -45,6 +45,7 @@ module ActiveRecord
       include Spanner::SchemaStatements
 
       def initialize connection, logger, connection_options, config
+        config[:prepared_statements] = false
         super connection, logger, config
         @connection_options = connection_options
       end
