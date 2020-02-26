@@ -8,6 +8,7 @@ module SpannerActiverecord
 
     def initialize connection
       @connection = connection
+      @mutex = Mutex.new
     end
 
     def tables table_name: nil, schema_name: nil, view: nil
@@ -159,7 +160,10 @@ module SpannerActiverecord
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
-      @connection.execute_query(sql).rows
+
+      @mutex.synchronize do
+        @connection.execute_query_in_snapshot(sql).rows
+      end
     end
   end
 end

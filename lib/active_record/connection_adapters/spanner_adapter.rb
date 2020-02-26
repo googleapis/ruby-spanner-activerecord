@@ -145,7 +145,7 @@ module ActiveRecord
       # Information Schema
 
       def information_schema
-        SpannerActiverecord::InformationSchema.new @connection
+        SpannerActiverecord::Connection.information_schema @config
       end
 
       private

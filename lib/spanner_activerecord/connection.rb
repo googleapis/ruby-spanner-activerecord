@@ -5,6 +5,7 @@ require "spanner_activerecord/information_schema"
 module SpannerActiverecord
   class Connection
     attr_reader :instance_id, :database_id, :spanner
+    attr_accessor :current_transaction
 
     def initialize config
       @instance_id = config[:instance]
@@ -15,14 +16,21 @@ module SpannerActiverecord
     def self.spanners config
       config = config.symbolize_keys
       @spanners ||= {}
-      path = "#{config[:project]}/#{config[:instance]}/#{config[:database]}"
-      @spanners[path] ||= Google::Cloud.spanner(
+      @spanners[database_path(config)] ||= Google::Cloud.spanner(
         config[:project],
         config[:credentials],
         scope: config[:scope],
         timeout: config[:timeout],
-        client_config: config[:client_config]&.symbolize_keys
+        client_config: config[:client_config]&.symbolize_keys,
+        lib_name: "spanner-activerecord-adapter",
+        lib_version: SpannerActiverecord::VERSION
       )
+    end
+
+    def self.information_schema config
+      @information_schemas ||= {}
+      @information_schemas[database_path(config)] ||= \
+        SpannerActiverecord::InformationSchema.new new(config)
     end
 
     def session
@@ -161,12 +169,19 @@ module SpannerActiverecord
         id: current_transaction.transaction_id
     end
 
-    def current_transaction
-      Thread.current[:_session_txn]
+    def execute_query_in_snapshot sql
+      raise "Nested snapshots are not allowed" if current_transaction
+
+      snp_grpc = @spanner.service.create_snapshot session.path, strong: true
+      self.current_transaction = snp_grpc.id
+      snp = Google::Cloud::Spanner::Snapshot.from_grpc snp_grpc, session
+      snp.execute_query sql
+    ensure
+      self.current_transaction = nil
     end
 
-    def current_transaction= transaction
-      Thread.current[:_session_txn] = transaction
+    def self.database_path config
+      "#{config[:project]}/#{config[:instance]}/#{config[:database]}"
     end
 
     private
