@@ -116,14 +116,6 @@ module SpannerActiverecord
       commit_transaction if transaction
     end
 
-    def execute_delete sql, params: nil
-      result = execute_query sql, params: params
-      result.rows.to_a
-      return result.row_count if result.row_count
-
-      raise ActiveRecord::StatementInvalid.new "DML statement is invalid.", sql
-    end
-
     # Transactions
 
     def begin_trasaction

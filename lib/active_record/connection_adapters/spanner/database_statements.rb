@@ -66,7 +66,6 @@ module ActiveRecord
 
         def exec_update sql, name = "SQL", binds = []
           result = _exec_query sql, name, binds, transaction_required: true
-          result.rows.to_a
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
