@@ -6,7 +6,7 @@ require "active_record/connection_adapters/spanner/schema_statements"
 require "active_record/connection_adapters/spanner/schema_definitions"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
-require "active_record/connection_adapters/spanner/types/bytes"
+require "active_record/type/spanner/bytes"
 require "arel/visitors/spanner"
 require "spanner_activerecord/connection"
 
@@ -155,9 +155,8 @@ module ActiveRecord
 
       def initialize_type_map m = type_map
         m.register_type "BOOL", Type::Boolean.new
-        # register_class_with_limit m, %r{^BYTES}i, Type::Binary
         register_class_with_limit(
-          m, %r{^BYTES}i, ConnectionAdapters::Spanner::Types::Bytes
+          m, %r{^BYTES}i, ActiveRecord::Type::Spanner::Bytes
         )
         m.register_type "DATE", Type::Date.new
         m.register_type "FLOAT64", Type::Float.new
