@@ -1,10 +1,12 @@
 require "securerandom"
 require "active_record/base"
 require "active_record/connection_adapters/abstract_adapter"
-require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
 require "active_record/connection_adapters/spanner/schema_definitions"
+require "active_record/connection_adapters/spanner/type_metadata"
+require "active_record/connection_adapters/spanner/quoting"
+require "active_record/connection_adapters/spanner/types/bytes"
 require "arel/visitors/spanner"
 require "spanner_activerecord/connection"
 
@@ -41,6 +43,7 @@ module ActiveRecord
         boolean:      { name: "BOOL" }
       }.freeze
 
+      include Spanner::Quoting
       include Spanner::DatabaseStatements
       include Spanner::SchemaStatements
 
@@ -152,7 +155,10 @@ module ActiveRecord
 
       def initialize_type_map m = type_map
         m.register_type "BOOL", Type::Boolean.new
-        register_class_with_limit m, %r{^BYTES}i, Type::Binary
+        # register_class_with_limit m, %r{^BYTES}i, Type::Binary
+        register_class_with_limit(
+          m, %r{^BYTES}i, ConnectionAdapters::Spanner::Types::Bytes
+        )
         m.register_type "DATE", Type::Date.new
         m.register_type "FLOAT64", Type::Float.new
         m.register_type "INT64", Type::Integer.new(limit: 8)

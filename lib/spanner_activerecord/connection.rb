@@ -16,15 +16,18 @@ module SpannerActiverecord
     def self.spanners config
       config = config.symbolize_keys
       @spanners ||= {}
-      @spanners[database_path(config)] ||= Google::Cloud.spanner(
-        config[:project],
-        config[:credentials],
-        scope: config[:scope],
-        timeout: config[:timeout],
-        client_config: config[:client_config]&.symbolize_keys,
-        lib_name: "spanner-activerecord-adapter",
-        lib_version: SpannerActiverecord::VERSION
-      )
+      @mutex ||= Mutex.new
+      @mutex.synchronize do
+        @spanners[database_path(config)] ||= Google::Cloud.spanner(
+          config[:project],
+          config[:credentials],
+          scope: config[:scope],
+          timeout: config[:timeout],
+          client_config: config[:client_config]&.symbolize_keys,
+          lib_name: "spanner-activerecord-adapter",
+          lib_version: SpannerActiverecord::VERSION
+        )
+      end
     end
 
     def self.information_schema config
@@ -170,6 +173,10 @@ module SpannerActiverecord
       snp.execute_query sql
     ensure
       self.current_transaction = nil
+    end
+
+    def truncate table_name
+      session.delete table_name
     end
 
     def self.database_path config

@@ -16,8 +16,12 @@ module ActiveRecord
           raise ActiveRecord::StatementInvalid, error
         end
 
-        def truncate _table_name, _name = nil
-          raise ActiveRecordError, "Truncate table is not supported"
+        def truncate table_name, name = nil
+          Array(table_name).each do |t|
+            log "TURNCATE #{t}", name do
+              @connection.truncate t
+            end
+          end
         end
 
         # DML and DQL Statements
@@ -77,15 +81,21 @@ module ActiveRecord
         # Transaction
 
         def begin_db_transaction
-          @connection.begin_trasaction
+          log "BEGIN" do
+            @connection.begin_trasaction
+          end
         end
 
         def commit_db_transaction
-          @connection.commit_transaction
+          log "COMMIT" do
+            @connection.commit_transaction
+          end
         end
 
         def rollback_db_transaction
-          @connection.rollback_transaction
+          log "ROLLBACK" do
+            @connection.rollback_transaction
+          end
         end
 
         private
