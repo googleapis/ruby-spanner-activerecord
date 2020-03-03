@@ -59,6 +59,15 @@ module ActiveRecord
           information_schema.table(table_name, view: :indexes)&.drop
         end
 
+        def create_join_table table_1, table_2, column_options: {}, **options
+          return super unless block_given?
+
+          super do |td|
+            yield td
+            td.primary_key :id unless td.columns.any?(&:primary_key?)
+          end
+        end
+
         def rename_table _table_name, _new_name
           raise SpannerActiverecord::NotSupportedError, \
                 "rename_table is not implemented"
