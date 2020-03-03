@@ -50,6 +50,7 @@ module SpannerActiverecord
 
     def disconnect!
       session.release!
+      true
     ensure
       @session = nil
     end
@@ -57,6 +58,7 @@ module SpannerActiverecord
     def reset!
       disconnect!
       session
+      true
     end
 
     # DDL Statements
