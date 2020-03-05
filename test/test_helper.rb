@@ -15,9 +15,10 @@ module MiniTest::Assertions
       obj.respond_to?(:sql) ? obj.sql : obj
     end.flatten
 
-    act_sqls.each_with_index do |act_sql, i|
-      assert_equal exp_sqls[i].to_s.squeeze(" "), act_sql.to_s.squeeze(" ")
-    end
+    exp_sqls = exp_sqls.map{ |v| v.to_s.squeeze " " }
+    act_sqls = act_sqls.map{ |v| v.to_s.squeeze " " }
+
+    assert_equal exp_sqls, act_sqls
   end
 end
 
@@ -40,13 +41,7 @@ class MockSpannerActiveRecord < Minitest::Spec
   }
 
   after do
-    if MockGoogleSpanner.mocked_result.respond_to? :clear
-      MockGoogleSpanner.mocked_result.clear
-    end
-
-    if MockGoogleSpanner.last_executed_sqls.respond_to? :clear
-      MockGoogleSpanner.last_executed_sqls.clear
-    end
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
   end
 
   register_spec_type(self) do |desc, *addl|
@@ -133,6 +128,11 @@ module MockGoogleSpanner
     result = @mocked_result.shift
     return result.call if result&.is_a? Proc
     result
+  end
+
+  def self.clear_mocked_executed_sql_and_results
+    @mocked_result = nil
+    @last_executed_sqls = nil
   end
 
   def self.last_executed_sqls sql = nil
@@ -248,7 +248,6 @@ module MockGoogleSpanner
       MockJob.execute statements
     end
   end
-
 
   class MockJob
     attr_accessor :error, :request, :result
