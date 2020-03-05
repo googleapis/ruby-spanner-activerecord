@@ -6,17 +6,17 @@ require "active_record"
 require "spanner_activerecord"
 
 module MiniTest::Assertions
-  def assert_sql_equal exp, act, msg = nil
+  def assert_sql_equal exp, *act
     exp_sqls = Array(exp).map do |obj|
       obj.respond_to?(:sql) ? obj.sql : obj
-    end
+    end.flatten
 
-    act_sqls = Array(act).map do |obj|
+    act_sqls = Array(act).flatten.map do |obj|
       obj.respond_to?(:sql) ? obj.sql : obj
-    end
+    end.flatten
 
     act_sqls.each_with_index do |act_sql, i|
-      assert_equal exp_sqls[i].to_s.split, act_sql.to_s.split, msg
+      assert_equal exp_sqls[i].to_s.squeeze(" "), act_sql.to_s.squeeze(" ")
     end
   end
 end
@@ -63,6 +63,53 @@ class MockSpannerActiveRecord < Minitest::Spec
 
   def last_executed_sql
     MockGoogleSpanner.last_executed_sqls.last
+  end
+
+  def new_table table_name: nil, parent_table_name: nil, on_delete: nil,
+                schema_name: "", catalog: ""
+    SpannerActiverecord::Table.new(
+      table_name || "table_#{SecureRandom.hex(4)}",
+      parent_table: parent_table_name,
+      on_delete: on_delete,
+      schema_name: schema_name,
+      catalog: catalog,
+      connection: connection
+    )
+  end
+
+  def new_table_column table_name: nil, column_name: nil, type: "INT64",
+                       limit: nil, ordinal_position: 0, nullable: true,
+                       allow_commit_timestamp: nil, reference_index_name: nil
+    SpannerActiverecord::Table::Column.new(
+      table_name || "table_#{SecureRandom.hex(4)}",
+      column_name || "column_#{SecureRandom.hex(4)}",
+      type, limit: limit,
+      ordinal_position: ordinal_position, nullable: nullable,
+      allow_commit_timestamp: allow_commit_timestamp,
+      reference_index_name: reference_index_name, connection: connection
+    )
+  end
+
+  def new_index_column table_name: nil, index_name: nil, column_name: nil,
+                       order: "ASC", ordinal_position: 0
+    SpannerActiverecord::Index::Column.new(
+      table_name || "table-#{SecureRandom.hex(4)}",
+      index_name || "index-#{SecureRandom.hex(4)}",
+      column_name || "column-#{SecureRandom.hex(4)}",
+      order: order,
+      ordinal_position: ordinal_position
+    )
+  end
+
+  def new_index table_name: nil, index_name: nil, columns: [],
+                type: nil, unique: false, null_filtered: false,
+                interleve_in: nil, storing: [], state: "READY"
+    SpannerActiverecord::Index.new(
+      table_name || "table-#{SecureRandom.hex(4)}",
+      index_name || "index-#{SecureRandom.hex(4)}",
+      columns, type: nil, unique: unique, null_filtered: null_filtered,
+      interleve_in: interleve_in, storing: storing, state: state
+    )
   end
 end
 

@@ -124,12 +124,12 @@ module ActiveRecord
 
         def change_column_default _table_name, _column_name, _default_or_changes
           raise SpannerActiverecord::Error, \
-                "change column default not supported"
+                "change column with defaukt value not supported."
         end
 
         def rename_column _table_name, _column_name, _new_column_name
           raise SpannerActiverecord::Error, \
-                "rename column default not supported"
+                "rename column not supported."
         end
 
         # Index

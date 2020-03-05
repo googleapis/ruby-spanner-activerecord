@@ -21,7 +21,7 @@ module SpannerActiverecord
         @table_name = table_name.to_s
         @name = name.to_s
         @type = type
-        @limit = limit
+        @limit = limit if limit_allowed? type
         @nullable = nullable != false
         @ordinal_position = ordinal_position
         @allow_commit_timestamp = allow_commit_timestamp
@@ -124,7 +124,7 @@ module SpannerActiverecord
         end
 
         # Supported only for TIMESTAMP type
-        if allow_commit_timestamp
+        if allow_commit_timestamp && type == "TIMESTAMP"
           sql << " OPTIONS (allow_commit_timestamp=true)"
         end
 
@@ -139,6 +139,12 @@ module SpannerActiverecord
         limit = limit.to_i unless limit == "MAX"
 
         [matched[1], limit]
+      end
+
+      private
+
+      def limit_allowed? type
+        ["BYTES", "STRING"].include? type
       end
     end
   end
