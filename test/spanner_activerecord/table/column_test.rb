@@ -491,4 +491,49 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
       )
     end
   end
+
+  describe "#change" do
+    it "set allow commit timestamp" do
+      column = new_table_column table_name: "users", column_name: "created_at", type: "TIMESTAMP"
+      column.allow_commit_timestamp.must_be :nil?
+
+      column.allow_commit_timestamp = true
+      column.change :options
+
+      assert_sql_equal(
+        last_executed_sql,
+        "ALTER TABLE users ALTER COLUMN created_at SET OPTIONS (allow_commit_timestamp=true)"
+      )
+
+      column.allow_commit_timestamp = false
+      column.change :options
+
+      assert_sql_equal(
+        last_executed_sql,
+        "ALTER TABLE users ALTER COLUMN created_at SET OPTIONS (allow_commit_timestamp=null)"
+      )
+    end
+
+    it "change column type" do
+      column = new_table_column table_name: "users", column_name: "height", type: "FLOAT64"
+      column.change
+
+      assert_sql_equal(
+        last_executed_sql,
+        "ALTER TABLE users ALTER COLUMN height FLOAT64"
+      )
+    end
+
+    it "change column to not null" do
+      column = new_table_column(
+        table_name: "users", column_name: "height", type: "FLOAT64", nullable: false
+      )
+      column.change
+
+      assert_sql_equal(
+        last_executed_sql,
+        "ALTER TABLE users ALTER COLUMN height FLOAT64 NOT NULL"
+      )
+    end
+  end
 end

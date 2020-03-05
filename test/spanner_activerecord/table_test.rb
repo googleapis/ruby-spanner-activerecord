@@ -23,4 +23,13 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
       table.instance_variable_get("@connection").wont_be :nil?
     end
   end
+
+  describe "#create" do
+  end
+
+  describe "#drop" do
+  end
+
+  describe "#alter" do
+  end
 end

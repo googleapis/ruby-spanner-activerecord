@@ -15,8 +15,8 @@ module MiniTest::Assertions
       obj.respond_to?(:sql) ? obj.sql : obj
     end.flatten
 
-    exp_sqls = exp_sqls.map{ |v| v.to_s.squeeze " " }
-    act_sqls = act_sqls.map{ |v| v.to_s.squeeze " " }
+    exp_sqls = exp_sqls.map{ |v| v.to_s.squeeze(" ").strip }
+    act_sqls = act_sqls.map{ |v| v.to_s.squeeze(" ").strip }
 
     assert_equal exp_sqls, act_sqls
   end

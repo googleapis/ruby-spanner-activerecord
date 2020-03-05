@@ -91,6 +91,8 @@ module SpannerActiverecord
       end
 
       def set_options_sql
+        return unless type == "TIMESTAMP"
+
         option_value = allow_commit_timestamp ? "true" : "null"
         "SET OPTIONS (allow_commit_timestamp=#{option_value})"
       end
