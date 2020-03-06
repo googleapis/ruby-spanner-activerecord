@@ -162,7 +162,7 @@ module SpannerActiverecord
       sql = format sql, params
 
       @mutex.synchronize do
-        @connection.execute_query_in_snapshot(sql).rows
+        @connection.snapshot(sql, strong: true).rows
       end
     end
   end

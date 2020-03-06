@@ -166,15 +166,12 @@ module SpannerActiverecord
         id: current_transaction.transaction_id
     end
 
-    def execute_query_in_snapshot sql
+    def snapshot sql, options = {}
       raise "Nested snapshots are not allowed" if current_transaction
 
-      snp_grpc = @spanner.service.create_snapshot session.path, strong: true
-      self.current_transaction = snp_grpc.id
-      snp = Google::Cloud::Spanner::Snapshot.from_grpc snp_grpc, session
-      snp.execute_query sql
-    ensure
-      self.current_transaction = nil
+      session.snapshot options do |snp|
+        snp.execute_query sql
+      end
     end
 
     def truncate table_name

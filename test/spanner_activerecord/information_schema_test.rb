@@ -52,7 +52,8 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         "IS_UNIQUE" => false,
         "IS_NULL_FILTERED" => false,
         "INDEX_STATE" => "READ_WRITE",
-        "SPANNER_IS_MANAGED" => false}
+        "SPANNER_IS_MANAGED" => false
+      }
     ]
   }
   let(:index_columns_result){

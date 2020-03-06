@@ -46,7 +46,7 @@ module SpannerActiverecord
         column_name,
         type,
         limit: nil,
-        nullable: false,
+        nullable: nil,
         allow_commit_timestamp: false
       @columns_hash[column_name] = Table::Column.new(
         name,

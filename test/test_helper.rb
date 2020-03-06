@@ -15,8 +15,8 @@ module MiniTest::Assertions
       obj.respond_to?(:sql) ? obj.sql : obj
     end.flatten
 
-    exp_sqls = exp_sqls.map{ |v| v.to_s.squeeze(" ").strip }
-    act_sqls = act_sqls.map{ |v| v.to_s.squeeze(" ").strip }
+    exp_sqls = exp_sqls.map{ |v| v.to_s.gsub("\n", "").squeeze(" ").strip }
+    act_sqls = act_sqls.map{ |v| v.to_s.gsub("\n", "").squeeze(" ").strip }
 
     assert_equal exp_sqls, act_sqls
   end
@@ -209,6 +209,10 @@ module MockGoogleSpanner
 
     def rollback transaction_id
       true
+    end
+
+    def snapshot options = {}
+      yield self
     end
 
     def last_executed_statements
