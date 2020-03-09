@@ -53,12 +53,7 @@ module SpannerActiverecord
       end
 
       def add_sql
-        statements = [
-          "ALTER TABLE #{table_name} ADD #{new_column_sql :add_column}"
-        ]
-
-        statements << change_sql unless nullable
-        statements
+        "ALTER TABLE #{table_name} ADD #{new_column_sql}"
       end
 
       def drop
@@ -117,17 +112,14 @@ module SpannerActiverecord
         end
       end
 
-      def new_column_sql action = nil
+      def new_column_sql
         sql = +"#{name} #{spanner_type}"
-
-        # Column with NOT NULL is not supported while adding column.
-        unless action == :add_column
-          sql << " NOT NULL" unless nullable
-        end
+        sql << " NOT NULL" unless nullable
 
         # Supported only for TIMESTAMP type
-        if allow_commit_timestamp && type == "TIMESTAMP"
-          sql << " OPTIONS (allow_commit_timestamp=true)"
+        if !allow_commit_timestamp.nil? && type == "TIMESTAMP"
+          value = allow_commit_timestamp ? "true" : "null"
+          sql << " OPTIONS (allow_commit_timestamp=#{value})"
         end
 
         sql

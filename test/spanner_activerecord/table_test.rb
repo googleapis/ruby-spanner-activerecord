@@ -203,7 +203,6 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
         last_executed_sqls,
         sql
       )
-
     end
   end
 
@@ -234,5 +233,39 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
   end
 
   describe "#alter" do
+    it "add column to table" do
+      table = new_table table_name: "users"
+      table.add_column "email", "STRING", limit: 255, nullable: false
+      table.add_column "address", "STRING"
+      table.add_column "updated_at", "TIMESTAMP", allow_commit_timestamp: true
+      table.alter
+
+      assert_sql_equal(
+        last_executed_sqls,
+        "ALTER TABLE users ADD email STRING(255) NOT NULL",
+        "ALTER TABLE users ADD address STRING(MAX)",
+        "ALTER TABLE users ADD updated_at TIMESTAMP OPTIONS (allow_commit_timestamp=true)"
+      )
+    end
+
+    it "set on delete cascase" do
+      table = new_table table_name: "users", on_delete: "CASCADE"
+      table.cascade_change
+
+      assert_sql_equal(
+        last_executed_sqls,
+        "ALTER TABLE users SET ON DELETE CASCADE"
+      )
+    end
+
+    it "set on delete no action" do
+      table = new_table table_name: "users", on_delete: "NO ACTION"
+      table.cascade_change
+
+      assert_sql_equal(
+        last_executed_sqls,
+        "ALTER TABLE users SET ON DELETE NO ACTION"
+      )
+    end
   end
 end

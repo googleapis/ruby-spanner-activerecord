@@ -153,8 +153,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD address_id INT64",
-          "ALTER TABLE users ALTER COLUMN address_id INT64 NOT NULL"
+          "ALTER TABLE users ADD address_id INT64 NOT NULL"
         )
       end
 
@@ -193,8 +192,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD height FLOAT64",
-          "ALTER TABLE users ALTER COLUMN height FLOAT64 NOT NULL"
+          "ALTER TABLE users ADD height FLOAT64 NOT NULL"
         )
       end
 
@@ -245,8 +243,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD username STRING(MAX)",
-          "ALTER TABLE users ALTER COLUMN username STRING(MAX) NOT NULL"
+          "ALTER TABLE users ADD username STRING(MAX) NOT NULL"
         )
       end
     end
@@ -283,8 +280,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD photo BYTES(MAX)",
-          "ALTER TABLE users ALTER COLUMN photo BYTES(MAX) NOT NULL"
+          "ALTER TABLE users ADD photo BYTES(MAX) NOT NULL"
         )
       end
     end
@@ -323,8 +319,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD active BOOL",
-          "ALTER TABLE users ALTER COLUMN active BOOL NOT NULL"
+          "ALTER TABLE users ADD active BOOL NOT NULL"
         )
       end
     end
@@ -363,8 +358,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD registered_date DATE",
-          "ALTER TABLE users ALTER COLUMN registered_date DATE NOT NULL"
+          "ALTER TABLE users ADD registered_date DATE NOT NULL"
         )
       end
     end
@@ -403,8 +397,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
 
         assert_sql_equal(
           last_executed_sqls,
-          "ALTER TABLE users ADD created_at TIMESTAMP",
-          "ALTER TABLE users ALTER COLUMN created_at TIMESTAMP NOT NULL"
+          "ALTER TABLE users ADD created_at TIMESTAMP NOT NULL"
         )
       end
 
