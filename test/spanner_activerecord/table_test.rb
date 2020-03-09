@@ -24,6 +24,23 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
     end
   end
 
+  describe "#add_column" do
+    it "create column instance object and add to table" do
+      table = new_table table_name: table_name
+      table.add_column "test-column", "STRING", limit: 255, nullable: false
+
+      table.columns.length.must_equal 1
+      column = table.columns.first
+      column.must_be_instance_of SpannerActiverecord::Table::Column
+      column.table_name.must_equal table_name
+      column.name.must_equal "test-column"
+      column.type.must_equal "STRING"
+      column.limit.must_equal 255
+      column.nullable.must_equal false
+      column.allow_commit_timestamp.must_be :nil?
+    end
+  end
+
   describe "#create" do
     it "create a tables with default nullable and commit timestamp option" do
       table = new_table table_name: "stuffs"

@@ -529,4 +529,21 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
       )
     end
   end
+
+  describe "#reference_index" do
+    it "set reference index" do
+      column = new_table_column(table_name: "users", column_name: "username", type: "STRING")
+      column.reference_index = "index_username_on_username"
+
+      index = column.reference_index
+      index.must_be_instance_of SpannerActiverecord::Index
+      index.table.must_equal "users"
+      index.name.must_equal "index_username_on_username"
+      index.columns.length.must_equal 1
+      index_column = index.columns.first
+      index_column.table_name.must_equal "users"
+      index_column.index_name.must_equal "index_username_on_username"
+      index_column.name.must_equal "username"
+    end
+  end
 end
