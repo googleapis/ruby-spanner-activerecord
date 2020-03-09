@@ -176,6 +176,35 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
         sql
       )
     end
+
+    it "create table with indexes" do
+      table = new_table table_name: "users"
+      table.add_column "id", "INT64"
+      table.add_column "email", "STRING"
+      table.add_column "firstname", "STRING"
+      table.add_column "lastname", "STRING"
+      table.primary_keys = ["id"]
+      table.add_index "index_users_on_email", { email: :desc }, unique: true
+      table.add_index "index_users_on_name", ["firstname", "lastname"]
+
+      table.create
+      sql = [
+        "CREATE TABLE users(
+          id INT64 NOT NULL,
+          email STRING(MAX),
+          firstname STRING(MAX),
+          lastname STRING(MAX)
+        ) PRIMARY KEY(id)",
+        "CREATE UNIQUE INDEX index_users_on_email ON users (email DESC)",
+        "CREATE INDEX index_users_on_name ON users (firstname, lastname)",
+      ]
+
+      assert_sql_equal(
+        last_executed_sqls,
+        sql
+      )
+
+    end
   end
 
   describe "#drop" do
