@@ -1,6 +1,6 @@
 require "test_helper"
 
-describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
+describe SpannerActiverecord::Index::Column, :mock_spanner_activerecord  do
   let(:table_name) { "test-table" }
   let(:column_name) { "test-column" }
   let(:index_name) { "test-index"}
