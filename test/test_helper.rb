@@ -107,7 +107,8 @@ class MockSpannerActiveRecord < Minitest::Spec
       table_name || "table-#{SecureRandom.hex(4)}",
       index_name || "index-#{SecureRandom.hex(4)}",
       columns, type: nil, unique: unique, null_filtered: null_filtered,
-      interleve_in: interleve_in, storing: storing, state: state
+      interleve_in: interleve_in, storing: storing, state: state,
+      connection: connection
     )
   end
 end

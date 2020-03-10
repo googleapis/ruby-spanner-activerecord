@@ -417,7 +417,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
   end
 
   describe "#rename" do
-    it "does not support rename error" do
+    it "does not support rename" do
       column = new_table_column
 
       proc{
