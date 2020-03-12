@@ -121,7 +121,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         [
           "SELECT * FROM information_schema.tables WHERE table_schema=''",
           "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts'"
+          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
         ]
       )
     end
@@ -136,7 +136,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
           "SELECT * FROM information_schema.tables WHERE table_schema=''",
           "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
           "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts'"
+          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
         ]
       )
     end
@@ -174,7 +174,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         [
           "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
           "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts'"
+          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
         ]
       )
     end
@@ -189,7 +189,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
           "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
           "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
           "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts'"
+          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
         ]
       )
     end
@@ -249,7 +249,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
       assert_sql_equal(
         last_executed_sqls,
         "SELECT * FROM information_schema.index_columns WHERE table_name='orders'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='orders'"
+        "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND spanner_is_managed=false"
       )
 
       result.each do |index|
@@ -283,7 +283,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
       assert_sql_equal(
         last_executed_sqls,
         "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id'"
+        "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id' AND spanner_is_managed=false"
       )
 
       index.table.must_equal "orders"

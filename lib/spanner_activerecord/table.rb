@@ -2,7 +2,8 @@ require "spanner_activerecord/table/column"
 
 module SpannerActiverecord
   class Table
-    attr_accessor :name, :on_delete, :parent_table, :schema_name, :catalog
+    attr_accessor :name, :on_delete, :parent_table, :schema_name, :catalog,
+                  :foreign_keys
 
     # parent_table == interleave_in
     def initialize \
@@ -20,6 +21,7 @@ module SpannerActiverecord
       @catalog = catalog
       @columns_hash = {}
       @indexes_hash = {}
+      @foreign_keys = []
     end
 
     def indexes
@@ -147,7 +149,13 @@ module SpannerActiverecord
     def create_sql
       statements = []
       columns_sql = columns.map(&:new_column_sql)
-      sql = +"CREATE TABLE #{name}(\n  #{columns_sql.join ",\n  "} \n)"
+      sql = +"CREATE TABLE #{name}(\n  #{columns_sql.join ",\n  "}"
+
+      foreign_keys.each do |fk|
+        sql << ", \n #{fk.create_sql}"
+      end
+
+      sql << "\n)"
       sql << " PRIMARY KEY(#{primary_keys.join ', '})" if primary_keys.any?
 
       if parent_table
@@ -178,6 +186,21 @@ module SpannerActiverecord
     def cascade_change_sql
       value = cascade? ? "CASCADE" : "NO ACTION"
       "ALTER TABLE #{name} SET ON DELETE #{value}"
+    end
+
+    def add_foreign_key \
+        fk_name,
+        column_names,
+        ref_table,
+        ref_columns_names
+      @foreign_keys << ForeignKey.new(
+        name,
+        fk_name,
+        column_names,
+        ref_table,
+        ref_columns_names,
+        connection: @connection
+      )
     end
 
     private

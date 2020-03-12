@@ -56,6 +56,9 @@ module SpannerActiverecord
         "ALTER TABLE #{table_name} ADD #{new_column_sql}"
       end
 
+      def alter_sql
+      end
+
       def drop
         statements = drop_indexes_sql
         statements << drop_sql

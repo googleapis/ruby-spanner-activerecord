@@ -26,6 +26,10 @@ module ActiveRecord
             add_index table, index_columns, options
           end
 
+          obj.foreign_keys.each do |to_table, options|
+            add_foreign_key table, to_table, options
+          end
+
           table
         end
 
@@ -67,6 +71,23 @@ module ActiveRecord
             null_filtered: options[:null_filtered],
             interleve_in: options[:interleve_in],
             storing: options[:storing]
+          )
+        end
+
+        def add_foreign_key from_table, to_table, options
+          prefix = ActiveRecord::Base.table_name_prefix
+          suffix = ActiveRecord::Base.table_name_suffix
+          to_table = "#{prefix}#{to_table}#{suffix}"
+          options = @adapter.foreign_key_options(
+            from_table.name, to_table, options
+          )
+          fk_def = ForeignKeyDefinition.new from_table, to_table, options
+
+          from_table.add_foreign_key(
+            fk_def.name,
+            fk_def.column,
+            fk_def.to_table,
+            fk_def.primary_key
           )
         end
       end

@@ -41,6 +41,22 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
     end
   end
 
+  describe "#add_foreign_key" do
+    it "create foregin key instance object and add to table" do
+      table = new_table table_name: table_name
+      table.add_foreign_key "FK_contraint", "user_id", "orders", "id"
+
+      table.foreign_keys.length.must_equal 1
+      fk = table.foreign_keys.first
+      fk.must_be_instance_of SpannerActiverecord::ForeignKey
+      fk.table_name.must_equal table_name
+      fk.columns.must_equal ["user_id"]
+      fk.name.must_equal "FK_contraint"
+      fk.ref_table.must_equal "orders"
+      fk.ref_columns.must_equal ["id"]
+    end
+  end
+
   describe "#create" do
     it "create a tables with default nullable and commit timestamp option" do
       table = new_table table_name: "stuffs"
@@ -179,7 +195,7 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
       sql = [
         "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='stuffs'",
         "SELECT * FROM information_schema.index_columns WHERE table_name='stuffs'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='stuffs'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='stuffs' AND spanner_is_managed=false",
         "DROP INDEX index_stuffs_on_username",
         "DROP TABLE stuffs",
         "CREATE TABLE stuffs(
@@ -214,6 +230,29 @@ describe SpannerActiverecord::Table, :mock_spanner_activerecord  do
         ) PRIMARY KEY(id)",
         "CREATE UNIQUE INDEX index_users_on_email ON users (email DESC)",
         "CREATE INDEX index_users_on_name ON users (firstname, lastname)",
+      ]
+
+      assert_sql_equal(
+        last_executed_sqls,
+        sql
+      )
+    end
+
+    it "create table with foreign key constraint" do
+      table = new_table table_name: "users"
+      table.add_column "id", "INT64"
+      table.add_column "address_id", "STRING(36)"
+      table.primary_keys = ["id"]
+
+      table.add_foreign_key "FK_Address", "address_id", "addresses", "id"
+
+      table.create
+      sql = [
+        "CREATE TABLE users(
+          id INT64 NOT NULL,
+          address_id STRING(36),
+          CONSTRAINT FK_Address FOREIGN KEY (address_id) REFERENCES addresses (id)
+        ) PRIMARY KEY(id)"
       ]
 
       assert_sql_equal(

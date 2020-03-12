@@ -181,9 +181,37 @@ module ActiveRecord
           index_columns.map(&:name)
         end
 
-        # Foreign keys are not supported.
-        def foreign_keys _table_name
-          []
+        # Foreign Keys
+
+        def foreign_keys table_name
+          raise ArgumentError if table_name.blank?
+
+          information_schema.foreign_keys(table_name).map do |fk|
+            options = {
+              column: fk.columns.first,
+              name: fk.name,
+              primary_key: fk.ref_columns.first,
+              on_delete: fk.on_update,
+              on_update: fk.on_update
+            }
+
+            ForeignKeyDefinition.new table_name, fk.ref_table, options
+          end
+        end
+
+        def add_reference table_name, ref_name, **options
+          Spanner::ReferenceDefinition.new(ref_name, options).add_to(
+            update_table_definition(table_name, self)
+          )
+        end
+        alias add_belongs_to add_reference
+
+        def remove_foreign_key
+        end
+
+        def add_foreign_key from_table, to_table, options = {}
+          options = foreign_key_options from_table, to_table, options
+
         end
 
         def type_to_sql type
@@ -192,10 +220,21 @@ module ActiveRecord
           native_type
         end
 
+        def quoted_scope name = nil, type: nil
+          scope = { schema: quote("") }
+          scope[:name] = quote name if name
+          scope[:type] = quote type if type
+          scope
+        end
+
         private
 
         def schema_creation
-          SchemaCreation.new self, @connection
+          Spanner::SchemaCreation.new self, @connection
+        end
+
+        def create_table_definition *args
+          Spanner::TableDefinition.new self, *args
         end
       end
     end

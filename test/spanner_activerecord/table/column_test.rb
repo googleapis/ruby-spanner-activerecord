@@ -434,7 +434,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
       assert_sql_equal(
         last_executed_sqls,
         "SELECT * FROM information_schema.index_columns WHERE table_name='users'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='users'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='users' AND spanner_is_managed=false",
         "ALTER TABLE users DROP COLUMN address_id"
       )
     end
@@ -478,7 +478,7 @@ describe SpannerActiverecord::Table::Column, :mock_spanner_activerecord  do
       assert_sql_equal(
         last_executed_sqls,
         "SELECT * FROM information_schema.index_columns WHERE table_name='users'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='users'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='users' AND spanner_is_managed=false",
         "DROP INDEX index_users_on_address_id",
         "ALTER TABLE users DROP COLUMN address_id"
       )

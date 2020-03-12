@@ -99,6 +99,10 @@ module ActiveRecord
       end
 
       def supports_explain?
+        false
+      end
+
+      def supports_foreign_keys?
         true
       end
 
