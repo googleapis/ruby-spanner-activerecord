@@ -157,27 +157,6 @@ module SpannerActiverecord
     end
 
     def foreign_keys table_name
-
-      # table_name = orders
-      # #<ActiveRecord::Result:0x00007ff7f916de08
-      # @columns=["to_table", "primary_key", "column", "name", "on_update",
-      # "on_delete"],
-      # @rows=[["customers", "id", "customers_id", "fk_rails_a4cda5ee73",
-      #  "NO ACTION", "NO ACTION"]], @hash_rows=nil, @column_types={}>
-
-      # constraint_names
-      # SELECT constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where
-      # CONSTRAINT_TYPE='FOREIGN KEY' AND table_name='orders'
-
-      # SELECT * from INFORMATION_SCHEMA.referential_constraints
-      # Returns : constraint_name, update_rule, delete rule
-
-      # SELECT * from INFORMATION_SCHEMA.key_column_usage
-      # Returns: constraint_name, table_name(orders), column_name(customer_id)
-
-      # SELECT * from INFORMATION_SCHEMA.constraint_column_usage
-      # Returns: constraint_name, to_table_name(customers). column_name(id) primary_key
-
       sql = <<~SQL
         SELECT cc.table_name AS to_table,
                cc.column_name AS primary_key,
@@ -192,33 +171,6 @@ module SpannerActiverecord
           AND fk.constraint_schema = %<constraint_schema>s
       SQL
 
-
-      #   fk_info = exec_query(<<~SQL, "SCHEMA")
-      #   SELECT fk.table_name AS 'to_table',
-      #          fk.column_name AS 'primary_key',
-      #          fk.column_name AS 'column',
-      #          fk.constraint_name AS 'name',
-      #          rc.update_rule AS 'on_update',
-      #          rc.delete_rule AS 'on_delete'
-      #   FROM information_schema.referential_constraints rc
-      #   JOIN information_schema.key_column_usage fk ON fk.
-      #   JOIN information_schema.contraint_column_usage cc
-      #   USING (constraint_schema, constraint_name)
-      #   WHERE fk.table_schema = #{scope[:schema]}
-      #     AND fk.table_name = #{scope[:name]}
-      #     AND rc.constraint_schema = #{scope[:schema]}
-      #     AND rc.table_name = #{scope[:name]}
-      #     AND cc.constraint_schema = #{scope[:schema]}
-      #     AND cc.table_name = #{scope[:name]}
-      # SQL
-
-
-      #   sql = <<~SQL
-      #   SELECT * FROM information_schema.referential_constraints rc
-      #     WHERE table_name=%<table_name>s
-      #     AND constraint_type=%<constraint_type%>s
-
-      #   SQL
       rows = execute_query(
         sql, table_name: table_name, constraint_schema: ""
       )
