@@ -1,6 +1,28 @@
 module ActiveRecord
   module ConnectionAdapters #:nodoc:
     module Spanner
+      class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
+        def interleave_in
+          @options[:interleave_in] if @options
+        end
+
+        def on_delete
+          @options[:on_delete] if @options
+        end
+
+        def references *args, **options
+          args.each do |ref_name|
+            Spanner::ReferenceDefinition.new(ref_name, options).add_to(self)
+          end
+        end
+        alias belongs_to references
+      end
+
+      DropTableDefinition = Struct.new :name, :options
+      DropColumnDefinition = Struct.new :table_name, :name
+      ChangeColumnDefinition = Struct.new :table_name, :column, :name
+      DropIndexDefinition = Struct.new :name
+
       class ReferenceDefinition < ActiveRecord::ConnectionAdapters::ReferenceDefinition
         def initialize \
             name,
@@ -30,13 +52,36 @@ module ActiveRecord
         end
       end
 
-      class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
-        def references *args, **options
-          args.each do |ref_name|
-            ReferenceDefinition.new(ref_name, options).add_to(self)
+      class IndexDefinition
+        attr_reader :table_name, :name, :columns, :unique, :null_filtered,
+                    :interleve_in, :storing, :orders
+
+        def initialize \
+            table_name,
+            name,
+            columns,
+            unique: false,
+            null_filtered: false,
+            interleve_in: nil,
+            storing: nil,
+            orders: nil
+          @table_name = table_name
+          @name = name
+          @unique = unique
+          @null_filtered = null_filtered
+          @interleve_in = interleve_in
+          @storing = Array(storing)
+          @orders = orders || {}
+
+          columns = columns.split(/\W/) if columns.is_a? String
+          @columns = Array(columns).map(&:to_sym)
+        end
+
+        def columns_with_order
+          columns.each_with_object({}) do |c, result|
+            result[c] = orders[c.to_sym].to_s.upcase
           end
         end
-        alias belongs_to references
       end
     end
   end

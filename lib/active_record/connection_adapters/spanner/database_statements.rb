@@ -7,10 +7,10 @@ module ActiveRecord
         # DDL Statements
 
         def execute_ddl sql, migration_name: nil
-          materialize_transactions
-
           log sql, "SCHEMA" do
-            @connection.execute_ddl sql, operation_id: migration_name
+            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+              @connection.execute_ddl sql, operation_id: migration_name
+            end
           end
         rescue Google::Cloud::Error => error
           raise ActiveRecord::StatementInvalid, error
@@ -34,13 +34,13 @@ module ActiveRecord
           WRITE_QUERY.match? sql
         end
 
-        # Executes the SQL statement in the context of this connection.
+        # Executes the DDL/SQL statement in the context of this connection.
         def execute sql, name = nil
           materialize_transactions
 
           log sql, name do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.exec_query sql
+              @connection.execute_query sql
             end
           end
         end
@@ -51,7 +51,6 @@ module ActiveRecord
 
         # rubocop:disable Lint/UnusedMethodArgument
 
-        # TODO: Read query with strong read with timestamp.
         def exec_query sql, name = "SQL", binds = [], prepare: false
           result = _exec_query sql, name, binds
           ActiveRecord::Result.new(

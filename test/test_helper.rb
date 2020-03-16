@@ -71,21 +71,19 @@ class MockSpannerActiveRecord < Minitest::Spec
       parent_table: parent_table_name,
       on_delete: on_delete,
       schema_name: schema_name,
-      catalog: catalog,
-      connection: connection
+      catalog: catalog
     )
   end
 
   def new_table_column table_name: nil, column_name: nil, type: "INT64",
                        limit: nil, ordinal_position: 0, nullable: true,
-                       allow_commit_timestamp: nil, reference_index_name: nil
+                       allow_commit_timestamp: nil
     SpannerActiverecord::Table::Column.new(
       table_name || "table_#{SecureRandom.hex(4)}",
       column_name || "column_#{SecureRandom.hex(4)}",
       type, limit: limit,
       ordinal_position: ordinal_position, nullable: nullable,
-      allow_commit_timestamp: allow_commit_timestamp,
-      reference_index_name: reference_index_name, connection: connection
+      allow_commit_timestamp: allow_commit_timestamp
     )
   end
 
@@ -107,8 +105,7 @@ class MockSpannerActiveRecord < Minitest::Spec
       table_name || "table-#{SecureRandom.hex(4)}",
       index_name || "index-#{SecureRandom.hex(4)}",
       columns, type: nil, unique: unique, null_filtered: null_filtered,
-      interleve_in: interleve_in, storing: storing, state: state,
-      connection: connection
+      interleve_in: interleve_in, storing: storing, state: state
     )
   end
 end

@@ -14,9 +14,7 @@ module SpannerActiverecord
         null_filtered: false,
         interleve_in: nil,
         storing: nil,
-        state: nil,
-        connection: nil
-      @connection = connection
+        state: nil
       @table = table.to_s
       @name = name.to_s
       @columns = Array(columns)
@@ -32,65 +30,16 @@ module SpannerActiverecord
       @type == "PRIMARY_KEY"
     end
 
-    def orders_columns
+    def columns_by_position
       @columns.select(&:ordinal_position).sort do |c1, c2|
         c1.ordinal_position <=> c2.ordinal_position
       end
     end
 
     def orders
-      orders_columns.each_with_object({}) do |c, r|
+      columns_by_position.each_with_object({}) do |c, r|
         r[c.name] = c.desc? ? :desc : :asc
       end
-    end
-
-    def add_column column_name, order: nil
-      column_name = column_name.to_s
-      column = Column.new(
-        table,
-        name,
-        column_name,
-        order: order
-      )
-      pos = @columns.find_index { |c| c.name == column_name }
-
-      if pos
-        @columns[pos] = column
-      else
-        @columns << column
-      end
-    end
-
-    def create
-      @connection.execute_ddl create_sql
-    end
-
-    def create_sql
-      sql = +"CREATE"
-      sql << " UNIQUE" if unique
-      sql << " NULL_FILTERED" if null_filtered
-      sql << " INDEX #{name} "
-
-      columns_sql = columns.map do |c|
-        c.desc? ? "#{c.name} DESC" : c.name
-      end
-
-      sql << "ON #{table} (#{columns_sql.join ', '})"
-      sql << " STORING (#{storing.join ', '})" if storing.any?
-      sql << ", INTERLEAVE IN #{interleve_in}" if interleve_in
-      sql
-    end
-
-    def drop
-      @connection.execute_ddl drop_sql
-    end
-
-    def drop_sql
-      "DROP INDEX #{name}"
-    end
-
-    def rename _new_name
-      raise NotSupportedError, "rename of index not supported"
     end
   end
 end

@@ -27,8 +27,7 @@ module SpannerActiverecord
           parent_table: row["PARENT_TABLE_NAME"],
           on_delete: row["ON_DELETE_ACTION"],
           schema_name: row["TABLE_SCHEMA"],
-          catalog: row["TABLE_CATALOG"],
-          connection: @connection
+          catalog: row["TABLE_CATALOG"]
         )
 
         if [:full, :columns].include? view
@@ -60,7 +59,7 @@ module SpannerActiverecord
         table_name: table_name,
         column_name: column_name
       ).map do |row|
-        type, limit = Table::Column.parse_type_and_limit row["SPANNER_TYPE"]
+        type, limit = parse_type_and_limit row["SPANNER_TYPE"]
         Table::Column.new \
           table_name,
           row["COLUMN_NAME"],
@@ -68,8 +67,7 @@ module SpannerActiverecord
           limit: limit,
           ordinal_position: row["ORDINAL_POSITION"],
           nullable: row["IS_NULLABLE"] == "YES",
-          default: row["COLUMN_DEFAULT"],
-          connection: @connection
+          default: row["COLUMN_DEFAULT"]
       end
     end
 
@@ -120,8 +118,7 @@ module SpannerActiverecord
           null_filtered: row["IS_NULL_FILTERED"],
           interleve_in: row["PARENT_TABLE_NAME"],
           storing: storing,
-          state: row["INDEX_STATE"],
-          connection: @connection
+          state: row["INDEX_STATE"]
       end
     end
 
@@ -143,8 +140,7 @@ module SpannerActiverecord
           row["INDEX_NAME"],
           row["COLUMN_NAME"],
           order: row["COLUMN_ORDERING"],
-          ordinal_position: row["ORDINAL_POSITION"],
-          connection: @connection
+          ordinal_position: row["ORDINAL_POSITION"]
       end
     end
 
@@ -183,10 +179,19 @@ module SpannerActiverecord
           row["to_table"],
           row["primary_key"],
           on_delete: row["on_delete"],
-          on_update: row["on_update"],
-          connection:  @connection
+          on_update: row["on_update"]
         )
       end
+    end
+
+    def parse_type_and_limit value
+      matched = /^([A-Z]*)\((.*)\)/.match value
+      return [value] unless matched
+
+      limit = matched[2]
+      limit = limit.to_i unless limit == "MAX"
+
+      [matched[1], limit]
     end
 
     private

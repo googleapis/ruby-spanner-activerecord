@@ -8,9 +8,7 @@ module SpannerActiverecord
           index_name,
           name,
           order: nil,
-          ordinal_position: nil,
-          connection: nil
-        @connection = connection
+          ordinal_position: nil
         @table_name = table_name.to_s
         @index_name = index_name.to_s
         @name = name.to_s
