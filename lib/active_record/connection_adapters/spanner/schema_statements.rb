@@ -169,7 +169,9 @@ module ActiveRecord
         # Index
 
         def indexes table_name
-          information_schema.indexes(table_name).map do |index|
+          information_schema.indexes(
+            table_name, index_type: "INDEX"
+          ).map do |index|
             IndexDefinition.new(
               index.table,
               index.name,

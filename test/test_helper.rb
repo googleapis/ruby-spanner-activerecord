@@ -5,7 +5,7 @@ require "google/cloud/spanner"
 require "active_record"
 require "spanner_activerecord"
 
-module MiniTest::Assertions
+module SqlStatmentAssertions
   def assert_sql_equal exp, *act
     exp_sqls = Array(exp).map do |obj|
       obj.respond_to?(:sql) ? obj.sql : obj
@@ -26,87 +26,88 @@ module MiniTest::Assertions
   end
 end
 
-module MiniTest::Expectations
-  infect_an_assertion :assert_sql_equal, :must_sql_equal
-end
+module TestHelper
+  class MockActiveRecordTest < Minitest::Test
+    include SqlStatmentAssertions
 
-class MockSpannerActiveRecord < Minitest::Spec
-  let(:project_id) { "test-project" }
-  let(:instance_id) { "test-instance" }
-  let(:database_id) { "test-database" }
-  let(:credentials) { "test-credentials-file" }
-  let(:connection) {
-    SpannerActiverecord::Connection.new(
-      project: project_id,
-      instance: instance_id,
-      database: database_id,
-      credentials: credentials,
-    )
-  }
+    attr_reader :project_id, :instance_id, :database_id, :credentials,
+                :connection
 
-  after do
-    MockGoogleSpanner.clear_mocked_executed_sql_and_results
-  end
+    def setup
+      super
 
-  register_spec_type(self) do |desc, *addl|
-    addl.include? :mock_spanner_activerecord
-  end
+      @project_id = "test-project"
+      @instance_id = "test-instance"
+      @database_id = "test-database"
+      @credentials = "test-credentials-file"
+      @connection = SpannerActiverecord::Connection.new(
+        project: project_id,
+        instance: instance_id,
+        database: database_id,
+        credentials: credentials,
+      )
+    end
 
-  def set_mocked_result result = nil, &block
-    MockGoogleSpanner.mocked_result = block || result
-  end
+    def teardown
+      MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    end
 
-  def last_executed_sqls
-    MockGoogleSpanner.last_executed_sqls
-  end
+    def set_mocked_result result = nil, &block
+      MockGoogleSpanner.mocked_result = block || result
+    end
 
-  def last_executed_sql
-    MockGoogleSpanner.last_executed_sqls.last
-  end
+    def last_executed_sqls
+      MockGoogleSpanner.last_executed_sqls
+    end
 
-  def new_table table_name: nil, parent_table_name: nil, on_delete: nil,
-                schema_name: "", catalog: ""
-    SpannerActiverecord::Table.new(
-      table_name || "table_#{SecureRandom.hex(4)}",
-      parent_table: parent_table_name,
-      on_delete: on_delete,
-      schema_name: schema_name,
-      catalog: catalog
-    )
-  end
+    def last_executed_sql
+      MockGoogleSpanner.last_executed_sqls.last
+    end
 
-  def new_table_column table_name: nil, column_name: nil, type: "INT64",
-                       limit: nil, ordinal_position: 0, nullable: true,
-                       allow_commit_timestamp: nil
-    SpannerActiverecord::Table::Column.new(
-      table_name || "table_#{SecureRandom.hex(4)}",
-      column_name || "column_#{SecureRandom.hex(4)}",
-      type, limit: limit,
-      ordinal_position: ordinal_position, nullable: nullable,
-      allow_commit_timestamp: allow_commit_timestamp
-    )
-  end
+    def new_table table_name: nil, parent_table_name: nil, on_delete: nil,
+      schema_name: "", catalog: ""
+      SpannerActiverecord::Table.new(
+        table_name || "table_#{SecureRandom.hex(4)}",
+        parent_table: parent_table_name,
+        on_delete: on_delete,
+        schema_name: schema_name,
+        catalog: catalog
+      )
+    end
 
-  def new_index_column table_name: nil, index_name: nil, column_name: nil,
-                       order: "ASC", ordinal_position: 0
-    SpannerActiverecord::Index::Column.new(
-      table_name || "table-#{SecureRandom.hex(4)}",
-      index_name || "index-#{SecureRandom.hex(4)}",
-      column_name || "column-#{SecureRandom.hex(4)}",
-      order: order,
-      ordinal_position: ordinal_position
-    )
-  end
+    def new_table_column table_name: nil, column_name: nil, type: "INT64",
+      limit: nil, ordinal_position: 0, nullable: true,
+      allow_commit_timestamp: nil
+      SpannerActiverecord::Table::Column.new(
+        table_name || "table_#{SecureRandom.hex(4)}",
+        column_name || "column_#{SecureRandom.hex(4)}",
+        type, limit: limit,
+        ordinal_position: ordinal_position, nullable: nullable,
+        allow_commit_timestamp: allow_commit_timestamp
+      )
+    end
 
-  def new_index table_name: nil, index_name: nil, columns: [],
-                type: nil, unique: false, null_filtered: false,
-                interleve_in: nil, storing: [], state: "READY"
-    SpannerActiverecord::Index.new(
-      table_name || "table-#{SecureRandom.hex(4)}",
-      index_name || "index-#{SecureRandom.hex(4)}",
-      columns, type: nil, unique: unique, null_filtered: null_filtered,
-      interleve_in: interleve_in, storing: storing, state: state
-    )
+    def new_index_column table_name: nil, index_name: nil, column_name: nil,
+      order: "ASC", ordinal_position: 0
+      SpannerActiverecord::Index::Column.new(
+        table_name || "table-#{SecureRandom.hex(4)}",
+        index_name || "index-#{SecureRandom.hex(4)}",
+        column_name || "column-#{SecureRandom.hex(4)}",
+        order: order,
+        ordinal_position: ordinal_position
+      )
+    end
+
+    def new_index table_name: nil, index_name: nil, columns: [],
+                  type: nil, unique: false, null_filtered: false,
+                  interleve_in: nil, storing: [], state: "READY"
+      SpannerActiverecord::Index.new(
+        table_name || "table-#{SecureRandom.hex(4)}",
+        index_name || "index-#{SecureRandom.hex(4)}",
+        columns, type: nil, unique: unique, null_filtered: null_filtered,
+        interleve_in: interleve_in, storing: storing, state: state
+      )
+    end
   end
 end
 

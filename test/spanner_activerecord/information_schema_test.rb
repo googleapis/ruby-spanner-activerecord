@@ -1,9 +1,14 @@
 require "test_helper"
 
-describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
-  let(:info_schema) { SpannerActiverecord::InformationSchema.new connection }
-  let(:tables_schema_result) {
-    [
+class InformationSchemaTest < TestHelper::MockActiveRecordTest
+  attr_reader :info_schema, :tables_schema_result,
+    :table_columns_result, :indexes_result,
+    :index_columns_result
+
+  def setup
+    super
+    @info_schema = SpannerActiverecord::InformationSchema.new connection
+    @tables_schema_result = [
       {
         "TABLE_CATALOG" => "",
         "TABLE_SCHEMA" => "",
@@ -13,9 +18,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         "SPANNER_STATE" => "COMMITTED"
       }
     ]
-  }
-  let(:table_columns_result) {
-    [
+    @table_columns_result = [
       {
         "TABLE_CATALOG" => "",
         "TABLE_SCHEMA" => "",
@@ -39,9 +42,8 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         "SPANNER_TYPE" => "STRING(32)"
       }
     ]
-  }
-  let(:indexes_result){
-    [
+
+    @indexes_result = [
       {
         "TABLE_CATALOG" =>"",
         "TABLE_SCHEMA" =>"",
@@ -55,9 +57,7 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         "SPANNER_IS_MANAGED" => false
       }
     ]
-  }
-  let(:index_columns_result){
-    [
+    @index_columns_result = [
       {
         "TABLE_CATALOG" => "",
         "TABLE_SCHEMA" => "",
@@ -71,266 +71,246 @@ describe SpannerActiverecord::InformationSchema, :mock_spanner_activerecord  do
         "SPANNER_TYPE" => "INT64"
       }
     ]
-  }
-
-  describe "#new" do
-    it "create an instance" do
-      info_schema = SpannerActiverecord::InformationSchema.new connection
-      info_schema.must_be_instance_of SpannerActiverecord::InformationSchema
-    end
   end
 
-  describe "#tables" do
-    it "list all tables" do
-      set_mocked_result tables_schema_result
-      result = info_schema.tables
-      result.length.must_equal 1
-
-      assert_sql_equal(
-        last_executed_sql,
-        "SELECT * FROM information_schema.tables WHERE table_schema=''"
-      )
-
-      result.each do |table|
-        table.must_be_instance_of SpannerActiverecord::Table
-      end
-
-      table = result.first
-      table.name.must_equal "accounts"
-    end
-
-    it "list all tables with columns view" do
-      set_mocked_result tables_schema_result
-      info_schema.tables view: :columns
-
-      assert_sql_equal(
-        last_executed_sqls,
-        [
-          "SELECT * FROM information_schema.tables WHERE table_schema=''",
-          "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
-        ]
-      )
-    end
-
-    it "list all tables with indexes view" do
-      set_mocked_result tables_schema_result
-      info_schema.tables view: :indexes
-
-      assert_sql_equal(
-        last_executed_sqls,
-        [
-          "SELECT * FROM information_schema.tables WHERE table_schema=''",
-          "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-        ]
-      )
-    end
-
-    it "list all tables with full view" do
-      set_mocked_result tables_schema_result
-      info_schema.tables view: :full
-
-      assert_sql_equal(
-        last_executed_sqls,
-        [
-          "SELECT * FROM information_schema.tables WHERE table_schema=''",
-          "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-        ]
-      )
-    end
+  def test_create_an_instance
+    info_schema = SpannerActiverecord::InformationSchema.new connection
+    assert_instance_of SpannerActiverecord::InformationSchema, info_schema
   end
 
-  describe "#table" do
-    it "get table" do
-      set_mocked_result tables_schema_result
-      table = info_schema.table "accounts"
-      table.must_be_instance_of SpannerActiverecord::Table
+  def test_list_all_tables
+    set_mocked_result tables_schema_result
+    result = info_schema.tables
+    assert_equal result.length, 1
 
-      assert_sql_equal(
-        last_executed_sql,
-        "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'"
-      )
+    assert_sql_equal(
+      last_executed_sql,
+      "SELECT * FROM information_schema.tables WHERE table_schema=''"
+    )
+
+    result.each do |table|
+      assert_instance_of SpannerActiverecord::Table, table
     end
 
-    it "get table with columns view" do
-      set_mocked_result tables_schema_result
-      info_schema.table "accounts", view: :columns
+    table = result.first
+    assert_equal table.name,"accounts"
+  end
 
-      assert_sql_equal(
-        last_executed_sqls,
+  def test_list_all_tables_with_columns_view
+    set_mocked_result tables_schema_result
+    info_schema.tables view: :columns
+
+    assert_sql_equal(
+      last_executed_sqls,
+      [
+        "SELECT * FROM information_schema.tables WHERE table_schema=''",
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+      ]
+    )
+  end
+
+  def test_list_all_table_with_indexes_view
+    set_mocked_result tables_schema_result
+    info_schema.tables view: :indexes
+
+    assert_sql_equal(
+      last_executed_sqls,
+      [
+        "SELECT * FROM information_schema.tables WHERE table_schema=''",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
+      ]
+    )
+  end
+
+  def test_list_all_tables_with_full_view
+    set_mocked_result tables_schema_result
+    info_schema.tables view: :full
+
+    assert_sql_equal(
+      last_executed_sqls,
+      [
+        "SELECT * FROM information_schema.tables WHERE table_schema=''",
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
+      ]
+    )
+  end
+
+  def test_get_table
+    set_mocked_result tables_schema_result
+    table = info_schema.table "accounts"
+    assert_instance_of SpannerActiverecord::Table, table
+
+    assert_sql_equal(
+      last_executed_sql,
+      "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'"
+    )
+  end
+
+  def test_table_with_columns_view
+    set_mocked_result tables_schema_result
+    info_schema.table "accounts", view: :columns
+
+    assert_sql_equal(
+      last_executed_sqls,
+      "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+    )
+  end
+
+  def test_get_table_with_indexes_view
+    set_mocked_result tables_schema_result
+    info_schema.table "accounts", view: :indexes
+
+    assert_sql_equal(
+      last_executed_sqls,
+      [
         "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
-      )
-    end
-
-    it "get table with indexes view" do
-      set_mocked_result tables_schema_result
-      info_schema.table "accounts", view: :indexes
-
-      assert_sql_equal(
-        last_executed_sqls,
-        [
-          "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-          "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-        ]
-      )
-    end
-
-    it "get table with full view" do
-      set_mocked_result tables_schema_result
-      info_schema.table "accounts", view: :full
-
-      assert_sql_equal(
-        last_executed_sqls,
-        [
-          "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-          "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
-          "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-        ]
-      )
-    end
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
+      ]
+    )
   end
 
-  describe "#table_columns" do
-    it "list table columns" do
-      set_mocked_result table_columns_result
-      result = info_schema.table_columns "accounts"
-      result.length.must_equal 2
+  def test_get_table_with_full_view
+    set_mocked_result tables_schema_result
+    info_schema.table "accounts", view: :full
 
-      assert_sql_equal(
-        last_executed_sql,
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
-      )
-
-      result.each do |column|
-        column.must_be_instance_of SpannerActiverecord::Table::Column
-      end
-
-      column1 = result[0]
-      column1.table_name.must_equal "accounts"
-      column1.name.must_equal "account_id"
-      column1.type.must_equal "INT64"
-      column1.limit.must_be_nil
-      column1.nullable.must_equal false
-
-      column2 = result[1]
-      column2.table_name.must_equal "accounts"
-      column2.name.must_equal "name"
-      column2.type.must_equal "STRING"
-      column2.limit.must_equal 32
-      column2.nullable.must_equal true
-    end
+    assert_sql_equal(
+      last_executed_sqls,
+      [
+        "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
+      ]
+    )
   end
 
-  describe "#table_column" do
-    it "get table column" do
-      set_mocked_result table_columns_result
-      column = info_schema.table_column "accounts", "account_id"
-      column.must_be_instance_of SpannerActiverecord::Table::Column
+  def test_list_table_columns
+    set_mocked_result table_columns_result
+    result = info_schema.table_columns "accounts"
+    assert_equal result.length, 2
 
-      assert_sql_equal(
-        last_executed_sql,
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts' AND column_name='account_id'"
-      )
+    assert_sql_equal(
+      last_executed_sql,
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+    )
+
+    result.each do |column|
+      assert_instance_of SpannerActiverecord::Table::Column, column
     end
+
+    column1 = result[0]
+    assert_equal column1.table_name, "accounts"
+    assert_equal column1.name, "account_id"
+    assert_equal column1.type, "INT64"
+    assert_nil column1.limit
+    assert_equal column1.nullable, false
+
+    column2 = result[1]
+    assert_equal column2.table_name, "accounts"
+    assert_equal column2.name, "name"
+    assert_equal column2.type, "STRING"
+    assert_equal column2.limit, 32
+    assert_equal column2.nullable, true
   end
 
-  describe "#indexes" do
-    it "list table indexes" do
-      set_mocked_result index_columns_result
-      set_mocked_result indexes_result
-      result = info_schema.indexes "orders"
-      result.length.must_equal 1
+  def test_get_table_column
+    set_mocked_result table_columns_result
+    column = info_schema.table_column "accounts", "account_id"
+    assert_instance_of SpannerActiverecord::Table::Column, column
 
-      assert_sql_equal(
-        last_executed_sqls,
-        "SELECT * FROM information_schema.index_columns WHERE table_name='orders'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND spanner_is_managed=false"
-      )
-
-      result.each do |index|
-        index.must_be_instance_of SpannerActiverecord::Index
-      end
-
-      index = result[0]
-      index.table.must_equal "orders"
-      index.name.must_equal "index_orders_on_user_id"
-      index.unique.must_equal false
-      index.null_filtered.must_equal false
-      index.interleve_in.must_be_nil
-      index.storing.must_equal []
-      index.columns.length.must_equal 1
-      index.columns.each do |column|
-        column.must_be_instance_of SpannerActiverecord::Index::Column
-      end
-
-      column = index.columns.first
-      column.name.must_equal "user_id"
-    end
+    assert_sql_equal(
+      last_executed_sql,
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts' AND column_name='account_id'"
+    )
   end
 
-  describe "#index" do
-    it "get an index" do
-      set_mocked_result index_columns_result
-      set_mocked_result indexes_result
-      index = info_schema.index "orders", "index_orders_on_user_id"
-      index.must_be_instance_of SpannerActiverecord::Index
+  def test_list_table_indexes
+    set_mocked_result index_columns_result
+    set_mocked_result indexes_result
+    result = info_schema.indexes "orders"
+    assert_equal result.length, 1
 
-      assert_sql_equal(
-        last_executed_sqls,
-        "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'",
-        "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id' AND spanner_is_managed=false"
-      )
+    assert_sql_equal(
+      last_executed_sqls,
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders'",
+      "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND spanner_is_managed=false"
+    )
 
-      index.table.must_equal "orders"
-      index.name.must_equal "index_orders_on_user_id"
-      index.unique.must_equal false
-      index.null_filtered.must_equal false
-      index.interleve_in.must_be_nil
-      index.storing.must_equal []
-      index.columns.length.must_equal 1
-      index.columns.each do |column|
-        column.must_be_instance_of SpannerActiverecord::Index::Column
-      end
-
-      column = index.columns.first
-      column.name.must_equal "user_id"
+    result.each do |index|
+      assert_instance_of SpannerActiverecord::Index, index
     end
+
+    index = result[0]
+    assert_equal index.table, "orders"
+    assert_equal index.name, "index_orders_on_user_id"
+    assert_equal index.unique, false
+    assert_equal index.null_filtered, false
+    assert_empty index.storing
+    assert_nil index.interleve_in
+    assert_equal index.columns.length, 1
+    index.columns.each do |column|
+      assert_instance_of SpannerActiverecord::Index::Column, column
+    end
+
+    assert_equal index.columns.first.name, "user_id"
   end
 
-  describe "#index_columns" do
-    it "list an index columns" do
-      set_mocked_result index_columns_result
-      result = info_schema.index_columns "orders", index_name: "index_orders_on_user_id"
-      result.length.must_equal 1
+  def test_get_an_index
+    set_mocked_result index_columns_result
+    set_mocked_result indexes_result
+    index = info_schema.index "orders", "index_orders_on_user_id"
+    assert_instance_of SpannerActiverecord::Index, index
 
-      assert_sql_equal(
-        last_executed_sqls,
-        "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'"
-      )
+    assert_sql_equal(
+      last_executed_sqls,
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'",
+      "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id' AND spanner_is_managed=false"
+    )
 
-      column = result.first
-      column.table_name.must_equal "orders"
-      column.index_name.must_equal "index_orders_on_user_id"
-      column.name.must_equal "user_id"
-      column.order.must_equal "ASC"
+    assert_equal index.table, "orders"
+    assert_equal index.name, "index_orders_on_user_id"
+    assert_equal index.unique, false
+    assert_equal index.null_filtered, false
+    assert_nil index.interleve_in
+    assert_empty index.storing
+    assert_equal index.columns.length, 1
+    index.columns.each do |column|
+      assert_instance_of SpannerActiverecord::Index::Column, column
     end
+
+    assert_equal index.columns.first.name, "user_id"
   end
 
-  describe "#indexes_by_columns" do
-    it "list indexes for given columns list" do
-      set_mocked_result index_columns_result
-      set_mocked_result indexes_result
-      result = info_schema.indexes_by_columns "orders", ["user_id"]
-      result.length.must_equal 1
+  def test_list_index_columns
+    set_mocked_result index_columns_result
+    result = info_schema.index_columns "orders", index_name: "index_orders_on_user_id"
+    assert_equal result.length, 1
 
-      index = result.first
-      index.name.must_equal "index_orders_on_user_id"
-      index.columns.any?{ |c| c.name == "user_id"}.must_equal true
-    end
+    assert_sql_equal(
+      last_executed_sqls,
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'"
+    )
+
+    column = result.first
+    assert_equal column.table_name, "orders"
+    assert_equal column.index_name, "index_orders_on_user_id"
+    assert_equal column.name, "user_id"
+    assert_equal column.order, "ASC"
+  end
+
+  def test_list_indexs_by_columns
+    set_mocked_result index_columns_result
+    set_mocked_result indexes_result
+    result = info_schema.indexes_by_columns "orders", ["user_id"]
+    assert_equal result.length, 1
+
+    index = result.first
+    assert_equal index.name, "index_orders_on_user_id"
+    assert_equal index.columns.any?{ |c| c.name == "user_id"}, true
   end
 end
