@@ -74,12 +74,12 @@ module ActiveRecord
           @orders = orders || {}
 
           columns = columns.split(/\W/) if columns.is_a? String
-          @columns = Array(columns).map(&:to_sym)
+          @columns = Array(columns).map(&:to_s)
         end
 
         def columns_with_order
           columns.each_with_object({}) do |c, result|
-            result[c] = orders[c.to_sym].to_s.upcase
+            result[c] = orders[c.to_s].to_s.upcase
           end
         end
       end

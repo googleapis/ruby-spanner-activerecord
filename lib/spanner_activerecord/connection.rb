@@ -65,6 +65,9 @@ module SpannerActiverecord
 
     # @params [Array<String>, String] sql Single or list of statements
     def execute_ddl statements, operation_id: nil, wait_until_done: true
+      statements = Array statements
+      return unless statements.any?
+
       job = database.update statements: statements, operation_id: operation_id
       job.wait_until_done! if wait_until_done
       raise Google::Cloud::Error.from_error job.error if job.error?
