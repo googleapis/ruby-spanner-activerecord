@@ -53,6 +53,7 @@ module SpannerActiverecord
       sql = +"SELECT * FROM information_schema.columns"
       sql << " WHERE table_name=%<table_name>s" if table_name
       sql << " AND column_name=%<column_name>s" if column_name
+      sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
         sql,
@@ -130,6 +131,7 @@ module SpannerActiverecord
       sql = +"SELECT * FROM information_schema.index_columns" \
             " WHERE table_name=%<table_name>s"
       sql << " AND index_name=%<index_name>s" if index_name
+      sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
         sql,

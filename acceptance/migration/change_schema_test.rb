@@ -1,0 +1,296 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+module ActiveRecord
+  class Migration
+    class ChangeSchemaTest < ActiveSupport::TestCase
+      include Acceptance::Migration::TestHelper
+
+      attr_reader :connection, :table_name
+
+      def setup
+        skip_test_table_create!
+        super
+        @table_name = :testings
+      end
+
+     def teardown
+        connection.drop_table :testings rescue nil
+        ActiveRecord::Base.primary_key_prefix_type = nil
+        ActiveRecord::Base.clear_cache!
+      end
+
+      def test_add_column
+        testing_table_with_only_foo_attribute do
+          assert_equal connection.columns(:testings).size, 2
+          connection.add_column :testings, :name, :string
+          assert_equal connection.columns(:testings).size, 3
+        end
+      end
+
+      def test_create_table_adds_id
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+
+        assert_equal %w[id foo].sort, connection.columns(:testings).map(&:name).sort
+      end
+
+      def test_create_table_with_not_null_column
+        connection.create_table :testings do |t|
+          t.column :foo, :string, null: false
+        end
+
+        assert_raises ActiveRecord::NotNullViolation do
+          connection.transaction {
+            connection.execute "insert into testings (id, foo) values (#{uuid}, NULL)"
+          }
+        end
+      end
+
+      def test_create_table_with_limits
+        connection.create_table :testings do |t|
+          t.column :foo, :string, limit: 255
+          t.column :default_int, :integer
+        end
+
+        columns = connection.columns :testings
+        foo = columns.detect { |c| c.name == "foo" }
+        assert_equal "STRING(255)", foo.sql_type
+        assert_equal 255, foo.limit
+
+        default_int = columns.detect { |c| c.name == "default_int" }
+        assert_equal "INT64", default_int.sql_type
+      end
+
+      def test_create_table_with_primary_key_prefix_as_table_name_with_underscore
+        ActiveRecord::Base.primary_key_prefix_type = :table_name_with_underscore
+
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+
+        assert_equal %w[testing_id foo].sort, connection.columns(:testings).map(&:name).sort
+      end
+
+      def test_create_table_with_primary_key_prefix_as_table_name
+        ActiveRecord::Base.primary_key_prefix_type = :table_name
+
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+
+        assert_equal %w[testingid foo].sort, connection.columns(:testings).map(&:name).sort
+      end
+
+      def test_create_table_raises_when_redefining_primary_key_column
+        error = assert_raise ArgumentError do
+          connection.create_table :testings do |t|
+            t.column :id, :string
+          end
+        end
+
+        assert_equal "you can't redefine the primary key column 'id'. To define a custom primary key, pass { id: false } to create_table.", error.message
+      end
+
+      def test_create_table_raises_when_redefining_custom_primary_key_column
+        error = assert_raise ArgumentError do
+          connection.create_table :testings, primary_key: :testing_id do |t|
+            t.column :testing_id, :string
+          end
+        end
+
+        assert_equal "you can't redefine the primary key column 'testing_id'. To define a custom primary key, pass { id: false } to create_table.", error.message
+      end
+
+      def test_create_table_raises_when_defining_existing_column
+        error = assert_raise ArgumentError do
+          connection.create_table :testings do |t|
+            t.column :testing_column, :string
+            t.column :testing_column, :integer
+          end
+        end
+
+        assert_equal "you can't define an already defined column 'testing_column'.", error.message
+      end
+
+      def test_create_table_with_timestamps_should_create_datetime_columns
+        connection.create_table table_name do |t|
+          t.timestamps
+        end
+        created_columns = connection.columns table_name
+
+        created_at_column = created_columns.detect { |c| c.name == "created_at" }
+        updated_at_column = created_columns.detect { |c| c.name == "updated_at" }
+
+        assert_not created_at_column.null
+        assert_not updated_at_column.null
+      end
+
+      def test_create_table_with_timestamps_should_create_datetime_columns_with_options
+        connection.create_table table_name do |t|
+          t.timestamps null: true
+        end
+        created_columns = connection.columns table_name
+
+        created_at_column = created_columns.detect { |c| c.name == "created_at" }
+        updated_at_column = created_columns.detect { |c| c.name == "updated_at" }
+
+        assert created_at_column.null
+        assert updated_at_column.null
+      end
+
+      def test_create_table_without_a_block
+        connection.create_table table_name
+      end
+
+      def test_add_column_not_null_without_default
+        skip "Unimplemented error: Cannot add NOT NULL column to existing table"
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+        connection.add_column :testings, :bar, :string, null: false
+
+        assert_raise ActiveRecord::NotNullViolation do
+          connection.transaction {
+            connection.execute "insert into testings (id, foo, bar) values (#{uuid}, 'hello', NULL)"
+          }
+        end
+      end
+
+      def test_add_column_with_timestamp_type
+        connection.create_table :testings do |t|
+          t.column :foo, :timestamp
+        end
+
+        column = connection.columns(:testings).find { |c| c.name == "foo" }
+
+        assert_equal :datetime, column.type
+        assert_equal "TIMESTAMP", column.sql_type
+      end
+
+      def test_change_column_quotes_column_names
+        connection.create_table :testings do |t|
+          t.column :select, :string
+        end
+
+        connection.change_column :testings, :select, :string, limit: 10
+        connection.transaction {
+          connection.execute "insert into testings (#{connection.quote_column_name 'id'},"\
+            "#{connection.quote_column_name 'select'}) values (#{uuid}, '7 chars')"
+        }
+      end
+
+      def test_keeping_notnull_constraints_on_change
+        skip "Unimplemented error: Cannot add NOT NULL column to existing table."
+
+        connection.create_table :testings do |t|
+          t.column :title, :string
+        end
+        person_klass = Class.new ActiveRecord::Base
+        person_klass.table_name = "testings"
+
+        person_klass.connection.add_column "testings", "wealth", :integer, null: false
+        person_klass.reset_column_information
+        assert_equal false, person_klass.columns_hash["wealth"].null
+
+        assert_nothing_raised {
+          person_klass.connection.transaction {
+            person_klass.connection.execute("insert into testings (id, title) values (#{uuid}, tester')")
+          }
+        }
+
+        # change column, make it nullable
+        person_klass.connection.change_column "testings", "wealth", :integer, null: true
+        person_klass.reset_column_information
+        assert_nil person_klass.columns_hash["money"].default
+        assert_equal true, person_klass.columns_hash["money"].null
+      end
+
+      def test_change_column_null
+        testing_table_with_only_foo_attribute do
+          notnull_migration = Class.new(ActiveRecord::Migration::Current) do
+            def change
+              change_column_null :testings, :foo, false
+            end
+          end
+          notnull_migration.new.suppress_messages do
+            notnull_migration.migrate(:up)
+            assert_equal false, connection.columns(:testings).find { |c| c.name == "foo" }.null
+            notnull_migration.migrate(:down)
+            assert connection.columns(:testings).find { |c| c.name == "foo" }.null
+          end
+        end
+      end
+
+      def test_column_exists
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+
+        assert connection.column_exists?(:testings, :foo)
+        assert_not connection.column_exists?(:testings, :bar)
+      end
+
+      def test_column_exists_with_type
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+          t.column :bar, :float
+        end
+
+        assert connection.column_exists?(:testings, :foo, :string)
+        assert_not connection.column_exists?(:testings, :foo, :integer)
+
+        assert connection.column_exists?(:testings, :bar, :float)
+        assert_not connection.column_exists?(:testings, :bar, :integer)
+      end
+
+      def test_column_exists_with_definition
+        connection.create_table :testings do |t|
+          t.column :foo, :string, limit: 100
+          t.column :bar, :float
+          t.column :taggable_id, :integer, null: false
+          t.column :taggable_type, :string
+        end
+
+        assert connection.column_exists?(:testings, :foo, :string, limit: 100)
+        assert_not connection.column_exists?(:testings, :foo, :string, limit: nil)
+        assert connection.column_exists?(:testings, :bar, :float)
+        assert connection.column_exists?(:testings, :taggable_id, :integer, null: false)
+        assert_not connection.column_exists?(:testings, :taggable_id, :integer, null: true)
+        assert connection.column_exists?(:testings, :taggable_type, :string, default: nil)
+      end
+
+      def test_column_exists_on_table_with_no_options_parameter_supplied
+        connection.create_table :testings do |t|
+          t.string :foo
+        end
+        connection.change_table :testings do |t|
+          assert t.column_exists?(:foo)
+          assert_not (t.column_exists?(:bar))
+        end
+      end
+
+      def test_drop_table_if_exists
+        connection.create_table(:testings)
+        assert connection.table_exists?(:testings)
+        connection.drop_table(:testings, if_exists: true)
+        assert_not connection.table_exists?(:testings)
+      end
+
+      def test_drop_table_if_exists_nothing_raised
+        assert_nothing_raised { connection.drop_table(:nonexistent, if_exists: true) }
+      end
+
+      private
+      def testing_table_with_only_foo_attribute
+        connection.create_table :testings do |t|
+          t.column :foo, :string
+        end
+
+        yield
+      end
+    end
+  end
+end

@@ -81,7 +81,7 @@ module Acceptance
       end
 
       def skip_test_table_create!
-        @skip_test_table_create
+        @skip_test_table_create = true
       end
 
       def teardown

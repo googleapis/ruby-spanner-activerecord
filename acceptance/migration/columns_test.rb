@@ -121,6 +121,10 @@ module ActiveRecord
         remove_column "my_table", "col_two"
 
         assert_equal "my_table_id", connection.primary_key("my_table")
+
+        columns = connection.columns "my_table"
+        my_table_id = columns.detect { |c| c.name == "my_table_id" }
+        assert_equal "STRING(36)", my_table_id.sql_type
       ensure
         connection.drop_table :my_table rescue nil
       end

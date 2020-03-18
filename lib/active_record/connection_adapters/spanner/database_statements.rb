@@ -34,7 +34,7 @@ module ActiveRecord
           WRITE_QUERY.match? sql
         end
 
-        # Executes the DDL/SQL statement in the context of this connection.
+        # Executes the DML/DQL statement in the context of this connection.
         def execute sql, name = nil
           materialize_transactions
 
@@ -59,6 +59,15 @@ module ActiveRecord
         end
 
         # rubocop:enable Lint/UnusedMethodArgument)
+
+        def exec_insert sql, name = nil, binds = [], pk = nil, _sequence_name = nil
+          sql, binds = sql_for_insert sql, pk, binds
+          _exec_query sql, name, binds, transaction_required: true
+        end
+
+        def exec_insert_all sql, name
+          _exec_query sql, name, transaction_required: true
+        end
 
         def update arel, name = nil, binds = []
           sql, binds = to_sql_and_binds arel, binds
@@ -105,7 +114,9 @@ module ActiveRecord
           end
         end
 
-        def _exec_query sql, name, binds, transaction_required: nil
+        def _exec_query sql, name, binds = [], transaction_required: nil
+          materialize_transactions
+
           if preventing_writes? && write_query?(sql)
             raise ActiveRecord::ReadOnlyError(
               "Write query attempted while in readonly mode: #{sql}"

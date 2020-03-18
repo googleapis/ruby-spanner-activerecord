@@ -132,8 +132,10 @@ module ActiveRecord
                   "Column '#{column_name}' not exist for table '#{table_name}'"
           end
 
+          column = new_column_from_field table_name, column
+
           type ||= column.type
-          options[:null] = column.nullable unless options.key? :null
+          options[:null] = column.null unless options.key? :null
 
           if ["STRING", "BYTES"].include? type
             options[:limit] = column.limit unless options.key? :limit
@@ -287,7 +289,7 @@ module ActiveRecord
           when :primary_key
             native_type
           when :string, :text, :binary
-            "#{native_type[:name]}(#{limit || 'MAX'})"
+            "#{native_type[:name]}(#{limit || native_type[:limit]})"
           when :integer, :decimal, :float
             if limit
               raise ArgumentError,

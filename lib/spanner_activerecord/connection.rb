@@ -146,6 +146,8 @@ module SpannerActiverecord
       end
       sleep(delay_from_aborted(err) || backoff *= 1.3)
       retry
+    rescue Google::Cloud::FailedPreconditionError => err
+      raise err
     rescue StandardError => err
       rollback_transaction
       return nil if err.is_a? Google::Cloud::Spanner::Rollback
