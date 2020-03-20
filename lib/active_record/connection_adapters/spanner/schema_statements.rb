@@ -293,7 +293,7 @@ module ActiveRecord
           when :integer, :decimal, :float
             if limit
               raise ArgumentError,
-                    "No #{native[:name]} type is not supporting limit"
+                    "No #{native_type[:name]} type is not supporting limit"
             end
             native_type[:name]
           else

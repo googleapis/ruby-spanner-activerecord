@@ -171,6 +171,13 @@ module ActiveRecord
         # TODO: Array and Struct
       end
 
+      def extract_limit sql_type
+        value = /\((.*)\)/.match sql_type
+        return unless value
+
+        value[1] == "MAX" ? "MAX" : value[1].to_i
+      end
+
       def translate_exception exception, message:, sql:, binds:
         if exception.is_a? Google::Cloud::FailedPreconditionError
           case exception.message

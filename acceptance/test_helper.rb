@@ -10,7 +10,7 @@ require "securerandom"
 
 # rubocop:disable Style/GlobalVars
 
-$spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
+$spanner_test_database = "spanner-test" #"ar-test-#{SecureRandom.hex 4}"
 
 def connector_config
   {
@@ -50,7 +50,26 @@ def drop_test_database
   puts "#{$spanner_test_database} database deleted"
 end
 
-module Acceptance
+def current_adapter? *names
+  names.include? :SpannerAdapter
+end
+
+module SpannerAdapter
+  class TestCase < ActiveSupport::TestCase
+    def assert_column(model, column_name, msg = nil)
+      assert has_column?(model, column_name), msg
+    end
+
+    def assert_no_column(model, column_name, msg = nil)
+      assert_not has_column?(model, column_name), msg
+    end
+
+    def has_column?(model, column_name)
+      model.reset_column_information
+      model.column_names.include?(column_name.to_s)
+    end
+  end
+
   module Migration
     module TestHelper
       attr_accessor :connection
@@ -86,7 +105,10 @@ module Acceptance
 
       def teardown
         TestModel.reset_table_name
-        connection.drop_table :test_models, if_exists: true
+
+        unless @skip_test_table_create
+          connection.drop_table :test_models, if_exists: true
+        end
 
         super
       end
@@ -101,9 +123,9 @@ module Acceptance
 end
 
 Minitest.after_run do
-  drop_test_database
+  # drop_test_database
 end
 
-create_test_database
+# create_test_database
 
 # rubocop:enable Style/GlobalVars

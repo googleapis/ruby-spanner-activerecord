@@ -4,8 +4,8 @@ require "test_helper"
 
 module ActiveRecord
   class Migration
-    class ChangeSchemaTest < ActiveSupport::TestCase
-      include Acceptance::Migration::TestHelper
+    class ChangeSchemaTest < SpannerAdapter::TestCase
+      include SpannerAdapter::Migration::TestHelper
 
       attr_reader :connection, :table_name
 

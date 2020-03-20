@@ -4,8 +4,8 @@ require "test_helper"
 
 module ActiveRecord
   class Migration
-    class ColumnsTest < ActiveSupport::TestCase
-      include Acceptance::Migration::TestHelper
+    class ColumnsTest < SpannerAdapter::TestCase
+      include SpannerAdapter::Migration::TestHelper
 
       def test_rename_column
         error = assert_raise SpannerActiverecord::NotSupportedError do
