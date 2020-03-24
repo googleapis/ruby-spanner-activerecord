@@ -5,6 +5,7 @@ require "minitest/rg"
 require "active_support"
 require "google/cloud/spanner"
 require "active_record"
+require "active_support/testing/stream"
 require "spanner_activerecord"
 require "securerandom"
 
