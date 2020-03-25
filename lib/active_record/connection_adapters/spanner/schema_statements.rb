@@ -217,7 +217,7 @@ module ActiveRecord
           id = IndexDefinition.new \
             old_index.table,
             new_name,
-            old_index.columnss.map(&:name),
+            old_index.columns.map(&:name),
             unique: old_index.unique,
             null_filtered: old_index.null_filtered,
             interleve_in: old_index.interleve_in,
@@ -371,6 +371,14 @@ module ActiveRecord
             table_name, column_name
           ).map do |index|
             schema_creation.accept DropIndexDefinition.new(index.name)
+          end
+
+          foreign_keys(table_name).each do |fk|
+            next unless fk.column.to_s == column_name.to_s
+
+            at = create_alter_table table_name
+            at.drop_foreign_key fk.name
+            statements << schema_creation.accept(at)
           end
 
           statements << schema_creation.accept(
