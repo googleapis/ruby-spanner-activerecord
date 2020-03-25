@@ -1,27 +1,21 @@
+require "securerandom"
 require "active_record/base"
 require "active_record/connection_adapters/abstract_adapter"
-require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
+require "active_record/connection_adapters/spanner/schema_definitions"
+require "active_record/connection_adapters/spanner/type_metadata"
+require "active_record/connection_adapters/spanner/quoting"
+require "active_record/type/spanner/bytes"
+require "arel/visitors/spanner"
 require "spanner_activerecord/connection"
 
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
-      config = config.symbolize_keys
-
-      connection = SpannerActiverecord::Connection.new \
-        config[:project],
-        config[:instance],
-        config[:database],
-        credentials: config[:credentials],
-        scope: config[:scope],
-        timeout: config[:timeout],
-        client_config: config[:client_config],
-        pool_config: config[:pool],
-        init_client: true
-
+      connection = SpannerActiverecord::Connection.new config
+      connection.connect!
       ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
     rescue Google::Cloud::Error => error
       if error.instance_of? Google::Cloud::NotFoundError
@@ -34,9 +28,8 @@ module ActiveRecord
   module ConnectionAdapters
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
-      MAX_IDENTIFIER_LENGTH = 128
       NATIVE_DATABASE_TYPES = {
-        primary_key:  { name: "INT64" },
+        primary_key:  "STRING(36)",
         string:       { name: "STRING", limit: "MAX" },
         text:         { name: "STRING", limit: "MAX" },
         integer:      { name: "INT64" },
@@ -50,16 +43,18 @@ module ActiveRecord
         boolean:      { name: "BOOL" }
       }.freeze
 
+      include Spanner::Quoting
       include Spanner::DatabaseStatements
       include Spanner::SchemaStatements
 
       def initialize connection, logger, connection_options, config
+        config[:prepared_statements] = false
         super connection, logger, config
         @connection_options = connection_options
       end
 
       def max_identifier_length
-        MAX_IDENTIFIER_LENGTH
+        128
       end
 
       def native_database_types
@@ -70,7 +65,7 @@ module ActiveRecord
 
       def self.database_exists? config
         connection = ActiveRecord::Base.spanner_connection config
-        connection.close
+        connection.disconnect!
         true
       rescue ActiveRecord::NoDatabaseError
         false
@@ -104,6 +99,10 @@ module ActiveRecord
       end
 
       def supports_explain?
+        false
+      end
+
+      def supports_foreign_keys?
         true
       end
 
@@ -134,15 +133,35 @@ module ActiveRecord
         true
       end
 
+      def supports_primary_key?
+        true
+      end
+
+      def prefetch_primary_key? _table_name = nil
+        true
+      end
+
+      def next_sequence_value _sequence_name
+        SecureRandom.uuid
+      end
+
+      def arel_visitor
+        Arel::Visitors::Spanner.new self
+      end
+
+      # Information Schema
+
       def information_schema
-        SpannerActiverecord::InformationSchema.new self
+        SpannerActiverecord::Connection.information_schema @config
       end
 
       private
 
       def initialize_type_map m = type_map
         m.register_type "BOOL", Type::Boolean.new
-        register_class_with_limit m, %r{^BYTES}i, Type::Binary
+        register_class_with_limit(
+          m, %r{^BYTES}i, ActiveRecord::Type::Spanner::Bytes
+        )
         m.register_type "DATE", Type::Date.new
         m.register_type "FLOAT64", Type::Float.new
         m.register_type "INT64", Type::Integer.new(limit: 8)
@@ -150,6 +169,27 @@ module ActiveRecord
         m.register_type "TIMESTAMP", Type::DateTime.new
 
         # TODO: Array and Struct
+      end
+
+      def extract_limit sql_type
+        value = /\((.*)\)/.match sql_type
+        return unless value
+
+        value[1] == "MAX" ? "MAX" : value[1].to_i
+      end
+
+      def translate_exception exception, message:, sql:, binds:
+        if exception.is_a? Google::Cloud::FailedPreconditionError
+          case exception.message
+          when /.*does not specify a non-null value for these NOT NULL columns.*/,
+               /.*must not be NULL.*/
+            NotNullViolation.new message, sql: sql, binds: binds
+          else
+            super
+          end
+        else
+          super
+        end
       end
     end
   end

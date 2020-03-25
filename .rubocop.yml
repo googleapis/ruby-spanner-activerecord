@@ -8,6 +8,7 @@ AllCops:
     - "Rakefile"
     - "bin/*"
     - "test/**/*"
+    - "acceptance/**/*"
 
 Documentation:
   Enabled: false

@@ -8,6 +8,7 @@ module SpannerActiverecord
 
     def initialize connection
       @connection = connection
+      @mutex = Mutex.new
     end
 
     def tables table_name: nil, schema_name: nil, view: nil
@@ -26,12 +27,13 @@ module SpannerActiverecord
           parent_table: row["PARENT_TABLE_NAME"],
           on_delete: row["ON_DELETE_ACTION"],
           schema_name: row["TABLE_SCHEMA"],
-          catalog: row["TABLE_CATALOG"],
-          connection: @connection
+          catalog: row["TABLE_CATALOG"]
         )
+
         if [:full, :columns].include? view
           table.columns = table_columns table.name
         end
+
         if [:full, :indexes].include? view
           table.indexes = indexes table.name
         end
@@ -48,19 +50,17 @@ module SpannerActiverecord
     end
 
     def table_columns table_name, column_name: nil
-      sql = +"SELECT * FROM information_schema.columns" \
-          " WHERE table_name=%<table_name>s"
-
-      if column_name
-        sql << " AND column_name=%<column_name>s"
-      end
+      sql = +"SELECT * FROM information_schema.columns"
+      sql << " WHERE table_name=%<table_name>s" if table_name
+      sql << " AND column_name=%<column_name>s" if column_name
+      sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
         sql,
         table_name: table_name,
         column_name: column_name
       ).map do |row|
-        type, limit = Table::Column.parse_type_and_limit row["SPANNER_TYPE"]
+        type, limit = parse_type_and_limit row["SPANNER_TYPE"]
         Table::Column.new \
           table_name,
           row["COLUMN_NAME"],
@@ -68,8 +68,7 @@ module SpannerActiverecord
           limit: limit,
           ordinal_position: row["ORDINAL_POSITION"],
           nullable: row["IS_NULLABLE"] == "YES",
-          default: row["COLUMN_DEFAULT"],
-          connection: @connection
+          default: row["COLUMN_DEFAULT"]
       end
     end
 
@@ -77,7 +76,12 @@ module SpannerActiverecord
       table_columns(table_name, column_name: column_name).first
     end
 
-    def indexes table_name, index_name: nil
+    def table_primary_keys table_name
+      index = indexes(table_name, index_type: "PRIMARY_KEY").first
+      index&.columns || []
+    end
+
+    def indexes table_name, index_name: nil, index_type: nil
       table_indexes_columns = index_columns(
         table_name,
         index_name: index_name
@@ -86,9 +90,14 @@ module SpannerActiverecord
       sql = +"SELECT * FROM information_schema.indexes" \
         " WHERE table_name=%<table_name>s"
       sql << " AND index_name=%<index_name>s" if index_name
+      sql << " AND index_type=%<index_type>s" if index_type
+      sql << " AND spanner_is_managed=false"
 
       execute_query(
-        sql, table_name: table_name, index_name: index_name
+        sql,
+        table_name: table_name,
+        index_name: index_name,
+        index_type: index_type
       ).map do |row|
         columns = []
         storing = []
@@ -110,8 +119,7 @@ module SpannerActiverecord
           null_filtered: row["IS_NULL_FILTERED"],
           interleve_in: row["PARENT_TABLE_NAME"],
           storing: storing,
-          state: row["INDEX_STATE"],
-          connection: @connection
+          state: row["INDEX_STATE"]
       end
     end
 
@@ -123,6 +131,7 @@ module SpannerActiverecord
       sql = +"SELECT * FROM information_schema.index_columns" \
             " WHERE table_name=%<table_name>s"
       sql << " AND index_name=%<index_name>s" if index_name
+      sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
         sql,
@@ -133,8 +142,7 @@ module SpannerActiverecord
           row["INDEX_NAME"],
           row["COLUMN_NAME"],
           order: row["COLUMN_ORDERING"],
-          ordinal_position: row["ORDINAL_POSITION"],
-          connection: @connection
+          ordinal_position: row["ORDINAL_POSITION"]
       end
     end
 
@@ -146,12 +154,57 @@ module SpannerActiverecord
       end
     end
 
+    def foreign_keys table_name
+      sql = <<~SQL
+        SELECT cc.table_name AS to_table,
+               cc.column_name AS primary_key,
+               fk.column_name as column,
+               fk.constraint_name AS name,
+               rc.update_rule AS on_update,
+               rc.delete_rule AS on_delete
+        FROM information_schema.referential_constraints rc
+        INNER JOIN information_schema.key_column_usage fk ON rc.constraint_name = fk.constraint_name
+        INNER JOIN information_schema.constraint_column_usage cc ON rc.constraint_name = cc.constraint_name
+        WHERE fk.table_name = %<table_name>s
+          AND fk.constraint_schema = %<constraint_schema>s
+      SQL
+
+      rows = execute_query(
+        sql, table_name: table_name, constraint_schema: ""
+      )
+
+      rows.map do |row|
+        ForeignKey.new(
+          table_name,
+          row["name"],
+          row["column"],
+          row["to_table"],
+          row["primary_key"],
+          on_delete: row["on_delete"],
+          on_update: row["on_update"]
+        )
+      end
+    end
+
+    def parse_type_and_limit value
+      matched = /^([A-Z]*)\((.*)\)/.match value
+      return [value] unless matched
+
+      limit = matched[2]
+      limit = limit.to_i unless limit == "MAX"
+
+      [matched[1], limit]
+    end
+
     private
 
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }
       sql = format sql, params
-      @connection.execute sql
+
+      @mutex.synchronize do
+        @connection.snapshot(sql, strong: true).rows
+      end
     end
   end
 end

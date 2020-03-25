@@ -1,18 +1,76 @@
-# TODO: Remove this file after spanner client provide access
-# to session pool and reset
+# TODO: Remove this file after spanner client provided extanded
+# functionalities
+
 module Google
   module Cloud
     module Spanner
-      class Client
-        attr_reader :pool
+      class Project
+        def create_session instance_id, database_id, labels: nil
+          ensure_service!
 
-        def reset
-          @pool.reset
-          # issue in google/spanner. Need to set @closed value to false on
-          # pool init
-          @pool.instance_variable_set "@closed", false
-          true
+          grpc = @service.create_session(
+            database_path(instance_id, database_id),
+            labels: labels
+          )
+          Session.from_grpc grpc, @service
         end
+      end
+
+      class Session
+        def commit_transaction transaction
+          ensure_service!
+
+          resp = service.commit(
+            path,
+            transaction.commit.mutations,
+            transaction_id: transaction.transaction_id
+          )
+          @last_updated_at = Time.now
+          Convert.timestamp_to_time resp.commit_timestamp
+        end
+
+        def snapshot strong: nil,
+                     timestamp: nil, read_timestamp: nil,
+                     staleness: nil, exact_staleness: nil
+          validate_snapshot_args! strong: strong, timestamp: timestamp,
+                                  read_timestamp: read_timestamp,
+                                  staleness: staleness,
+                                  exact_staleness: exact_staleness
+          ensure_service!
+          if Thread.current[:transaction_id]
+            raise "Nested snapshots are not allowed"
+          end
+
+          snp_grpc = service.create_snapshot \
+            path, timestamp: (timestamp || read_timestamp),
+            staleness: (staleness || exact_staleness)
+          Thread.current[:transaction_id] = snp_grpc.id
+          snp = Snapshot.from_grpc snp_grpc, self
+          yield snp if block_given?
+        ensure
+          Thread.current[:transaction_id] = nil
+        end
+
+        private
+
+        ##
+        # Check for valid snapshot arguments
+        def validate_snapshot_args! strong: nil,
+                                    timestamp: nil, read_timestamp: nil,
+                                    staleness: nil, exact_staleness: nil
+          valid_args_count = [
+            strong, timestamp, read_timestamp, staleness, exact_staleness
+          ].compact.count
+          return true if valid_args_count <= 1
+          raise ArgumentError,
+                "Can only provide one of the following arguments: " \
+                "(strong, timestamp, read_timestamp, staleness, " \
+                "exact_staleness)"
+        end
+      end
+
+      class Transaction
+        attr_accessor :seqno, :commit
       end
     end
   end

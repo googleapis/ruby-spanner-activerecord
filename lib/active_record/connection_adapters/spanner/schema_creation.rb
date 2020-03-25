@@ -1,71 +1,104 @@
 module ActiveRecord
   module ConnectionAdapters
     module Spanner
-      class SchemaCreation
-        def initialize connection
-          @connection = connection
-        end
-
-        def create_table obj
-          table = SpannerActiverecord::Table.new(
-            obj.name,
-            parent_table: obj.options[:parent_table],
-            on_delete: obj.options[:on_delete],
-            connection: @connection
-          )
-          add_columns table, obj.columns
-
-          table.primary_keys = if obj.primary_keys
-                                 obj.primary_keys.map(&:name)
-                               else
-                                 obj.columns.select(&:primary_key?).map(&:name)
-                               end
-
-          obj.indexes.each do |index_columns, options|
-            add_index table, index_columns, options
-          end
-
-          table
-        end
-
-        def alter_table obj
-          table = SpannerActiverecord::Table.new \
-            obj.name, connection: @connection
-          add_columns table, obj.adds.map(&:column)
-          table
-        end
-
+      class SchemaCreation < AbstractAdapter::SchemaCreation
         private
 
-        def add_columns table, column_definations
-          column_definations.each do |cd|
-            column = table.add_column \
-              cd.name,
-              @connection.type_to_sql(cd.type),
-              limit: cd.limit,
-              nullable: cd.null,
-              allow_commit_timestamp: cd.options[:allow_commit_timestamp]
-            column.primary_key = true if cd.primary_key?
+        # rubocop:disable Naming/MethodName, Metrics/AbcSize
+
+        def visit_TableDefinition o
+          create_sql = +"CREATE TABLE #{quote_table_name o.name} "
+          statements = o.columns.map { |c| accept c }
+
+          o.foreign_keys.each do |to_table, options|
+            statements << foreign_key_in_create(o.name, to_table, options)
           end
+
+          create_sql << "(#{statements.join ', '}) " if statements.any?
+
+          primary_keys = if o.primary_keys
+                           o.primary_keys
+                         else
+                           pk_names = o.columns.each_with_object [] do |c, r|
+                             r << c.name if c.type == :primary_key
+                           end
+                           PrimaryKeyDefinition.new pk_names
+                         end
+          create_sql << accept(primary_keys)
+
+          if o.interleave_in
+            create_sql << " , INTERLEAVE IN PARENT #{o.interleave_in}"
+            create_sql << " ON DELETE #{o.on_delete}" if o.on_delete
+          end
+
+          create_sql
         end
 
-        def add_index table, column_names, options
-          index_name = options[:name].to_s if options.key? :name
-          index_name ||= @connection.index_name table.name, column_names
+        def visit_DropTableDefinition o
+          "DROP TABLE #{quote_table_name o.name}"
+        end
 
-          options[:orders] ||= {}
-          columns = Array(column_names).each_with_object({}) do |c, r|
-            r[c.to_sym] = options[c.to_sym]
+        def visit_ColumnDefinition o
+          o.sql_type = type_to_sql o.type, o.options
+
+          column_sql = +"#{quote_column_name o.name} #{o.sql_type}"
+          add_column_options! column_sql, column_options(o)
+          column_sql
+        end
+
+        def visit_DropColumnDefinition o
+          "ALTER TABLE #{quote_table_name o.table_name} DROP" \
+           " COLUMN #{quote_column_name o.name}"
+        end
+
+        def visit_ChangeColumnDefinition o
+          sql = +"ALTER TABLE #{quote_table_name o.table_name} ALTER COLUMN "
+          sql << accept(o.column)
+          sql
+        end
+
+        def visit_DropIndexDefinition o
+          "DROP INDEX #{quote_column_name o.name}"
+        end
+
+        def visit_IndexDefinition o
+          sql = +"CREATE"
+          sql << " UNIQUE" if o.unique
+          sql << " NULL_FILTERED" if o.null_filtered
+          sql << " INDEX #{quote_column_name o.name} "
+
+          columns_sql = o.columns_with_order.map do |c, order|
+            order_sql = +quote_column_name(c)
+            order_sql << " DESC" if order == "DESC"
+            order_sql
           end
 
-          table.add_index(
-            index_name,
-            columns,
-            unique: options[:unique],
-            null_filtered: options[:null_filtered],
-            interleve_in: options[:interleve_in],
-            storing: options[:storing]
-          )
+          sql << "ON #{quote_table_name o.table_name} (#{columns_sql.join ', '})"
+
+          if o.storing.any?
+            storing = o.storing.map { |s| quote_column_name s }
+            sql << " STORING (#{storing.join ', '})"
+          end
+          if o.interleve_in
+            sql << ", INTERLEAVE IN #{quote_column_name o.interleve_in}"
+          end
+          sql
+        end
+
+        # rubocop:enable Naming/MethodName, Metrics/AbcSize
+
+        def add_column_options! sql, options
+          if options[:null] == false || options[:primary_key] == true
+            sql << " NOT NULL"
+          end
+
+          if !options[:allow_commit_timestamp].nil? &&
+             options[:column].sql_type == "TIMESTAMP"
+            sql << " OPTIONS (allow_commit_timestamp = "\
+                   "#{options[:allow_commit_timestamp]})"
+          end
+
+          sql
         end
       end
     end

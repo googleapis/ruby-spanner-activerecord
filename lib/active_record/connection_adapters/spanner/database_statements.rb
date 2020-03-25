@@ -4,7 +4,37 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
-        # Executes the SQL statement in the context of this connection.
+        # DDL Statements
+
+        def execute_ddl sql, migration_name: nil
+          log sql, "SCHEMA" do
+            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+              @connection.execute_ddl sql, operation_id: migration_name
+            end
+          end
+        rescue Google::Cloud::Error => error
+          raise ActiveRecord::StatementInvalid, error
+        end
+
+        def truncate table_name, name = nil
+          Array(table_name).each do |t|
+            log "TURNCATE #{t}", name do
+              @connection.truncate t
+            end
+          end
+        end
+
+        # DML and DQL Statements
+
+        WRITE_QUERY = ActiveRecord::ConnectionAdapters::AbstractAdapter.build_read_query_regexp(
+          :insert, :delete, :update, :set
+        )
+
+        def write_query? sql
+          WRITE_QUERY.match? sql
+        end
+
+        # Executes the DML/DQL statement in the context of this connection.
         def execute sql, name = nil
           materialize_transactions
 
@@ -16,26 +46,87 @@ module ActiveRecord
         end
 
         def query sql, name = nil
-          execute sql, name
+          exec_query sql, name
         end
 
-        # TODO: Implement to fetch data with prepared statements.
+        # rubocop:disable Lint/UnusedMethodArgument
+
         def exec_query sql, name = "SQL", binds = [], prepare: false
-          ActiveRecord::Result.new [], []
+          result = _exec_query sql, name, binds
+          ActiveRecord::Result.new(
+            result.fields.keys.map(&:to_s), result.rows.map(&:values)
+          )
         end
 
-        def truncate _table_name, _name = nil
-          raise ActiveRecordError, "Truncate table is not supported"
+        # rubocop:enable Lint/UnusedMethodArgument)
+
+        def exec_insert sql, name = nil, binds = [], pk = nil, _sequence_name = nil
+          sql, binds = sql_for_insert sql, pk, binds
+          _exec_query sql, name, binds, transaction_required: true
         end
 
-        # DDL Statements
+        def exec_insert_all sql, name
+          _exec_query sql, name, transaction_required: true
+        end
 
-        def execute_ddl sql, migration_name: nil
-          log sql do
-            @connection.execute_ddl sql, operation_id: migration_name
+        def update arel, name = nil, binds = []
+          sql, binds = to_sql_and_binds arel, binds
+          sql = "#{sql} WHERE true" if arel.ast.wheres.empty?
+          exec_update sql, name, binds
+        end
+        alias delete update
+
+        def exec_update sql, name = "SQL", binds = []
+          result = _exec_query sql, name, binds, transaction_required: true
+          return result.row_count if result.row_count
+
+          raise ActiveRecord::StatementInvalid.new(
+            "DML statement is invalid.", sql
+          )
+        end
+        alias exec_delete exec_update
+
+        # Transaction
+
+        def begin_db_transaction
+          log "BEGIN" do
+            @connection.begin_trasaction
           end
-        rescue Google::Cloud::Error => error
-          raise ActiveRecord::StatementInvalid, error
+        end
+
+        def commit_db_transaction
+          log "COMMIT" do
+            @connection.commit_transaction
+          end
+        end
+
+        def rollback_db_transaction
+          log "ROLLBACK" do
+            @connection.rollback_transaction
+          end
+        end
+
+        private
+
+        def convert_to_params binds
+          binds.each_with_object({}) do |attribute, result|
+            result[attribute.name] = attribute.value_for_database
+          end
+        end
+
+        def _exec_query sql, name, binds = [], transaction_required: nil
+          materialize_transactions
+
+          if preventing_writes? && write_query?(sql)
+            raise ActiveRecord::ReadOnlyError(
+              "Write query attempted while in readonly mode: #{sql}"
+            )
+          end
+
+          log sql, name, binds do
+            @connection.execute_query \
+              sql, transaction_required: transaction_required
+          end
         end
       end
     end

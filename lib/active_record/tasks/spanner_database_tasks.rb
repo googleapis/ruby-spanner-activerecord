@@ -1,20 +1,11 @@
-require "spanner_activerecord/connection"
+require "spanner_activerecord/service"
 
 module ActiveRecord
   module Tasks
     class SpannerDatabaseTasks
-      attr_reader :config
-
       def initialize config
-        @config = config.symbolize_keys
-        @connection = SpannerActiverecord::Connection.new \
-          @config[:project],
-          @config[:instance],
-          @config[:database],
-          credentials: @config[:credentials],
-          scope: @config[:scope],
-          timeout: @config[:timeout],
-          client_config: @config[:client_config]
+        config = config.symbolize_keys
+        @connection = SpannerActiverecord::Connection.new config
       end
 
       def create
@@ -24,11 +15,11 @@ module ActiveRecord
           raise ActiveRecord::Tasks::DatabaseAlreadyExists
         end
 
-        raise ActiveRecord::StatementInvalid, error
+        raise error
       end
 
       def drop
-        database.drop
+        @connection.database.drop
       end
 
       def purge
@@ -37,11 +28,11 @@ module ActiveRecord
       end
 
       def charset
-        config[:charset]
+        nil
       end
 
       def collation
-        config[:collation]
+        nil
       end
 
       def structure_dump filename, _extra_flags
@@ -53,7 +44,7 @@ module ActiveRecord
           table_regx = /^CREATE TABLE (#{ignore_tables.join "|"})/
         end
 
-        database.ddl(force: true).each do |statement|
+        @connection.database.ddl(force: true).each do |statement|
           next if ignore_tables.any? &&
                   (table_regx =~ statement || index_regx =~ statement)
           file.write statement
@@ -65,15 +56,7 @@ module ActiveRecord
 
       def structure_load filename, _extra_flags
         statements = File.read(filename).split(/(?=^CREATE)/)
-        database.update statements: statements
-      end
-
-      private
-
-      def database
-        @connection.database
-      rescue Google::Cloud::NotFoundError => error
-        raise ActiveRecord::NoDatabaseError, error
+        @connection.execute_ddl statements
       end
     end
   end

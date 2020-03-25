@@ -13,4 +13,5 @@ module SpannerActiverecord
   autoload :Table, "spanner_activerecord/table"
   autoload :Column, "spanner_activerecord/column"
   autoload :Index, "spanner_activerecord/index"
+  autoload :ForeignKey, "spanner_activerecord/foreign_key"
 end
