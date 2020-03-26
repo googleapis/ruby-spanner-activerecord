@@ -1,4 +1,4 @@
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Index
     class Column
       attr_accessor :table_name, :index_name, :name, :order, :ordinal_position

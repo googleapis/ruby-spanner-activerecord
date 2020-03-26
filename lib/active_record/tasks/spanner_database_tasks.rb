@@ -1,11 +1,11 @@
-require "spanner_activerecord/service"
+require "activerecord_spanner_adapter/connection"
 
 module ActiveRecord
   module Tasks
     class SpannerDatabaseTasks
       def initialize config
         config = config.symbolize_keys
-        @connection = SpannerActiverecord::Connection.new config
+        @connection = ActiveRecordSpannerAdapter::Connection.new config
       end
 
       def create

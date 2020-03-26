@@ -11,7 +11,7 @@ class InformationSchemaIndexColumnTest < TestHelper::MockActiveRecordTest
   end
 
   def test_create_index_column_instance
-    column = SpannerActiverecord::Index::Column.new(
+    column = ActiveRecordSpannerAdapter::Index::Column.new(
       table_name, index_name, column_name,
       order: "DESC", ordinal_position: 1
     )

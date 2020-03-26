@@ -1,4 +1,4 @@
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class ForeignKey
     attr_accessor :table_name, :name, :columns, :ref_table, :ref_columns,
                   :on_delete, :on_update

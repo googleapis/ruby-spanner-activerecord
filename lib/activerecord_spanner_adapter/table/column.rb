@@ -1,4 +1,4 @@
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Table
     class Column
       attr_accessor :table_name, :name, :type, :limit, :ordinal_position,

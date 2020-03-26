@@ -1,4 +1,4 @@
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Error < StandardError
   end
 

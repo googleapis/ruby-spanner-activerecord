@@ -2,7 +2,7 @@ require "test_helper"
 
 class SpannerConnectionTest < TestHelper::MockActiveRecordTest
   def test_create_connection
-    connection = SpannerActiverecord::Connection.new({
+    connection = ActiveRecordSpannerAdapter::Connection.new({
       project: project_id,
       instance: instance_id,
       database: database_id,

@@ -18,7 +18,7 @@ class InformationSchemaTableTest < TestHelper::MockActiveRecordTest
       table_name: table_name, column_name: "DESC", type: "STRING", limit: "MAX"
     )
 
-    table = SpannerActiverecord::Table.new(
+    table = ActiveRecordSpannerAdapter::Table.new(
       table_name,
       parent_table: parent_table_name,
       on_delete: "CASCADE",
