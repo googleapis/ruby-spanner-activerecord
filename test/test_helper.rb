@@ -3,7 +3,7 @@ require "minitest/focus"
 require "minitest/rg"
 require "google/cloud/spanner"
 require "active_record"
-require "spanner_activerecord"
+require "activerecord_spanner_adapter"
 
 module SqlStatmentAssertions
   def assert_sql_equal exp, *act
@@ -40,7 +40,7 @@ module TestHelper
       @instance_id = "test-instance"
       @database_id = "test-database"
       @credentials = "test-credentials-file"
-      @connection = SpannerActiverecord::Connection.new(
+      @connection = ActiveRecordSpannerAdapter::Connection.new(
         project: project_id,
         instance: instance_id,
         database: database_id,
@@ -66,7 +66,7 @@ module TestHelper
 
     def new_table table_name: nil, parent_table_name: nil, on_delete: nil,
       schema_name: "", catalog: ""
-      SpannerActiverecord::Table.new(
+      ActiveRecordSpannerAdapter::Table.new(
         table_name || "table_#{SecureRandom.hex(4)}",
         parent_table: parent_table_name,
         on_delete: on_delete,
@@ -78,7 +78,7 @@ module TestHelper
     def new_table_column table_name: nil, column_name: nil, type: "INT64",
       limit: nil, ordinal_position: 0, nullable: true,
       allow_commit_timestamp: nil
-      SpannerActiverecord::Table::Column.new(
+      ActiveRecordSpannerAdapter::Table::Column.new(
         table_name || "table_#{SecureRandom.hex(4)}",
         column_name || "column_#{SecureRandom.hex(4)}",
         type, limit: limit,
@@ -89,7 +89,7 @@ module TestHelper
 
     def new_index_column table_name: nil, index_name: nil, column_name: nil,
       order: "ASC", ordinal_position: 0
-      SpannerActiverecord::Index::Column.new(
+      ActiveRecordSpannerAdapter::Index::Column.new(
         table_name || "table-#{SecureRandom.hex(4)}",
         index_name || "index-#{SecureRandom.hex(4)}",
         column_name || "column-#{SecureRandom.hex(4)}",
@@ -101,7 +101,7 @@ module TestHelper
     def new_index table_name: nil, index_name: nil, columns: [],
                   type: nil, unique: false, null_filtered: false,
                   interleve_in: nil, storing: [], state: "READY"
-      SpannerActiverecord::Index.new(
+      ActiveRecordSpannerAdapter::Index.new(
         table_name || "table-#{SecureRandom.hex(4)}",
         index_name || "index-#{SecureRandom.hex(4)}",
         columns, type: nil, unique: unique, null_filtered: null_filtered,

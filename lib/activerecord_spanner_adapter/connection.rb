@@ -1,8 +1,8 @@
 require "google/cloud/spanner"
 require "spanner_client_ext"
-require "spanner_activerecord/information_schema"
+require "activerecord_spanner_adapter/information_schema"
 
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Connection
     attr_reader :instance_id, :database_id, :spanner
     attr_accessor :current_transaction
@@ -25,7 +25,7 @@ module SpannerActiverecord
           timeout: config[:timeout],
           client_config: config[:client_config]&.symbolize_keys,
           lib_name: "spanner-activerecord-adapter",
-          lib_version: SpannerActiverecord::VERSION
+          lib_version: ActiveRecordSpannerAdapter::VERSION
         )
       end
     end
@@ -33,7 +33,7 @@ module SpannerActiverecord
     def self.information_schema config
       @information_schemas ||= {}
       @information_schemas[database_path(config)] ||= \
-        SpannerActiverecord::InformationSchema.new new(config)
+        ActiveRecordSpannerAdapter::InformationSchema.new new(config)
     end
 
     def session

@@ -1,11 +1,11 @@
 
 lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require "spanner_activerecord/version"
+require "activerecord_spanner_adapter/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "spanner-activerecord"
-  spec.version       = SpannerActiverecord::VERSION
+  spec.name          = "activerecord-spanner-adapter"
+  spec.version       = ActiveRecordSpannerAdapter::VERSION
   spec.authors       = ["Google LLC"]
   spec.email         = ["cloud-spanner-developers@googlegroups.com"]
 
@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = ">= 2.4"
 
-  spec.add_dependency 'google-cloud-spanner', '~> 1.14.0'
+  spec.add_dependency 'google-cloud-spanner', '~> 1.16.0'
 
   spec.add_development_dependency "autotest-suffix", "~> 1.1"
   spec.add_development_dependency "activerecord", "~> 6.0"

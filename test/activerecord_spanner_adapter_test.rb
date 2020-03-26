@@ -1,9 +1,9 @@
 require "test_helper"
 
-describe SpannerActiverecord do
+describe ActiveRecordSpannerAdapter do
   describe "#version" do
     it "check gem has a version number" do
-      SpannerActiverecord::VERSION.wont_be_nil
+      ActiveRecordSpannerAdapter::VERSION.wont_be_nil
     end
   end
 end

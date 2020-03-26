@@ -8,13 +8,13 @@ require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
 require "active_record/type/spanner/bytes"
 require "arel/visitors/spanner"
-require "spanner_activerecord/connection"
+require "activerecord_spanner_adapter/connection"
 
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     def spanner_connection config
-      connection = SpannerActiverecord::Connection.new config
+      connection = ActiveRecordSpannerAdapter::Connection.new config
       connection.connect!
       ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
     rescue Google::Cloud::Error => error
@@ -152,7 +152,7 @@ module ActiveRecord
       # Information Schema
 
       def information_schema
-        SpannerActiverecord::Connection.information_schema @config
+        ActiveRecordSpannerAdapter::Connection.information_schema @config
       end
 
       private

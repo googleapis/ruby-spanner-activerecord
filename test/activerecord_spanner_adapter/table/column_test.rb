@@ -10,7 +10,7 @@ class InformationSchemaTableColumnTest < TestHelper::MockActiveRecordTest
   end
 
   def test_create_instance_of_table_column
-    column = SpannerActiverecord::Table::Column.new(
+    column = ActiveRecordSpannerAdapter::Table::Column.new(
       table_name, column_name, "STRING",
       limit: 255, ordinal_position: 1, nullable: true,
       allow_commit_timestamp: true,

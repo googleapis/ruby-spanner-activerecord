@@ -1,6 +1,6 @@
 require "active_record/connection_adapters/abstract/quoting"
 
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
 

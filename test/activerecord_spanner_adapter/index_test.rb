@@ -21,7 +21,7 @@ class InformationSchemaIndexTest < TestHelper::MockActiveRecordTest
       ordinal_position: 0
     )
 
-    index = SpannerActiverecord::Index.new(
+    index = ActiveRecordSpannerAdapter::Index.new(
       table_name, index_name, [column1, column2],
       unique: true, storing: ["col1"]
     )

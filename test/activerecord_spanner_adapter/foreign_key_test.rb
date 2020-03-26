@@ -13,7 +13,7 @@ class InformationSchemaForeignKeyTest < TestHelper::MockActiveRecordTest
   end
 
   def test_create_instance_of_foreign_key
-    fk = SpannerActiverecord::ForeignKey.new(
+    fk = ActiveRecordSpannerAdapter::ForeignKey.new(
       table_name, contraint_name, column_name,
       ref_table_name, ref_column_name
     )

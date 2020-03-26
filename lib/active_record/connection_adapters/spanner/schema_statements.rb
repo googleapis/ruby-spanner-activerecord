@@ -76,7 +76,7 @@ module ActiveRecord
         end
 
         def rename_table _table_name, _new_name
-          raise SpannerActiverecord::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError, \
                 "rename_table is not implemented"
         end
 
@@ -159,12 +159,12 @@ module ActiveRecord
         end
 
         def change_column_default _table_name, _column_name, _default_or_changes
-          raise SpannerActiverecord::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError, \
                 "change column with default value not supported."
         end
 
         def rename_column _table_name, _column_name, _new_column_name
-          raise SpannerActiverecord::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError, \
                 "rename column not supported."
         end
 

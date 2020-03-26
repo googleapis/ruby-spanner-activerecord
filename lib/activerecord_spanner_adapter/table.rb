@@ -1,6 +1,6 @@
-require "spanner_activerecord/table/column"
+require "activerecord_spanner_adapter/table/column"
 
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Table
     attr_accessor :name, :on_delete, :parent_table, :schema_name, :catalog,
                   :indexes, :columns, :foreign_keys

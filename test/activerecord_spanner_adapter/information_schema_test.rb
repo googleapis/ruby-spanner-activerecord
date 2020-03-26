@@ -7,7 +7,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
   def setup
     super
-    @info_schema = SpannerActiverecord::InformationSchema.new connection
+    @info_schema = ActiveRecordSpannerAdapter::InformationSchema.new connection
     @tables_schema_result = [
       {
         "TABLE_CATALOG" => "",
@@ -74,8 +74,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
   end
 
   def test_create_an_instance
-    info_schema = SpannerActiverecord::InformationSchema.new connection
-    assert_instance_of SpannerActiverecord::InformationSchema, info_schema
+    info_schema = ActiveRecordSpannerAdapter::InformationSchema.new connection
+    assert_instance_of ActiveRecordSpannerAdapter::InformationSchema, info_schema
   end
 
   def test_list_all_tables
@@ -89,7 +89,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     )
 
     result.each do |table|
-      assert_instance_of SpannerActiverecord::Table, table
+      assert_instance_of ActiveRecordSpannerAdapter::Table, table
     end
 
     table = result.first
@@ -104,7 +104,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
       last_executed_sqls,
       [
         "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
       ]
     )
   end
@@ -117,7 +117,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
       last_executed_sqls,
       [
         "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
       ]
     )
@@ -131,8 +131,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
       last_executed_sqls,
       [
         "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
       ]
     )
@@ -141,7 +141,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
   def test_get_table
     set_mocked_result tables_schema_result
     table = info_schema.table "accounts"
-    assert_instance_of SpannerActiverecord::Table, table
+    assert_instance_of ActiveRecordSpannerAdapter::Table, table
 
     assert_sql_equal(
       last_executed_sql,
@@ -156,7 +156,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       last_executed_sqls,
       "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
     )
   end
 
@@ -168,7 +168,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
       last_executed_sqls,
       [
         "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
       ]
     )
@@ -182,8 +182,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
       last_executed_sqls,
       [
         "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts'",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts'",
+        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
       ]
     )
@@ -196,11 +196,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       last_executed_sql,
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts'"
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
     )
 
     result.each do |column|
-      assert_instance_of SpannerActiverecord::Table::Column, column
+      assert_instance_of ActiveRecordSpannerAdapter::Table::Column, column
     end
 
     column1 = result[0]
@@ -221,11 +221,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
   def test_get_table_column
     set_mocked_result table_columns_result
     column = info_schema.table_column "accounts", "account_id"
-    assert_instance_of SpannerActiverecord::Table::Column, column
+    assert_instance_of ActiveRecordSpannerAdapter::Table::Column, column
 
     assert_sql_equal(
       last_executed_sql,
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts' AND column_name='account_id'"
+      "SELECT * FROM information_schema.columns WHERE table_name='accounts' AND column_name='account_id' ORDER BY ORDINAL_POSITION ASC"
     )
   end
 
@@ -237,12 +237,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders'",
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' ORDER BY ORDINAL_POSITION ASC",
       "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND spanner_is_managed=false"
     )
 
     result.each do |index|
-      assert_instance_of SpannerActiverecord::Index, index
+      assert_instance_of ActiveRecordSpannerAdapter::Index, index
     end
 
     index = result[0]
@@ -254,7 +254,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_nil index.interleve_in
     assert_equal index.columns.length, 1
     index.columns.each do |column|
-      assert_instance_of SpannerActiverecord::Index::Column, column
+      assert_instance_of ActiveRecordSpannerAdapter::Index::Column, column
     end
 
     assert_equal index.columns.first.name, "user_id"
@@ -264,11 +264,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     set_mocked_result index_columns_result
     set_mocked_result indexes_result
     index = info_schema.index "orders", "index_orders_on_user_id"
-    assert_instance_of SpannerActiverecord::Index, index
+    assert_instance_of ActiveRecordSpannerAdapter::Index, index
 
     assert_sql_equal(
       last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'",
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
       "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id' AND spanner_is_managed=false"
     )
 
@@ -280,7 +280,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_empty index.storing
     assert_equal index.columns.length, 1
     index.columns.each do |column|
-      assert_instance_of SpannerActiverecord::Index::Column, column
+      assert_instance_of ActiveRecordSpannerAdapter::Index::Column, column
     end
 
     assert_equal index.columns.first.name, "user_id"
@@ -293,7 +293,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id'"
+      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC"
     )
 
     column = result.first

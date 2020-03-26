@@ -1,6 +1,6 @@
-require "spanner_activerecord/index/column"
+require "activerecord_spanner_adapter/index/column"
 
-module SpannerActiverecord
+module ActiveRecordSpannerAdapter
   class Index
     attr_accessor :table, :name, :columns, :type, :unique, :null_filtered,
                   :interleve_in, :storing, :state
