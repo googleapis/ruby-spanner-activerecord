@@ -6,7 +6,7 @@ require "active_support"
 require "google/cloud/spanner"
 require "active_record"
 require "active_support/testing/stream"
-require "spanner_activerecord"
+require "activerecord_spanner_adapter"
 require "securerandom"
 
 # rubocop:disable Style/GlobalVars
@@ -119,6 +119,44 @@ module SpannerAdapter
       end
 
       delegate *CONNECTION_METHODS, to: :connection
+    end
+  end
+
+  module Types
+    module TestHelper
+      attr_accessor :connection
+
+      class TestTypeModel < ActiveRecord::Base
+        self.table_name = :test_types
+      end
+
+      def setup
+        super
+
+        ActiveRecord::Base.establish_connection connector_config
+        @connection = ActiveRecord::Base.connection
+
+        return if connection.table_exists? :test_types
+
+        connection.create_table :test_types do |t|
+          t.string :name, limit: 255
+          t.string :description
+          t.text :bio
+          t.integer :length
+          t.float :weight
+          t.boolean :active
+          t.binary :file
+          t.binary :data, limit: 255
+          t.date :start_date
+          t.datetime :start_datetime
+          t.time :start_time
+        end
+      end
+
+      def teardown
+        super
+        TestTypeModel.delete_all
+      end
     end
   end
 end
