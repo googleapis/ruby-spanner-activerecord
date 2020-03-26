@@ -7,6 +7,7 @@ require "active_record/connection_adapters/spanner/schema_definitions"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
 require "active_record/type/spanner/bytes"
+require "active_record/type/spanner/time"
 require "arel/visitors/spanner"
 require "activerecord_spanner_adapter/connection"
 
@@ -166,7 +167,7 @@ module ActiveRecord
         m.register_type "FLOAT64", Type::Float.new
         m.register_type "INT64", Type::Integer.new(limit: 8)
         register_class_with_limit m, %r{^STRING}i, Type::String
-        m.register_type "TIMESTAMP", Type::DateTime.new
+        m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
 
         # TODO: Array and Struct
       end

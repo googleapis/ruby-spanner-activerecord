@@ -120,7 +120,6 @@ module ActiveRecord
         assert_equal 0, connection.foreign_keys('testings').size
       end
 
-      focus
       def test_remove_column_removes_foreign_key
         connection.create_table :testings do |t|
           t.references :testing_parent, index: true, foreign_key: true
