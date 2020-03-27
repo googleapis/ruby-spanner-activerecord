@@ -1,17 +1,14 @@
 require "activerecord_spanner_adapter/version"
 require "activerecord_spanner_adapter/errors"
 require "active_record/connection_adapters/spanner_adapter"
-require "active_record_ext"
+require "active_record/tasks/spanner_database_tasks"
 require "google/cloud/spanner"
 require "spanner_client_ext"
+require "activerecord_spanner_adapter/information_schema"
 
 module ActiveRecordSpannerAdapter
-  extend ActiveSupport::Autoload
-
-  autoload :InformationSchema, "activerecord_spanner_adapter/information_schema"
-  autoload :Database, "activerecord_spanner_adapter/database"
-  autoload :Table, "activerecord_spanner_adapter/table"
-  autoload :Column, "activerecord_spanner_adapter/column"
-  autoload :Index, "activerecord_spanner_adapter/index"
-  autoload :ForeignKey, "activerecord_spanner_adapter/foreign_key"
+  ActiveRecord::Tasks::DatabaseTasks.register_task(
+    /spanner/,
+    "ActiveRecord::Tasks::SpannerDatabaseTasks"
+  )
 end
