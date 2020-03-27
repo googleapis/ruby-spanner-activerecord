@@ -1,5 +1,4 @@
 require "securerandom"
-require "active_record/base"
 require "active_record/connection_adapters/abstract_adapter"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
@@ -65,8 +64,8 @@ module ActiveRecord
       # Database
 
       def self.database_exists? config
-        connection = ActiveRecord::Base.spanner_connection config
-        connection.disconnect!
+        connection = ActiveRecordSpannerAdapter::Connection.new config
+        connection.connect!
         true
       rescue ActiveRecord::NoDatabaseError
         false

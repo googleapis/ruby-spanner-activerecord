@@ -1,4 +1,9 @@
 require "active_record/connection_adapters/abstract/quoting"
+require "activerecord_spanner_adapter/information_schema"
+require "activerecord_spanner_adapter/table"
+require "activerecord_spanner_adapter/index"
+require "activerecord_spanner_adapter/foreign_key"
+
 
 module ActiveRecordSpannerAdapter
   class InformationSchema
