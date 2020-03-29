@@ -11,7 +11,7 @@ require "securerandom"
 
 # rubocop:disable Style/GlobalVars
 
-$spanner_test_database = "spanner-test" # "ar-test-#{SecureRandom.hex 4}"
+$spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
 
 def connector_config
   {
@@ -230,9 +230,9 @@ module SpannerAdapter
 end
 
 Minitest.after_run do
-  # drop_test_database
+  drop_test_database
 end
 
-# create_test_database
+create_test_database
 
 # rubocop:enable Style/GlobalVars
