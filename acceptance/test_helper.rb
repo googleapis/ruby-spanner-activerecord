@@ -212,7 +212,11 @@ module SpannerAdapter
   class SQLCounter
     class << self
       attr_accessor :ignored_sql, :log, :log_all
-      def clear_log; self.log = []; self.log_all = []; end
+
+      def clear_log
+        self.log = []
+        self.log_all = []
+      end
     end
 
     clear_log
