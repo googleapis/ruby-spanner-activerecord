@@ -283,7 +283,24 @@ module ActiveRecord
         assert_nothing_raised { connection.drop_table(:nonexistent, if_exists: true) }
       end
 
+      def test_drop_and_create_table_with_indexes
+        table_name = :test_drop_and_create_table
+        connection.create_table table_name do |t|
+          t.string :name, index: true
+        end
+
+        assert_nothing_raised {
+          connection.create_table table_name, force: true do |t|
+            t.string :name, index: true
+          end
+        }
+
+        assert_equal true, connection.table_exists?(:test_drop_and_create_table)
+        assert_equal true, connection.index_exists?(table_name, :name)
+      end
+
       private
+
       def testing_table_with_only_foo_attribute
         connection.create_table :testings do |t|
           t.column :foo, :string

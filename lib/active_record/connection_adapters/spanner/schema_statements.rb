@@ -193,6 +193,13 @@ module ActiveRecord
 
         def add_index table_name, column_name, options = {}
           id = create_index_definition table_name, column_name, options
+
+          if data_source_exists?(table_name) &&
+             index_name_exists?(table_name, id.name)
+            raise ArgumentError, "Index name '#{id.name}' on table" \
+                                 "'#{table_name}' already exists"
+          end
+
           execute_ddl schema_creation.accept(id)
         end
 
@@ -328,12 +335,6 @@ module ActiveRecord
           index_name ||= index_name table_name, column_names
 
           validate_index_length! table_name, index_name
-
-          if data_source_exists?(table_name) &&
-             index_name_exists?(table_name, index_name)
-            raise ArgumentError, "Index name '#{index_name}' on table" \
-                                 "'#{table_name}' already exists"
-          end
 
           IndexDefinition.new \
             table_name,
