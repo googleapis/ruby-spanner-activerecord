@@ -14,7 +14,7 @@ ActiveRecord::Schema.define do
 
   create_table :accounts, force: true do |t|
     t.references :customer, index: false
-    t.references :firms, index: false
+    t.references :firm, index: false
     t.string  :name
     t.integer :credit_limit
     t.integer :transactions_count
