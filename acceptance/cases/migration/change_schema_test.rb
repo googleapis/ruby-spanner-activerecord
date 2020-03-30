@@ -166,7 +166,7 @@ module ActiveRecord
 
         column = connection.columns(:testings).find { |c| c.name == "foo" }
 
-        assert_equal :datetime, column.type
+        assert_equal :time, column.type
         assert_equal "TIMESTAMP", column.sql_type
       end
 
@@ -284,19 +284,18 @@ module ActiveRecord
       end
 
       def test_drop_and_create_table_with_indexes
-        table_name = :test_drop_and_create_table
-        connection.create_table table_name do |t|
+        connection.create_table :testings, force: true do |t|
           t.string :name, index: true
         end
 
         assert_nothing_raised {
-          connection.create_table table_name, force: true do |t|
+          connection.create_table :testings, force: true do |t|
             t.string :name, index: true
           end
         }
 
         assert_equal true, connection.table_exists?(:test_drop_and_create_table)
-        assert_equal true, connection.index_exists?(table_name, :name)
+        assert_equal true, connection.index_exists?(:testings, :name)
       end
 
       private
