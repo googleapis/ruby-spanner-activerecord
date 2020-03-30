@@ -8,7 +8,7 @@ module ActiveRecord
       include SpannerAdapter::Migration::TestHelper
 
       def test_rename_column
-        error = assert_raise SpannerActiverecord::NotSupportedError do
+        error = assert_raise ActiveRecordSpannerAdapter::NotSupportedError do
           rename_column "test_models", :hat_name, :cap_name
         end
 
@@ -16,7 +16,7 @@ module ActiveRecord
       end
 
       def test_change_column_default_value
-        error = assert_raise SpannerActiverecord::NotSupportedError do
+        error = assert_raise ActiveRecordSpannerAdapter::NotSupportedError do
           change_column_default "test_models", :hat_name, "hat"
         end
 

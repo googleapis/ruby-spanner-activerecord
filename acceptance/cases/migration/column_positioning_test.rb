@@ -11,7 +11,7 @@ module ActiveRecord
         skip_test_table_create!
         super
 
-        connection.create_table :testings, id: false do |t|
+        connection.create_table :testing_columns_position, id: false, force: true do |t|
           t.column :first, :integer
           t.column :second, :integer
           t.column :third, :integer
@@ -19,17 +19,17 @@ module ActiveRecord
       end
 
       def teardown
-        connection.drop_table :testings rescue nil
+        connection.drop_table :testing_columns_position rescue nil
         ActiveRecord::Base.primary_key_prefix_type = nil
       end
 
       def test_column_positioning
-        assert_equal %w(first second third), connection.columns(:testings).map(&:name)
+        assert_equal %w(first second third), connection.columns(:testing_columns_position).map(&:name)
       end
 
       def test_add_column_with_positioning
-        connection.add_column :testings, :new_col, :integer
-        assert_equal %w(first second third new_col), connection.columns(:testings).map(&:name)
+        connection.add_column :testing_columns_position, :fourth, :integer
+        assert_equal %w(first second third fourth), connection.columns(:testing_columns_position).map(&:name)
       end
     end
   end
