@@ -1,5 +1,7 @@
 # ActiverecordSpannerAdapter
 
+# 🚨THIS CODE IS STILL UNDER DEVELOPMENT🚨
+
 Google Clound Sanner ActiveRecord adapter. https://cloud.google.com/spanner
 
 ## Installation
@@ -45,3 +47,5 @@ The gem is available as open source under the terms of the [MIT License](https:/
 ## Code of Conduct
 
 Everyone interacting in the Activerecord::Spanner project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/activerecord-spanner-adapter/blob/master/CODE_OF_CONDUCT.md).
+
+# 🚨THIS CODE IS STILL UNDER DEVELOPMENT🚨
