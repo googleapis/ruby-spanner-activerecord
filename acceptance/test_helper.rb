@@ -6,7 +6,8 @@ require "active_support"
 require "google/cloud/spanner"
 require "active_record"
 require "active_support/testing/stream"
-require "activerecord_spanner_adapter"
+require "activerecord-spanner-adapter"
+require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
 
 # rubocop:disable Style/GlobalVars
