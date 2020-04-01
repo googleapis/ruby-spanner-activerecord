@@ -50,4 +50,35 @@ ActiveRecord::Schema.define do
   create_table :clubs, force: true do |t|
     t.string :name
   end
+
+  create_table :authors, force: true do |t|
+    t.string :name, null: false
+    t.date :registered_date
+    t.references :organization, index: false
+  end
+
+  create_table :posts, force: true do |t|
+    t.string :title
+    t.string :content
+    t.references :author
+    t.integer :comments_count
+    t.date :post_date
+    t.time :published_time
+  end
+
+  create_table :comments, force: true do |t|
+    t.string :comment
+    t.references :post, index: false, foreign_key: true
+  end
+
+  create_table :addresses, force: true do |t|
+    t.string :line1
+    t.string :postal_code
+    t.string :city
+    t.references :author, index: false
+  end
+
+  create_table :organizations, force: true do |t|
+    t.string :name
+  end
 end
