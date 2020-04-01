@@ -3,7 +3,8 @@ require "minitest/focus"
 require "minitest/rg"
 require "google/cloud/spanner"
 require "active_record"
-require "activerecord_spanner_adapter"
+require "activerecord-spanner-adapter"
+require "active_record/connection_adapters/spanner_adapter"
 
 module SqlStatmentAssertions
   def assert_sql_equal exp, *act
