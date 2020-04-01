@@ -1,4 +1,4 @@
-require "activerecord_spanner_adapter/connection"
+require "active_record/connection_adapters/spanner_adapter"
 
 module ActiveRecord
   module Tasks
@@ -59,5 +59,10 @@ module ActiveRecord
         @connection.execute_ddl statements
       end
     end
+
+    DatabaseTasks.register_task(
+      /spanner/,
+      "ActiveRecord::Tasks::SpannerDatabaseTasks"
+    )
   end
 end

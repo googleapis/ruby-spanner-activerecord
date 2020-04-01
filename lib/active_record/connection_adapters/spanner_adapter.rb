@@ -1,4 +1,6 @@
 require "securerandom"
+require "google/cloud/spanner"
+require "spanner_client_ext"
 require "active_record/connection_adapters/abstract_adapter"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
@@ -9,7 +11,8 @@ require "active_record/type/spanner/bytes"
 require "active_record/type/spanner/time"
 require "arel/visitors/spanner"
 require "activerecord_spanner_adapter/connection"
-
+require "activerecord_spanner_adapter/errors"
+require "activerecord_spanner_adapter/information_schema"
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:

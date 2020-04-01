@@ -26,12 +26,19 @@ module ActiveRecord
 
         # DML and DQL Statements
 
-        WRITE_QUERY = ActiveRecord::ConnectionAdapters::AbstractAdapter.build_read_query_regexp(
-          :insert, :delete, :update, :set
-        )
+
+        WRITE_QUERY = if AbstractAdapter.respond_to? :build_read_query_regexp
+                        AbstractAdapter.build_read_query_regexp(
+                          :insert, :delete, :update, :set
+                        )
+                      else
+                        //
+                      end
+
+        private_constant :WRITE_QUERY
 
         def write_query? sql
-          WRITE_QUERY.match? sql
+          WRITE_QUERY =~ sql
         end
 
         # Executes the DML/DQL statement in the context of this connection.
@@ -49,16 +56,12 @@ module ActiveRecord
           exec_query sql, name
         end
 
-        # rubocop:disable Lint/UnusedMethodArgument
-
         def exec_query sql, name = "SQL", binds = [], prepare: false
           result = _exec_query sql, name, binds
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)
           )
         end
-
-        # rubocop:enable Lint/UnusedMethodArgument)
 
         def exec_insert sql, name = nil, binds = [], pk = nil, _sequence_name = nil
           sql, binds = sql_for_insert sql, pk, binds
