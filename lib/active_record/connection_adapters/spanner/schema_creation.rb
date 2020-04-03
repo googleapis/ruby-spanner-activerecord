@@ -20,7 +20,9 @@ module ActiveRecord
                            o.primary_keys
                          else
                            pk_names = o.columns.each_with_object [] do |c, r|
-                             r << c.name if c.type == :primary_key
+                             if c.type == :primary_key || c.primary_key?
+                               r << c.name
+                             end
                            end
                            PrimaryKeyDefinition.new pk_names
                          end
@@ -36,14 +38,6 @@ module ActiveRecord
 
         def visit_DropTableDefinition o
           "DROP TABLE #{quote_table_name o.name}"
-        end
-
-        def visit_ColumnDefinition o
-          o.sql_type = type_to_sql o.type, o.options
-
-          column_sql = +"#{quote_column_name o.name} #{o.sql_type}"
-          add_column_options! column_sql, column_options(o)
-          column_sql
         end
 
         def visit_DropColumnDefinition o

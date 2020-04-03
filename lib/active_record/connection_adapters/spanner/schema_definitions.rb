@@ -2,6 +2,22 @@ module ActiveRecord
   module ConnectionAdapters #:nodoc:
     module Spanner
       class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
+        def new_column_definition name, type, **options
+          if type == :primary_key
+            type = :string
+            options[:limit] = 36
+            options[:primary_key] = true
+          end
+
+          super
+        end
+
+        def primary_key name, type = :primary_key, **options
+          type = :string
+          options.merge primary_key: true
+          super
+        end
+
         def interleave_in
           @options[:interleave_in] if @options
         end
@@ -16,6 +32,14 @@ module ActiveRecord
           end
         end
         alias belongs_to references
+      end
+
+      class Table < ActiveRecord::ConnectionAdapters::Table
+        def primary_key name, type = :primary_key, **options
+          type = :string
+          options.merge primary_key: true
+          super
+        end
       end
 
       DropTableDefinition = Struct.new :name, :options
@@ -37,13 +61,18 @@ module ActiveRecord
           @foreign_key = foreign_key
           @type = type
           @options = options
-          @options[:limit] ||= 36
+          @options[:limit] ||= 36 if type == :string
+
+          if polymorphic && foreign_key
+            raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
+          end
         end
 
         private
 
         def columns
           result = [[column_name, type, options]]
+
           if polymorphic
             type_options = polymorphic_options.merge limit: 255
             result.unshift ["#{name}_type", :string, type_options]
