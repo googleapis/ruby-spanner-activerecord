@@ -5,6 +5,7 @@ module ActiveRecord
     module Spanner
       class Time < ActiveRecord::Type::Time
         def serialize value
+          value = super
           value.acts_like?(:time) ? value.utc.rfc3339(9) : value
         end
 
@@ -16,7 +17,11 @@ module ActiveRecord
         private
 
         def cast_value value
-          value.is_a?(::String) ? ::Time.parse(value) : value
+          if value.is_a? ::String
+            value = value.empty? ? nil : ::Time.parse(value)
+          end
+
+          value
         end
       end
     end
