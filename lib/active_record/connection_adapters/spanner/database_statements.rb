@@ -26,15 +26,10 @@ module ActiveRecord
 
         # DML and DQL Statements
 
-
-        WRITE_QUERY = if AbstractAdapter.respond_to? :build_read_query_regexp
-                        AbstractAdapter.build_read_query_regexp(
-                          :insert, :delete, :update, :set
-                        )
-                      else
-                        //
-                      end
-
+        WRITE_QUERY = ActiveRecord::ConnectionAdapters::AbstractAdapter
+                      .build_read_query_regexp(
+                        :insert, :delete, :update, :set
+                      )
         private_constant :WRITE_QUERY
 
         def write_query? sql
