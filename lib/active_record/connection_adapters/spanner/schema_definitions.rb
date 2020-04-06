@@ -3,17 +3,15 @@ module ActiveRecord
     module Spanner
       class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
         def new_column_definition name, type, **options
-          if type == :primary_key
+          if type == :primary_key && options[:type].nil?
             type = :string
-            options[:limit] = 36
-            options[:primary_key] = true
+            options[:limit] ||= 36
           end
 
           super
         end
 
         def primary_key name, type = :primary_key, **options
-          type = :string
           options.merge primary_key: true
           super
         end

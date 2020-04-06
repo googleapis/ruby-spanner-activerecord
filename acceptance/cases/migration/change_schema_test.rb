@@ -35,6 +35,59 @@ module ActiveRecord
         end
 
         assert_equal %w[id foo].sort, connection.columns(:testings).map(&:name).sort
+        assert_equal "id", connection.primary_key(:testings)
+
+        column = connection.columns(:testings).find { |c| c.name == "id" }
+
+        assert_equal "id", column.name
+        assert_equal :string, column.type
+        assert_equal 36, column.limit
+      end
+
+      def test_create_table_with_custom_primary_key
+        connection.create_table :testings, force: true, primary_key: :email do |t|
+          t.string :name
+        end
+
+        assert_equal "email", connection.primary_key(:testings)
+      end
+
+      def test_create_table_with_custom_primary_key_using_options
+        connection.create_table :testings, force: true, id: false do |t|
+          t.string :phone, primary_key: true
+          t.string :name
+        end
+
+        assert_equal "phone", connection.primary_key(:testings)
+      end
+
+      def test_create_table_with_custom_primary_key_using_type
+        connection.create_table :testings, force: true, id: false do |t|
+          t.primary_key :username, limit: 255
+          t.string :name
+        end
+
+        assert_equal "username", connection.primary_key(:testings)
+
+        column = connection.columns(:testings).find { |c| c.name == "username" }
+
+        assert_equal "username", column.name
+        assert_equal :string, column.type
+        assert_equal 255, column.limit
+      end
+
+      def test_create_table_with_custom_primary_key_type
+        connection.create_table :testings, force: true, id: false do |t|
+          t.primary_key :user_id, :integer
+          t.string :name
+        end
+
+        assert_equal "user_id", connection.primary_key(:testings)
+
+        column = connection.columns(:testings).find { |c| c.name == "user_id" }
+
+        assert_equal "user_id", column.name
+        assert_equal :integer, column.type
       end
 
       def test_create_table_with_not_null_column
@@ -71,7 +124,10 @@ module ActiveRecord
           t.column :foo, :string
         end
 
-        assert_equal %w[testing_id foo].sort, connection.columns(:testings).map(&:name).sort
+        assert_equal "testing_id", connection.primary_key(:testings)
+
+        columns = connection.columns(:testings)
+        assert_equal %w[testing_id foo].sort, columns.map(&:name).sort
       end
 
       def test_create_table_with_primary_key_prefix_as_table_name
@@ -81,7 +137,10 @@ module ActiveRecord
           t.column :foo, :string
         end
 
-        assert_equal %w[testingid foo].sort, connection.columns(:testings).map(&:name).sort
+        assert_equal "testingid", connection.primary_key(:testings)
+
+        columns = connection.columns(:testings)
+        assert_equal %w[testingid foo].sort, columns.map(&:name).sort
       end
 
       def test_create_table_raises_when_redefining_primary_key_column
