@@ -35,10 +35,10 @@ module ActiveRecord
         assert_equal expected_time, record.start_time
       end
 
-      def test_date_time_with_string_value_with_subsecond_precision
-        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 500000
+      def test_date_time_string_value_with_subsecond_precision
+        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 897761
 
-        string_value = "2017-07-04 14:19:10.5"
+        string_value = "2017-07-04 14:19:10.897761"
 
         record = TestTypeModel.new start_time: string_value
         assert_equal expected_time, record.start_time.utc
