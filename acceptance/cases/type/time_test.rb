@@ -62,7 +62,6 @@ module ActiveRecord
         assert_equal record, TestTypeModel.find_by(start_time: string_value)
       end
 
-      focus
       def test_default_year_is_correct
         expected_time = ::Time.utc(2000, 1, 1, 10, 30, 0)
         record = TestTypeModel.new start_time: { 4 => 10, 5 => 30 }

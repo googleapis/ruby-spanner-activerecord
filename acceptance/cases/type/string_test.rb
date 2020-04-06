@@ -25,6 +25,45 @@ module ActiveRecord
           TestTypeModel.create(name: str)
         }
       end
+
+      def test_escape_special_charaters_and_save
+        str = [
+          "Newline \n",
+          "`Backtick`",
+          "'Quote'",
+          "Bell \a",
+          "Backspace \b",
+          "Formfeed \f",
+          "Carriage Return \r",
+          "Tab \t",
+          "Vertical Tab \v",
+          "Backslash \\",
+          "Question Mark \?",
+          "Double Quote \"",
+        ].join (" ")
+
+        record = TestTypeModel.new(description: str)
+        assert_equal str, record.description
+
+        record.save!
+        assert_equal str, record.description
+
+        record.reload
+        assert_equal str, record.description
+      end
+
+      def test_save_special_charaters
+        str = "Hello Seocial Chars : € à ö ¿ © 😎"
+
+        record = TestTypeModel.new(description: str)
+        assert_equal str, record.description
+
+        record.save!
+        assert_equal str, record.description
+
+        record.reload
+        assert_equal str, record.description
+      end
     end
   end
 end
