@@ -8,12 +8,58 @@ module ActiveRecord
     class TimeTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
-      def test_set_time
+      def test_assign_time
+        expected_time = ::Time.now
+        record = TestTypeModel.new start_time: expected_time
+
+        assert_equal expected_time, record.start_time
+      end
+
+      def test_assign_empty_time
+        record = TestTypeModel.new start_time: ""
+        assert_nil record.start_time
+      end
+
+      def test_assign_nil_time
+        record = TestTypeModel.new start_time: nil
+        assert_nil record.start_time
+      end
+
+      def test_set_and_save_time
         expected_time = ::Time.now.utc
-        record = TestTypeModel.create start_time: expected_time
+        record = TestTypeModel.create! start_time: expected_time
+
+        assert_equal expected_time, record.start_time
 
         record.reload
         assert_equal expected_time, record.start_time
+      end
+
+      def test_date_time_string_value_with_subsecond_precision
+        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 897761
+
+        string_value = "2017-07-04 14:19:10.897761"
+
+        record = TestTypeModel.new start_time: string_value
+        assert_equal expected_time, record.start_time.utc
+
+        record.save!
+        assert_equal expected_time, record.start_time.utc
+
+        assert_equal record, TestTypeModel.find_by(start_time: string_value)
+      end
+
+      def test_date_time_with_string_value_with_non_iso_format
+        string_value = "04/07/2017 2:19pm"
+        expected_time = ::Time.local 2017, 07, 4, 14, 19
+
+        record = TestTypeModel.new start_time: string_value
+        assert_equal expected_time, record.start_time
+
+        record.save!
+        assert_equal expected_time, record.start_time.utc
+
+        assert_equal record, TestTypeModel.find_by(start_time: string_value)
       end
 
       def test_default_year_is_correct
