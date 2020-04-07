@@ -151,8 +151,8 @@ module SpannerAdapter
         super
       end
 
-      def uuid
-        "'#{SecureRandom.uuid}'"
+      def generate_id
+        connection.next_sequence_value nil
       end
 
       delegate *CONNECTION_METHODS, to: :connection

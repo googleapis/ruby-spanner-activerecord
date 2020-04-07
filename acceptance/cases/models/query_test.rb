@@ -40,7 +40,7 @@ module ActiveRecord
       end
 
       def test_where_copies_bind_params
-        posts  = author.posts.where("posts.id = '#{post.id}'")
+        posts  = author.posts.where("posts.id = #{post.id}")
         joined = Post.where(id: posts)
 
         assert_operator joined.length, :>, 0
@@ -53,8 +53,8 @@ module ActiveRecord
 
       def test_where_or_with_relation
         post2 = Post.create title: "Title - 2", author: author
-        expected = Post.where("id = '#{post.id}' or id = '#{post2.id}'").to_a
-        assert_equal expected, Post.where("id = '#{post.id}'").or(Post.where("id = '#{post2.id}'")).to_a
+        expected = Post.where("id = #{post.id} or id = #{post2.id}").to_a
+        assert_equal expected, Post.where("id = #{post.id}").or(Post.where("id = #{post2.id}")).to_a
       end
 
       def test_joins_and_preload

@@ -40,8 +40,7 @@ module ActiveRecord
         column = connection.columns(:testings).find { |c| c.name == "id" }
 
         assert_equal "id", column.name
-        assert_equal :string, column.type
-        assert_equal 36, column.limit
+        assert_equal :integer, column.type
       end
 
       def test_create_table_with_custom_primary_key
@@ -72,8 +71,7 @@ module ActiveRecord
         column = connection.columns(:testings).find { |c| c.name == "username" }
 
         assert_equal "username", column.name
-        assert_equal :string, column.type
-        assert_equal 255, column.limit
+        assert_equal :integer, column.type
       end
 
       def test_create_table_with_custom_primary_key_type
@@ -97,7 +95,7 @@ module ActiveRecord
 
         assert_raises ActiveRecord::NotNullViolation do
           connection.transaction {
-            connection.execute "insert into testings (id, foo) values (#{uuid}, NULL)"
+            connection.execute "insert into testings (id, foo) values (#{generate_id}, NULL)"
           }
         end
       end
@@ -213,7 +211,7 @@ module ActiveRecord
 
         assert_raise ActiveRecord::NotNullViolation do
           connection.transaction {
-            connection.execute "insert into testings (id, foo, bar) values (#{uuid}, 'hello', NULL)"
+            connection.execute "insert into testings (id, foo, bar) values (#{generate_id}, 'hello', NULL)"
           }
         end
       end
@@ -237,7 +235,7 @@ module ActiveRecord
         connection.change_column :testings, :select, :string, limit: 10
         connection.transaction {
           connection.execute "insert into testings (#{connection.quote_column_name 'id'},"\
-            "#{connection.quote_column_name 'select'}) values (#{uuid}, '7 chars')"
+            "#{connection.quote_column_name 'select'}) values (#{generate_id}, '7 chars')"
         }
       end
 
@@ -256,7 +254,7 @@ module ActiveRecord
 
         assert_nothing_raised {
           person_klass.connection.transaction {
-            person_klass.connection.execute("insert into testings (id, title) values (#{uuid}, tester')")
+            person_klass.connection.execute("insert into testings (id, title) values (#{generate_id}, tester')")
           }
         }
 
@@ -353,7 +351,7 @@ module ActiveRecord
           end
         }
 
-        assert_equal true, connection.table_exists?(:test_drop_and_create_table)
+        assert_equal true, connection.table_exists?(:testings)
         assert_equal true, connection.index_exists?(:testings, :name)
       end
 

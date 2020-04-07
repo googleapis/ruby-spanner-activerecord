@@ -2,20 +2,6 @@ module ActiveRecord
   module ConnectionAdapters #:nodoc:
     module Spanner
       class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
-        def new_column_definition name, type, **options
-          if type == :primary_key && options[:type].nil?
-            type = :string
-            options[:limit] ||= 36
-          end
-
-          super
-        end
-
-        def primary_key name, type = :primary_key, **options
-          options.merge primary_key: true
-          super
-        end
-
         def interleave_in
           @options[:interleave_in] if @options
         end
@@ -51,7 +37,7 @@ module ActiveRecord
             polymorphic: false,
             index: true,
             foreign_key: false,
-            type: :string,
+            type: :integer,
             **options
           @name = name
           @polymorphic = polymorphic
@@ -59,7 +45,6 @@ module ActiveRecord
           @foreign_key = foreign_key
           @type = type
           @options = options
-          @options[:limit] ||= 36 if type == :string
 
           if polymorphic && foreign_key
             raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
@@ -79,9 +64,8 @@ module ActiveRecord
         end
       end
 
-      class IndexDefinition
-        attr_reader :table_name, :name, :columns, :unique, :null_filtered,
-                    :interleve_in, :storing, :orders
+      class IndexDefinition < ActiveRecord::ConnectionAdapters::IndexDefinition
+        attr_reader :null_filtered, :interleve_in, :storing, :orders
 
         def initialize \
             table_name,
@@ -92,7 +76,7 @@ module ActiveRecord
             interleve_in: nil,
             storing: nil,
             orders: nil
-          @table_name = table_name
+          @table = table_name
           @name = name
           @unique = unique
           @null_filtered = null_filtered

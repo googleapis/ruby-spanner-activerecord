@@ -13,13 +13,12 @@ module ActiveRecord
         super
         @table_name = :test_models
 
-        add_column table_name, :supplier_id, :string
-        add_index table_name, :supplier_id
+        add_column table_name, :supplier_id, :integer, index: true
       end
 
       def test_creates_reference_id_column
         add_reference table_name, :user
-        assert column_exists?(table_name, :user_id, :string)
+        assert column_exists?(table_name, :user_id, :integer)
       end
 
       def test_does_not_create_reference_type_column
@@ -29,6 +28,7 @@ module ActiveRecord
 
       def test_creates_reference_type_column
         add_reference table_name, :taggable, polymorphic: true
+        assert column_exists?(table_name, :taggable_id, :integer)
         assert column_exists?(table_name, :taggable_type, :string)
       end
 
@@ -47,11 +47,12 @@ module ActiveRecord
         assert index_exists?(table_name, [:taggable_type, :taggable_id])
       end
 
+      focus
       def test_creates_reference_type_column_with_not_null
         connection.create_table table_name, force: true do |t|
           t.references :taggable, null: false, polymorphic: true
         end
-        assert column_exists?(table_name, :taggable_id, :string, null: false)
+        assert column_exists?(table_name, :taggable_id, :integer, null: false)
         assert column_exists?(table_name, :taggable_type, :string, null: false)
       end
 
@@ -105,12 +106,12 @@ module ActiveRecord
 
       def test_add_belongs_to_alias
         add_belongs_to table_name, :user
-        assert column_exists?(table_name, :user_id, :string)
+        assert column_exists?(table_name, :user_id, :integer)
       end
 
       def test_remove_belongs_to_alias
         remove_belongs_to table_name, :supplier
-        assert_not column_exists?(table_name, :supplier_id, :string)
+        assert_not column_exists?(table_name, :supplier_id, :integer)
       end
 
       private
