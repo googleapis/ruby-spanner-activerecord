@@ -61,10 +61,9 @@ module ActiveRecord
 
       def test_update_all_with_joins
         post = Post.create title: "Title - 1", author: author
-        post.comments << Comment.new(comment: "Comment - 101")
-        post.comments << Comment.new(comment: "Comment - 101")
+        post.comments << Comment.new(comment: "Comment - 1")
 
-        posts = Post.joins(:comments).where(comments: { comment: "Comment - 101" })
+        posts = Post.joins(:comments).where(comments: { comment: "Comment - 1" })
 
         assert_equal true, posts.exists?
         assert_equal posts.count, posts.update_all(title: "Title - 1 Update")

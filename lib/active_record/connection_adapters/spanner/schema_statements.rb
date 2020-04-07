@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "active_record/connection_adapters/spanner/schema_creation"
+require "active_record/connection_adapters/spanner/schema_dumper"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -313,6 +314,10 @@ module ActiveRecord
           scope[:name] = quote name if name
           scope[:type] = quote type if type
           scope
+        end
+
+        def create_schema_dumper options
+          SchemaDumper.create self, options
         end
 
         private

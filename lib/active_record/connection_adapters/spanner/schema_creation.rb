@@ -67,7 +67,7 @@ module ActiveRecord
             order_sql
           end
 
-          sql << "ON #{quote_table_name o.table_name} (#{columns_sql.join ', '})"
+          sql << "ON #{quote_table_name o.table} (#{columns_sql.join ', '})"
 
           if o.storing.any?
             storing = o.storing.map { |s| quote_column_name s }

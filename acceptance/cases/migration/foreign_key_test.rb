@@ -82,7 +82,7 @@ module ActiveRecord
 
       def test_add_foreign_key_with_non_standard_primary_key
         connection.create_table :space_shuttles, id: false, force: true do |t|
-          t.string :pk, primary_key: true
+          t.integer :pk, primary_key: true
         end
 
         connection.add_foreign_key(:astronauts, :space_shuttles,

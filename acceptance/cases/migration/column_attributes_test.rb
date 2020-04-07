@@ -43,7 +43,7 @@ module ActiveRecord
 
         # Do a manual insertion
         connection.transaction {
-          connection.execute "insert into test_models (id, wealth) values (#{uuid}, 12345678901234567890.0123456789)"
+          connection.execute "insert into test_models (id, wealth) values (#{generate_id}, 12345678901234567890.0123456789)"
         }
 
         # SELECT

@@ -32,7 +32,7 @@ module ActiveRecord
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
       NATIVE_DATABASE_TYPES = {
-        primary_key:  "STRING(36)",
+        primary_key:  "INT64",
         string:       { name: "STRING", limit: "MAX" },
         text:         { name: "STRING", limit: "MAX" },
         integer:      { name: "INT64" },
@@ -144,8 +144,9 @@ module ActiveRecord
         true
       end
 
+      # Generate next sequence number for primary key
       def next_sequence_value _sequence_name
-        SecureRandom.uuid
+        SecureRandom.uuid.gsub("-", "").hex & 0x7FFFFFFFFFFFFFFF
       end
 
       def arel_visitor
