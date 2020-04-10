@@ -210,9 +210,55 @@ module ActiveRecord
                 "change column with default value not supported."
         end
 
-        def rename_column _table_name, _column_name, _new_column_name
-          raise ActiveRecordSpannerAdapter::NotSupportedError, \
-                "rename column not supported."
+        def rename_column table_name, column_name, new_column_name
+          column = information_schema do |i|
+            i.table_column table_name, column_name
+          end
+
+          unless column
+            raise ArgumentError,
+                  "Column '#{column_name}' not exist for table '#{table_name}'"
+          end
+
+          # Add Column
+          cast_type = lookup_cast_type column.spanner_type
+          add_column table_name, new_column_name, cast_type.type, column.options
+
+          # Copy data
+          sql = "UPDATE %{table} SET %{new_name} = %{old_name} WHERE true"
+          values = {
+            table: table_name,
+            new_name: quote_column_name(new_column_name),
+            old_name: quote_column_name(column_name)
+          }
+
+          execute sql % values
+
+          # Recreate Indexes
+          indexes = information_schema.indexes_by_columns(
+            table_name, column_name
+          )
+          indexes.each do |index|
+            remove_index table_name, name: index.name
+            options = index.rename_column_options column_name, new_column_name
+            options[:options][:name] = options[:options][:name].to_s.gsub(
+              column_name.to_s, new_column_name.to_s
+            )
+            add_index table_name, options[:columns], options[:options]
+          end
+
+          # Recreate Foreign keys
+          fkeys = foreign_keys table_name, column: column_name
+
+          fkeys.each do |fk|
+            remove_foreign_key table_name, name: fk.name
+            options = fk.options.except :column, :name
+            options[:column] = new_column_name
+            add_foreign_key table_name, fk.to_table, options
+          end
+
+          # Drop Indexes, Drop Foreign keys and colums
+          remove_column table_name, column_name
         end
 
         # Index
@@ -296,10 +342,15 @@ module ActiveRecord
 
         # Foreign Keys
 
-        def foreign_keys table_name
+        def foreign_keys table_name, column: nil
           raise ArgumentError if table_name.blank?
 
           result = information_schema { |i| i.foreign_keys table_name }
+
+          if column
+            result = result.select { |fk| fk.columns.include? column.to_s }
+          end
+
           result.map do |fk|
             options = {
               column: fk.columns.first,
@@ -431,9 +482,7 @@ module ActiveRecord
             schema_creation.accept DropIndexDefinition.new(index.name)
           end
 
-          foreign_keys(table_name).each do |fk|
-            next unless fk.column.to_s == column_name.to_s
-
+          foreign_keys(table_name, column: column_name).each do |fk|
             at = create_alter_table table_name
             at.drop_foreign_key fk.name
             statements << schema_creation.accept(at)
