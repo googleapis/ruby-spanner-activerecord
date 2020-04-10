@@ -129,7 +129,13 @@ $ ./bin/rails db:migrate
 ```
 </details>
 
-### Now run your server
+### Go view the results on Cloud Spanner UI
+
+To double check that the respective tables and migrations were performed, please go visit the page with your database on Cloud Spanner's UI. For example it should look like this
+
+![](/assets/solidus-db.png)
+
+### Run the application
 After those migrations run application server.
 
 ```shell
