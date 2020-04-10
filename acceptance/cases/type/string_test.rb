@@ -8,6 +8,11 @@ module ActiveRecord
     class StringTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      def test_convert_to_sql_type
+        assert_equal "STRING(MAX)", connection.type_to_sql(:string)
+        assert_equal "STRING(1024)", connection.type_to_sql(:string, limit: 1024)
+      end
+
       def test_set_string_in_create
         description = "a" * 1000
         name = "Test name"

@@ -8,6 +8,10 @@ module ActiveRecord
     class FloatTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      def test_convert_to_sql_type
+        assert_equal "FLOAT64", connection.type_to_sql(:float)
+      end
+
       def test_set_float_value_in_create
         record = TestTypeModel.create(weight: 123.32199)
         record.reload

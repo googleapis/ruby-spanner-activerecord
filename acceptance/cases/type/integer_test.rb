@@ -8,6 +8,11 @@ module ActiveRecord
     class IntegerTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      def test_convert_to_sql_type
+        assert_equal "INT64", connection.type_to_sql(:integer)
+        assert_equal "INT64", connection.type_to_sql(:primary_key)
+      end
+
       def test_set_integer_value_in_create
         record = TestTypeModel.create(length: 123)
 

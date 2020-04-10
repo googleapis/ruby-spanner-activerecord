@@ -4,45 +4,33 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
-        # DDL Statements
+        # DDL, DML and DQL Statements
 
-        def execute_ddl sql, migration_name: nil
-          log sql, "SCHEMA" do
-            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_ddl sql, operation_id: migration_name
-            end
-          end
-        rescue Google::Cloud::Error => error
-          raise ActiveRecord::StatementInvalid, error
-        end
-
-        def truncate table_name, name = nil
-          Array(table_name).each do |t|
-            log "TURNCATE #{t}", name do
-              @connection.truncate t
-            end
-          end
-        end
-
-        # DML and DQL Statements
-
-        WRITE_QUERY = ActiveRecord::ConnectionAdapters::AbstractAdapter
-                      .build_read_query_regexp(
-                        :insert, :delete, :update, :set
-                      )
-        private_constant :WRITE_QUERY
-
-        def write_query? sql
-          WRITE_QUERY =~ sql
-        end
-
-        # Executes the DML/DQL statement in the context of this connection.
         def execute sql, name = nil
+          statement_type = sql_statement_type sql
+
+          if preventing_writes? && statement_type == :dml
+            raise ActiveRecord::ReadOnlyError(
+              "Write query attempted while in readonly mode: #{sql}"
+            )
+          end
+
+          if statement_type == :ddl
+            @connection.ddl_statements << sql
+            return
+          end
+
+          execute_pending_ddl
+
+          transaction_required = statement_type == :dml
           materialize_transactions
 
           log sql, name do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_query sql
+              @connection.execute_query(
+                sql,
+                transaction_required: (statement_type == :dml)
+              )
             end
           end
         end
@@ -51,20 +39,11 @@ module ActiveRecord
           exec_query sql, name
         end
 
-        def exec_query sql, name = "SQL", binds = [], prepare: false
-          result = _exec_query sql, name, binds
+        def exec_query sql, name = "SQL", _binds = [], prepare: false
+          result = execute sql, name
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)
           )
-        end
-
-        def exec_insert sql, name = nil, binds = [], pk = nil, _sequence_name = nil
-          sql, binds = sql_for_insert sql, pk, binds
-          _exec_query sql, name, binds, transaction_required: true
-        end
-
-        def exec_insert_all sql, name
-          _exec_query sql, name, transaction_required: true
         end
 
         def update arel, name = nil, binds = []
@@ -74,8 +53,8 @@ module ActiveRecord
         end
         alias delete update
 
-        def exec_update sql, name = "SQL", binds = []
-          result = _exec_query sql, name, binds, transaction_required: true
+        def exec_update sql, name = "SQL", _binds = []
+          result = execute sql, name
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
@@ -83,6 +62,35 @@ module ActiveRecord
           )
         end
         alias exec_delete exec_update
+
+        def truncate table_name, name = nil
+          Array(table_name).each do |t|
+            log "TURNCATE #{t}", name do
+              @connection.truncate t
+            end
+          end
+        end
+
+        def write_query? sql
+          sql_statement_type(sql) == :dml
+        end
+
+        def execute_ddl statements
+          log "MIGRATION", "SCHEMA" do
+            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+              @connection.execute_ddl statements
+            end
+          end
+        rescue Google::Cloud::Error => error
+          raise ActiveRecord::StatementInvalid, error
+        end
+
+        def execute_pending_ddl
+          return if @connection.ddl_statements.empty?
+
+          execute_ddl @connection.ddl_statements
+          @connection.ddl_statements.clear
+        end
 
         # Transaction
 
@@ -106,24 +114,20 @@ module ActiveRecord
 
         private
 
-        def convert_to_params binds
-          binds.each_with_object({}) do |attribute, result|
-            result[attribute.name] = attribute.value_for_database
-          end
-        end
+        DDL_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
+                   .build_read_query_regexp(:create, :alter, :drop).freeze
 
-        def _exec_query sql, name, binds = [], transaction_required: nil
-          materialize_transactions
+        DML_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
+                   .build_read_query_regexp(:insert, :delete, :update).freeze
 
-          if preventing_writes? && write_query?(sql)
-            raise ActiveRecord::ReadOnlyError(
-              "Write query attempted while in readonly mode: #{sql}"
-            )
-          end
-
-          log sql, name, binds do
-            @connection.execute_query \
-              sql, transaction_required: transaction_required
+        def sql_statement_type sql
+          case sql
+          when DDL_REGX
+            :ddl
+          when DML_REGX
+            :dml
+          else
+            :dql
           end
         end
       end

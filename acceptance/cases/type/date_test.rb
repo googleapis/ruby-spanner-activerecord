@@ -8,6 +8,10 @@ module ActiveRecord
     class DateTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      def test_convert_to_sql_type
+        assert_equal "DATE", connection.type_to_sql(:date)
+      end
+
       def test_set_date
         expected_date = ::Date.new 2020, 1, 31
         record = TestTypeModel.new start_date: expected_date

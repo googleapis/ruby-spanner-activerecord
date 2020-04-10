@@ -21,12 +21,12 @@ module ActiveRecord
         # Table
 
         def data_sources
-          information_schema.tables.map(&:name)
+          information_schema { |i| i.tables.map(&:name) }
         end
         alias tables data_sources
 
         def table_exists? table_name
-          !information_schema.table(table_name).nil?
+          information_schema { |i| i.table table_name }.present?
         end
         alias data_source_exists? table_exists?
 
@@ -60,11 +60,17 @@ module ActiveRecord
             statements << schema_creation.accept(id)
           end
 
-          execute_ddl statements
+          with_batching = ![
+            ActiveRecord::InternalMetadata.table_name,
+            ActiveRecord::SchemaMigration.table_name
+          ].include?(table_name.to_s)
+
+          execute_schema_statements statements, with_batching: with_batching
         end
 
         def drop_table table_name, options = {}
-          execute_ddl drop_table_with_indexes_sql(table_name, options)
+          statements = drop_table_with_indexes_sql table_name, options
+          execute_schema_statements statements
         end
 
         def create_join_table table_1, table_2, column_options: {}, **options
@@ -84,7 +90,7 @@ module ActiveRecord
         # Column
 
         def column_definitions table_name
-          information_schema.table_columns table_name
+          information_schema { |i| i.table_columns table_name }
         end
 
         def new_column_from_field _table_name, field
@@ -101,13 +107,31 @@ module ActiveRecord
         end
 
         def add_column table_name, column_name, type, **options
+          # Add column with NOT NULL not supported by spanner.
+          # It is currenlty un-implemented state in spanner service.
+          nullable = options.delete(:null) == false
+
           at = create_alter_table table_name
           at.add_column column_name, type, options
-          execute_ddl schema_creation.accept(at)
+
+          statements = [schema_creation.accept(at)]
+
+          # Alter NOT NULL
+          if nullable
+            cd = at.adds.first.column
+            cd.null = false
+            ccd = Spanner::ChangeColumnDefinition.new(
+              table_name, cd, column_name
+            )
+            statements << schema_creation.accept(ccd)
+          end
+
+          execute_schema_statements statements
         end
 
-        def remove_column table_name, column_name
-          execute_ddl drop_column_sql(table_name, column_name)
+        def remove_column table_name, column_name, _type = nil, _options = {}
+          statements = drop_column_sql table_name, column_name
+          execute_schema_statements statements
         end
 
         def remove_columns table_name, *column_names
@@ -122,15 +146,25 @@ module ActiveRecord
             statements.concat drop_column_sql(table_name, column_name)
           end
 
-          execute_ddl statements
+          execute_schema_statements statements
         end
 
         def change_column table_name, column_name, type, options = {}
-          column = information_schema.table_column table_name, column_name
+          column = information_schema do |i|
+            i.table_column table_name, column_name
+          end
 
           unless column
             raise ArgumentError,
                   "Column '#{column_name}' not exist for table '#{table_name}'"
+          end
+
+          indexes = information_schema do |i|
+            i.indexes_by_columns table_name, column_name
+          end
+
+          statements = indexes.map do |index|
+            schema_creation.accept DropIndexDefinition.new(index.name)
           end
 
           column = new_column_from_field table_name, column
@@ -152,7 +186,19 @@ module ActiveRecord
           cd = td.new_column_definition column.name, type, options
 
           ccd = Spanner::ChangeColumnDefinition.new table_name, cd, column.name
-          execute_ddl schema_creation.accept(ccd)
+          statements << schema_creation.accept(ccd)
+
+          # Recreate indexes
+          indexes.each do |index|
+            id = create_index_definition(
+              table_name,
+              index.column_names,
+              index.options
+            )
+            statements << schema_creation.accept(id)
+          end
+
+          execute_schema_statements statements
         end
 
         def change_column_null table_name, column_name, null, _default = nil
@@ -172,9 +218,11 @@ module ActiveRecord
         # Index
 
         def indexes table_name
-          information_schema.indexes(
-            table_name, index_type: "INDEX"
-          ).map do |index|
+          result = information_schema do |i|
+            i.indexes table_name, index_type: "INDEX"
+          end
+
+          result.map do |index|
             IndexDefinition.new(
               index.table,
               index.name,
@@ -189,7 +237,7 @@ module ActiveRecord
         end
 
         def index_name_exists? table_name, index_name
-          !information_schema.index(table_name, index_name).nil?
+          information_schema { |i| i.index table_name, index_name }.present?
         end
 
         def add_index table_name, column_name, options = {}
@@ -201,21 +249,21 @@ module ActiveRecord
                                  "'#{table_name}' already exists"
           end
 
-          execute_ddl schema_creation.accept(id)
+          execute_schema_statements schema_creation.accept(id)
         end
 
         def remove_index table_name, options = {}
           index_name = index_name_for_remove table_name, options
-          sql = schema_creation.accept(
+          statement = schema_creation.accept(
             DropIndexDefinition.new(index_name)
           )
-          execute_ddl sql
+          execute_schema_statements statement
         end
 
         def rename_index table_name, old_name, new_name
           validate_index_length! table_name, new_name
 
-          old_index = information_schema.index table_name, old_name
+          old_index = information_schema { |i| i.index table_name, old_name }
           return unless old_index
 
           statements = [
@@ -233,14 +281,17 @@ module ActiveRecord
             orders: old_index.orders
 
           statements << schema_creation.accept(id)
-          execute_ddl statements
+          execute_schema_statements statements
         end
 
         # Primary Keys
 
         def primary_keys table_name
-          index_columns = information_schema.table_primary_keys table_name
-          index_columns.map(&:name)
+          columns = information_schema do |i|
+            i.table_primary_keys table_name
+          end
+
+          columns.map(&:name)
         end
 
         # Foreign Keys
@@ -248,7 +299,8 @@ module ActiveRecord
         def foreign_keys table_name
           raise ArgumentError if table_name.blank?
 
-          information_schema.foreign_keys(table_name).map do |fk|
+          result = information_schema { |i| i.foreign_keys table_name }
+          result.map do |fk|
             options = {
               column: fk.columns.first,
               name: fk.name,
@@ -266,7 +318,7 @@ module ActiveRecord
           at = create_alter_table from_table
           at.add_foreign_key to_table, options
 
-          execute_ddl schema_creation.accept(at)
+          execute_schema_statements schema_creation.accept(at)
         end
 
         def remove_foreign_key from_table, to_table = nil, **options
@@ -277,7 +329,7 @@ module ActiveRecord
           at = create_alter_table from_table
           at.drop_foreign_key fk_name_to_delete
 
-          execute_ddl schema_creation.accept(at)
+          execute_schema_statements schema_creation.accept(at)
         end
 
         # Reference Column
@@ -289,26 +341,6 @@ module ActiveRecord
         end
         alias add_belongs_to add_reference
 
-        def type_to_sql type, limit: nil, precision: nil, scale: nil, **options
-          type = type.to_sym if type
-          native_type = native_database_types[type]
-
-          case type
-          when :primary_key
-            native_type
-          when :string, :text, :binary
-            "#{native_type[:name]}(#{limit || native_type[:limit]})"
-          when :integer, :decimal, :float
-            if limit
-              raise ArgumentError,
-                    "No #{native_type[:name]} type is not supporting limit"
-            end
-            native_type[:name]
-          else
-            super
-          end
-        end
-
         def quoted_scope name = nil, type: nil
           scope = { schema: quote("") }
           scope[:name] = quote name if name
@@ -318,6 +350,21 @@ module ActiveRecord
 
         def create_schema_dumper options
           SchemaDumper.create self, options
+        end
+
+        def type_to_sql type, limit: nil, precision: nil, scale: nil, **_opts
+          type = type.to_sym if type
+          native = native_database_types[type]
+
+          return type.to_s unless native
+
+          sql_type = (native.is_a?(Hash) ? native[:name] : native).dup
+
+          if [:string, :text, :binary].include? type
+            return "#{sql_type}(#{limit || native[:limit]})"
+          end
+
+          sql_type
         end
 
         private
@@ -333,8 +380,11 @@ module ActiveRecord
         def create_index_definition table_name, column_name, **options
           column_names = index_column_names column_name
 
-          options.assert_valid_keys :unique, :order, :name, :interleve_in,
-                                    :storing, :null_filtered
+          options.assert_valid_keys(
+            :unique, :order, :name, :where, :length, :internal, :using,
+            :algorithm, :type, :opclass, :interleve_in, :storing,
+            :null_filtered
+          )
 
           index_name = options[:name].to_s if options.key? :name
           index_name ||= index_name table_name, column_names
@@ -355,7 +405,7 @@ module ActiveRecord
         def drop_table_with_indexes_sql table_name, options
           statements = []
 
-          table = information_schema.table table_name, view: :indexes
+          table = information_schema { |i| i.table table_name, view: :indexes }
           return statements unless table
 
           table.indexes.each do |index|
@@ -373,9 +423,11 @@ module ActiveRecord
         end
 
         def drop_column_sql table_name, column_name
-          statements = information_schema.indexes_by_columns(
-            table_name, column_name
-          ).map do |index|
+          indexes = information_schema do |i|
+            i.indexes_by_columns table_name, column_name
+          end
+
+          statements = indexes.map do |index|
             schema_creation.accept DropIndexDefinition.new(index.name)
           end
 
@@ -392,6 +444,24 @@ module ActiveRecord
           )
 
           statements
+        end
+
+        def execute_schema_statements statements, with_batching: true
+          if disabled_ddl_batching? || !with_batching
+            return execute_ddl statements
+          end
+
+          Array(statements).each { |s| execute s }
+        end
+
+        def information_schema
+          info_scheam = \
+            ActiveRecordSpannerAdapter::Connection.information_schema @config
+
+          return info_scheam unless block_given?
+
+          execute_pending_ddl
+          yield info_scheam
         end
       end
     end
