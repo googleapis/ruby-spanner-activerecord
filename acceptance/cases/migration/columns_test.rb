@@ -77,27 +77,26 @@ module ActiveRecord
 
         change_column "test_models", "name", :binary
 
-        new_columns = connection.columns( TestModel.table_name)
+        new_columns = connection.columns TestModel.table_name
 
         assert_not new_columns.find { |c| c.name == "name" && c.type == :string }
         assert new_columns.find { |c| c.name == "name" && c.type == :binary }
       end
 
       def test_change_column_with_custom_index_name
-        skip "Changing NOT NULL constraints on column is not allowed because it affects index"
-
-        add_column "test_models", "category", :string
-        add_index :test_models, :category, name: "test_models_categories_idx"
+        add_column :test_models, :category, :string
+        add_index :test_models, :category, name: "test_models_categories_idx", order: { category: :desc}
 
         assert_equal ["test_models_categories_idx"], connection.indexes("test_models").map(&:name)
         change_column "test_models", "category", :string, null: false
 
-        assert_equal ["test_models_categories_idx"], connection.indexes("test_models").map(&:name)
+        assert column_exists?(:test_models, :category, :string, null: false)
+        indexes = connection.indexes("test_models")
+        assert_equal ["test_models_categories_idx"], indexes.map(&:name)
+        assert_equal({ category: :desc }, indexes.first.orders)
       end
 
       def test_change_column_with_long_index_name
-        skip "Changing NOT NULL constraints on column is not allowed because it affects index"
-
         table_name_prefix = "test_models_"
         long_index_name = table_name_prefix + ("x" * (connection.allowed_index_name_length - table_name_prefix.length))
         add_column "test_models", "category", :string

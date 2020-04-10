@@ -8,6 +8,11 @@ module ActiveRecord
     class TimeTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      focus
+      def test_convert_to_sql_type
+        assert_equal "TIMESTAMP", connection.type_to_sql(:time)
+      end
+
       def test_assign_time
         expected_time = ::Time.now
         record = TestTypeModel.new start_time: expected_time

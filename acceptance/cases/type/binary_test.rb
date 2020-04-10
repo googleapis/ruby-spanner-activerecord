@@ -8,6 +8,11 @@ module ActiveRecord
     class BinaryTest < SpannerAdapter::TestCase
       include SpannerAdapter::Types::TestHelper
 
+      def test_convert_to_sql_type
+        assert_equal "BYTES(MAX)", connection.type_to_sql(:binary)
+        assert_equal "BYTES(1024)", connection.type_to_sql(:binary, limit: 1024)
+      end
+
       def test_set_binary_data_io_in_create
         data = StringIO.new "hello"
 

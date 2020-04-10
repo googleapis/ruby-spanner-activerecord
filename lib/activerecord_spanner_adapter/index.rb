@@ -36,10 +36,25 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def column_names
+      columns_by_position.map &:name
+    end
+
     def orders
       columns_by_position.each_with_object({}) do |c, r|
         r[c.name] = c.desc? ? :desc : :asc
       end
+    end
+
+    def options
+      {
+        name: name,
+        order: orders,
+        unique: unique,
+        interleve_in: interleve_in,
+        null_filtered: null_filtered,
+        storing: storing
+      }.delete_if { |_, v| v.nil? }
     end
   end
 end

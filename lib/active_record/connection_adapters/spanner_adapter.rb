@@ -113,10 +113,6 @@ module ActiveRecord
         true
       end
 
-      def supports_indexes_in_create?
-        true
-      end
-
       def supports_insert_on_conflict?
         true
       end
@@ -153,10 +149,8 @@ module ActiveRecord
         Arel::Visitors::Spanner.new self
       end
 
-      # Information Schema
-
-      def information_schema
-        ActiveRecordSpannerAdapter::Connection.information_schema @config
+      def disabled_ddl_batching?
+        ENV["DISABLE_DDL_BATCHING"] == "TRUE"
       end
 
       private

@@ -82,7 +82,7 @@ module ActiveRecord
           @null_filtered = null_filtered
           @interleve_in = interleve_in
           @storing = Array(storing)
-          @orders = orders || {}
+          @orders = (orders || {}).symbolize_keys
 
           columns = columns.split(/\W/) if columns.is_a? String
           @columns = Array(columns).map(&:to_s)
@@ -90,7 +90,7 @@ module ActiveRecord
 
         def columns_with_order
           columns.each_with_object({}) do |c, result|
-            result[c] = orders[c.to_s].to_s.upcase
+            result[c] = orders[c.to_sym].to_s.upcase
           end
         end
       end

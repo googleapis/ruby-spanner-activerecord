@@ -120,6 +120,15 @@ module ActiveRecord
         assert connection.index_exists?(:testings, :foo, unique: true)
       end
 
+      def test_order_index_exists
+        connection.add_index :testings, :foo, order: { foo: :desc }
+
+        assert connection.index_exists?(:testings, :foo)
+
+        index = connection.indexes(:testings).first
+        assert_equal({ foo: :desc }, index.orders)
+      end
+
       def test_named_index_exists
         connection.add_index :testings, :foo, name: "custom_index_name"
 

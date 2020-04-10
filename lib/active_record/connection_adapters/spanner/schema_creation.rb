@@ -40,6 +40,13 @@ module ActiveRecord
           "DROP TABLE #{quote_table_name o.name}"
         end
 
+        def visit_ColumnDefinition o
+          o.sql_type = type_to_sql o.type, o.options
+          column_sql = +"#{quote_column_name o.name} #{o.sql_type}"
+          add_column_options! column_sql, column_options(o)
+          column_sql
+        end
+
         def visit_DropColumnDefinition o
           "ALTER TABLE #{quote_table_name o.table_name} DROP" \
            " COLUMN #{quote_column_name o.name}"

@@ -4,13 +4,14 @@ require "activerecord_spanner_adapter/information_schema"
 
 module ActiveRecordSpannerAdapter
   class Connection
-    attr_reader :instance_id, :database_id, :spanner
+    attr_reader :instance_id, :database_id, :spanner, :ddl_statements
     attr_accessor :current_transaction
 
     def initialize config
       @instance_id = config[:instance]
       @database_id = config[:database]
       @spanner = self.class.spanners config
+      @ddl_statements = []
     end
 
     def self.spanners config
@@ -61,19 +62,6 @@ module ActiveRecordSpannerAdapter
       true
     end
 
-    # DDL Statements
-
-    # @params [Array<String>, String] sql Single or list of statements
-    def execute_ddl statements, operation_id: nil, wait_until_done: true
-      statements = Array statements
-      return unless statements.any?
-
-      job = database.update statements: statements, operation_id: operation_id
-      job.wait_until_done! if wait_until_done
-      raise Google::Cloud::Error.from_error job.error if job.error?
-      job.done?
-    end
-
     # Database Operations
 
     def create_database
@@ -93,6 +81,19 @@ module ActiveRecordSpannerAdapter
         end
         database
       end
+    end
+
+    # DDL Statements
+
+    # @params [Array<String>, String] sql Single or list of statements
+    def execute_ddl statements, operation_id: nil, wait_until_done: true
+      statements = Array statements
+      return unless statements.any?
+
+      job = database.update statements: statements, operation_id: operation_id
+      job.wait_until_done! if wait_until_done
+      raise Google::Cloud::Error.from_error job.error if job.error?
+      job.done?
     end
 
     # DQL, DML Statements
@@ -177,6 +178,8 @@ module ActiveRecordSpannerAdapter
       session.snapshot options do |snp|
         snp.execute_query sql
       end
+    rescue Google::Cloud::UnavailableError
+      retry
     end
 
     def truncate table_name

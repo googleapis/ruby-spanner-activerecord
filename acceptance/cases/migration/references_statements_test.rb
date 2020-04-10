@@ -47,7 +47,6 @@ module ActiveRecord
         assert index_exists?(table_name, [:taggable_type, :taggable_id])
       end
 
-      focus
       def test_creates_reference_type_column_with_not_null
         connection.create_table table_name, force: true do |t|
           t.references :taggable, null: false, polymorphic: true
