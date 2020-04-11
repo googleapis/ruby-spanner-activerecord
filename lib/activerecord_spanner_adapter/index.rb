@@ -56,5 +56,19 @@ module ActiveRecordSpannerAdapter
         storing: storing
       }.delete_if { |_, v| v.nil? }
     end
+
+    def rename_column_options old_column, new_column
+      opts = options
+
+      opts[:order].transform_keys do |key|
+        key.to_s == new_column.to_s
+      end
+
+      columns = column_names.map do |c|
+        c.to_s == old_column.to_s ? new_column : c
+      end
+
+      { options: opts, columns: columns }
+    end
   end
 end

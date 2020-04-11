@@ -35,6 +35,14 @@ module ActiveRecordSpannerAdapter
         type
       end
 
+      def options
+        {
+          limit: limit,
+          null: nullable,
+          allow_commit_timestamp: allow_commit_timestamp
+        }.delete_if { |_, v| v.nil? }
+      end
+
       private
 
       def limit_allowed?

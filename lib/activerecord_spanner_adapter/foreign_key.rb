@@ -16,8 +16,8 @@ module ActiveRecordSpannerAdapter
       @columns = Array(columns)
       @ref_table = ref_table
       @ref_columns = Array(ref_columns)
-      @on_delete = on_delete
-      @on_update = on_update
+      @on_delete = on_delete unless on_delete == "NO ACTION"
+      @on_update = on_update unless on_update == "NO ACTION"
     end
   end
 end
