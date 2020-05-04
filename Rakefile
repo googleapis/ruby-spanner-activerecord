@@ -55,8 +55,7 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
     fail "You must provide a project and keyfile."
   end
   instance = args[:instance]
-  instance ||= ENV["SPANNER_TEST_INSTANCE
-  "]
+  instance ||= ENV["SPANNER_TEST_INSTANCE"]
 
   # clear any env var already set
   require "google/cloud/spanner/credentials"
