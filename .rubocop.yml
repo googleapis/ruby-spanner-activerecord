@@ -10,6 +10,7 @@ AllCops:
     - "test/**/*"
     - "acceptance/**/*"
     - "lib/activerecord-spanner-adapter.rb"
+    - "vendor/**/*"
 
 Documentation:
   Enabled: false
