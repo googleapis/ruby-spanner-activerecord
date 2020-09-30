@@ -66,9 +66,11 @@ on seattle-style:
 You can check your code against these rules by running Rubocop like so:
 
 ```sh
-$ cd activerecord-spanner-adapter
-$ bundle exec rake rubocop
+$ cd ruby-spanner-activerecord
+$ bundle exec rubocop
 ```
+
+The rubocop settings depend on [googleapis/ruby-style](https://github.com/googleapis/ruby-style/), in addition to [.rubocop.yml](https://github.com/googleapis/ruby-spanner-activerecord/blob/master/.rubocop.yml).
 
 ## Code of Conduct
 
