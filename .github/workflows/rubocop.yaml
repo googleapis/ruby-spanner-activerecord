@@ -1,0 +1,35 @@
+name: rubocop
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [ '2.4', '2.7' ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup ruby ${{ matrix.ruby }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+    - name: cache gems
+      uses: actions/cache@v1
+      with:
+        path: vendor/bundle
+        key: ${{ runner.os }}-rubocop-${{ hashFiles('**/Gemfile.lock') }}
+        restore-keys: ${{ runner.os }}-rubocop-
+    - name: install gems
+      run: |
+        bundle config set path vendor/bundle
+        bundle install --jobs 4 --retry 3
+    - name: exec rubocop
+      run: bundle exec rubocop --parallel
