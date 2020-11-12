@@ -231,7 +231,7 @@ module ActiveRecord
           add_column table_name, new_column_name, cast_type.type, column.options
 
           # Copy data
-          sql = "UPDATE %{table} SET %{new_name} = %{old_name} WHERE true"
+          sql = "UPDATE %<table>s SET %<new_name>s = %<old_name>s WHERE true"
           values = {
             table: table_name,
             new_name: quote_column_name(new_column_name),
