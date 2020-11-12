@@ -11,7 +11,7 @@ module ActiveRecord
     module Spanner
       class Time < ActiveRecord::Type::Time
         def serialize value
-          val = super
+          val = super value
           val.acts_like?(:time) ? val.utc.rfc3339(9) : val
         end
 
