@@ -10,5 +10,6 @@ require "activerecord-spanner-adapter"
 # require "pry"
 # Pry.start
 
-require "irb"
-IRB.start(__FILE__)
+require "pry"
+require "pry-byebug" # For easy debugging
+Pry.start
