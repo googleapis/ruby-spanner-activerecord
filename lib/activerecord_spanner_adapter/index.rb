@@ -43,7 +43,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def column_names
-      columns_by_position.map(&:name)
+      columns_by_position.map &:name
     end
 
     def orders

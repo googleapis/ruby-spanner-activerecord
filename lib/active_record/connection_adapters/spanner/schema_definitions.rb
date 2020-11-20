@@ -52,8 +52,9 @@ module ActiveRecord
           @type = type
           @options = options
 
-          return unless polymorphic && foreign_key
-          raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
+          if polymorphic && foreign_key
+            raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
+          end
         end
 
         private

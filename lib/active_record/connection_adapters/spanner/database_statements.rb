@@ -28,6 +28,7 @@ module ActiveRecord
 
           execute_pending_ddl
 
+          transaction_required = statement_type == :dml
           materialize_transactions
 
           log sql, name do
