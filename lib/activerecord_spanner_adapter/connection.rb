@@ -16,25 +16,22 @@ module ActiveRecordSpannerAdapter
     def initialize config
       @instance_id = config[:instance]
       @database_id = config[:database]
-      @spanner = self.class.spanners config
+      @spanner = self.class.new_spanner config
       @ddl_statements = []
     end
 
-    def self.spanners config
+    def self.new_spanner config
       config = config.symbolize_keys
-      @spanners ||= {}
-      @mutex ||= Mutex.new
-      @mutex.synchronize do
-        @spanners[database_path(config)] ||= Google::Cloud.spanner(
-          config[:project],
-          config[:credentials],
-          scope: config[:scope],
-          timeout: config[:timeout],
-          client_config: config[:client_config]&.symbolize_keys,
-          lib_name: "spanner-activerecord-adapter",
-          lib_version: ActiveRecordSpannerAdapter::VERSION
-        )
-      end
+
+      Google::Cloud.spanner(
+        config[:project],
+        config[:credentials],
+        scope: config[:scope],
+        timeout: config[:timeout],
+        client_config: config[:client_config]&.symbolize_keys,
+        lib_name: "spanner-activerecord-adapter",
+        lib_version: ActiveRecordSpannerAdapter::VERSION
+      )
     end
 
     def self.information_schema config
