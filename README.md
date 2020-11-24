@@ -4,6 +4,8 @@
 
 Google Clound Sanner ActiveRecord adapter. https://cloud.google.com/spanner
 
+![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
+
 ## Installation
 
 Add this line to your application's Gemfile:
