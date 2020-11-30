@@ -45,7 +45,7 @@ module ActiveRecord
           exec_query sql, name
         end
 
-        def exec_query sql, name = "SQL", _binds = [], prepare: false
+        def exec_query sql, name = "SQL", _binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
           result = execute sql, name
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)

@@ -409,7 +409,7 @@ module ActiveRecord
           SchemaDumper.create self, options
         end
 
-        def type_to_sql type, limit: nil, precision: nil, scale: nil, **_opts
+        def type_to_sql type, limit: nil, precision: nil, scale: nil, **_opts # rubocop:disable Lint/UnusedMethodArgument
           type = type.to_sym if type
           native = native_database_types[type]
 
