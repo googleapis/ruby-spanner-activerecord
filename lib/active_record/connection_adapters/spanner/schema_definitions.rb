@@ -26,7 +26,7 @@ module ActiveRecord
 
       class Table < ActiveRecord::ConnectionAdapters::Table
         def primary_key name, type = :primary_key, **options
-          type = :string
+          type = :string # rubocop:disable Lint/ShadowedArgument
           options.merge primary_key: true
           super
         end

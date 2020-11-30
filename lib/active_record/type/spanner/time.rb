@@ -11,8 +11,8 @@ module ActiveRecord
     module Spanner
       class Time < ActiveRecord::Type::Time
         def serialize value
-          value = super
-          value.acts_like?(:time) ? value.utc.rfc3339(9) : value
+          val = super
+          val.acts_like?(:time) ? val.utc.rfc3339(9) : val
         end
 
         def user_input_in_time_zone value
