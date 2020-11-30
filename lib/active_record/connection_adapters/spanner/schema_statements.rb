@@ -66,12 +66,7 @@ module ActiveRecord
             statements << schema_creation.accept(id)
           end
 
-          with_batching = ![
-            ActiveRecord::InternalMetadata.table_name,
-            ActiveRecord::SchemaMigration.table_name
-          ].include?(table_name.to_s)
-
-          execute_schema_statements statements, with_batching: with_batching
+          execute_schema_statements statements, with_batching: able_to_ddl_batch?(table_name)
         end
 
         def drop_table table_name, options = {}
@@ -155,7 +150,7 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        def change_column table_name, column_name, type, options = {}
+        def change_column table_name, column_name, type, options = {} # rubocop:disable Metrics/AbcSize
           column = information_schema do |i|
             i.table_column table_name, column_name
           end
@@ -231,37 +226,13 @@ module ActiveRecord
           add_column table_name, new_column_name, cast_type.type, column.options
 
           # Copy data
-          sql = "UPDATE %<table>s SET %<new_name>s = %<old_name>s WHERE true"
-          values = {
-            table: table_name,
-            new_name: quote_column_name(new_column_name),
-            old_name: quote_column_name(column_name)
-          }
-
-          execute sql % values
+          copy_data table_name, column_name, new_column_name
 
           # Recreate Indexes
-          indexes = information_schema.indexes_by_columns(
-            table_name, column_name
-          )
-          indexes.each do |index|
-            remove_index table_name, name: index.name
-            options = index.rename_column_options column_name, new_column_name
-            options[:options][:name] = options[:options][:name].to_s.gsub(
-              column_name.to_s, new_column_name.to_s
-            )
-            add_index table_name, options[:columns], options[:options]
-          end
+          recreate_indexes table_name, column_name, new_column_name
 
           # Recreate Foreign keys
-          fkeys = foreign_keys table_name, column: column_name
-
-          fkeys.each do |fk|
-            remove_foreign_key table_name, name: fk.name
-            options = fk.options.except :column, :name
-            options[:column] = new_column_name
-            add_foreign_key table_name, fk.to_table, options
-          end
+          recreate_foreign_keys table_name, column_name, new_column_name
 
           # Drop Indexes, Drop Foreign keys and colums
           remove_column table_name, column_name
@@ -434,6 +405,42 @@ module ActiveRecord
 
         def create_table_definition *args
           TableDefinition.new self, *args
+        end
+
+        def able_to_ddl_batch? table_name
+          [ActiveRecord::InternalMetadata.table_name, ActiveRecord::SchemaMigration.table_name].exclude? table_name.to_s
+        end
+
+        def copy_data table_name, src_column_name, dest_column_name
+          sql = "UPDATE %<table>s SET %<dest_column_name>s = %<src_column_name>s WHERE true"
+          values = {
+            table: table_name,
+            dest_column_name: quote_column_name(dest_column_name),
+            src_column_name: quote_column_name(src_column_name)
+          }
+          execute sql % values
+        end
+
+        def recreate_indexes table_name, column_name, new_column_name
+          indexes = information_schema.indexes_by_columns table_name, column_name
+          indexes.each do |index|
+            remove_index table_name, name: index.name
+            options = index.rename_column_options column_name, new_column_name
+            options[:options][:name] = options[:options][:name].to_s.gsub(
+              column_name.to_s, new_column_name.to_s
+            )
+            add_index table_name, options[:columns], options[:options]
+          end
+        end
+
+        def recreate_foreign_keys table_name, column_name, new_column_name
+          fkeys = foreign_keys table_name, column: column_name
+          fkeys.each do |fk|
+            remove_foreign_key table_name, name: fk.name
+            options = fk.options.except :column, :name
+            options[:column] = new_column_name
+            add_foreign_key table_name, fk.to_table, options
+          end
         end
 
         def create_index_definition table_name, column_name, **options
