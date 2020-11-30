@@ -35,7 +35,7 @@ module ActiveRecord
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               @connection.execute_query(
                 sql,
-                transaction_required: (statement_type == :dml)
+                transaction_required: transaction_required
               )
             end
           end
