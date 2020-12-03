@@ -25,12 +25,11 @@ module ActiveRecordSpannerAdapter
       @spanners ||= {}
       @mutex ||= Mutex.new
       @mutex.synchronize do
-        @spanners[database_path(config)] ||= Google::Cloud.spanner(
-          config[:project],
-          config[:credentials],
+        @spanners[database_path(config)] ||= Google::Cloud::Spanner.new(
+          project_id: config[:project],
+          credentials: config[:credentials],
           scope: config[:scope],
           timeout: config[:timeout],
-          client_config: config[:client_config]&.symbolize_keys,
           lib_name: "spanner-activerecord-adapter",
           lib_version: ActiveRecordSpannerAdapter::VERSION
         )
