@@ -8,12 +8,14 @@ require "test_helper"
 
 class SpannerConnectionTest < TestHelper::MockActiveRecordTest
   def test_create_connection
-    connection = ActiveRecordSpannerAdapter::Connection.new({
-      project: project_id,
-      instance: instance_id,
-      database: database_id,
-      credentials: credentials
-    })
+    Google::Cloud::Spanner.stub :new, Object.new do
+      connection = ActiveRecordSpannerAdapter::Connection.new({
+        project: project_id,
+        instance: instance_id,
+        database: database_id,
+        credentials: credentials
+      })
+    end
 
     assert_equal connection.instance_id, instance_id
     assert_equal connection.database_id, database_id
