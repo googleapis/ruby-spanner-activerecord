@@ -107,10 +107,9 @@ module ActiveRecord
         assert_instance_of TrueClass, bob.male?
       end
 
-      def test_out_of_range_limit_should_raise
-        assert_raise(ArgumentError) {
-          add_column :test_models, :integer_too_big, :integer, limit: 10
-        }
+      def test_add_column_and_ignore_limit
+        add_column :test_models, :integer_ignore_limit, :integer, limit: 10
+        assert_column TestModel, :integer_ignore_limit
       end
     end
   end

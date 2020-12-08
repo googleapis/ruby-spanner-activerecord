@@ -35,6 +35,9 @@ module ActiveRecord
           t.string :comment
           t.references :rename_column_post, index: true, foreign_key: true
         end
+
+        RenameColumnPost.reset_column_information
+        RenameColumnComment.reset_column_information
       end
 
       def teardown

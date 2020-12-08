@@ -43,10 +43,10 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
 
   # clear any env var already set
   require "google/cloud/spanner/credentials"
-  (Google::Cloud::Spanner::Credentials::PATH_ENV_VARS +
-   Google::Cloud::Spanner::Credentials::JSON_ENV_VARS).each do |path|
+  Google::Cloud::Spanner::Credentials.env_vars.each do |path|
     ENV[path] = nil
   end
+
   # always overwrite when running tests
   ENV["SPANNER_PROJECT"] = project
   ENV["SPANNER_KEYFILE_JSON"] = keyfile
