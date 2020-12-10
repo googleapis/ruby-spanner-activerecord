@@ -26,7 +26,7 @@ module ActiveRecord
 
       class Table < ActiveRecord::ConnectionAdapters::Table
         def primary_key name, type = :primary_key, **options
-          type = :string
+          type = :string # rubocop:disable Lint/ShadowedArgument
           options.merge primary_key: true
           super
         end
@@ -52,9 +52,8 @@ module ActiveRecord
           @type = type
           @options = options
 
-          if polymorphic && foreign_key
-            raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
-          end
+          return unless polymorphic && foreign_key
+          raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
         end
 
         private
