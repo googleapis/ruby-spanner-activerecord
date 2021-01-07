@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+
 module Google
   module Cloud
     module Spanner
@@ -12,7 +13,9 @@ module Google
           ensure_service!
 
           grpc = @service.create_session(
-            database_path(instance_id, database_id),
+            Admin::Database::V1::DatabaseAdmin::Paths.database_path(
+              project: project, instance: instance_id, database: database_id
+            ),
             labels: labels
           )
           Session.from_grpc grpc, @service

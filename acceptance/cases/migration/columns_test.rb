@@ -14,11 +14,11 @@ module ActiveRecord
       include SpannerAdapter::Migration::TestHelper
 
       def test_rename_column
-        error = assert_raise ActiveRecordSpannerAdapter::NotSupportedError do
-          rename_column "test_models", :hat_name, :cap_name
-        end
+        add_column "test_models", :hat_name, :string
+        assert_column TestModel, :hat_name
 
-        assert_equal "rename column not supported.", error.message
+        rename_column "test_models", :hat_name, :cap_name
+        assert_column TestModel, :cap_name
       end
 
       def test_change_column_default_value

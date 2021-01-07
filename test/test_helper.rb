@@ -47,12 +47,16 @@ module TestHelper
       @instance_id = "test-instance"
       @database_id = "test-database"
       @credentials = "test-credentials-file"
-      @connection = ActiveRecordSpannerAdapter::Connection.new(
-        project: project_id,
-        instance: instance_id,
-        database: database_id,
-        credentials: credentials,
-      )
+
+      mock_project =  MockGoogleSpanner::MockProject.new
+      ActiveRecordSpannerAdapter::Connection.stub :spanners, mock_project do
+        @connection = ActiveRecordSpannerAdapter::Connection.new(
+          project: project_id,
+          instance: instance_id,
+          database: database_id,
+          credentials: credentials,
+        )
+      end
     end
 
     def teardown
@@ -119,15 +123,6 @@ module TestHelper
 end
 
 module MockGoogleSpanner
-  def self.included base
-    base.instance_eval do
-      alias orig_spanner spanner
-      def spanner *args
-        MockProject.new(*args)
-      end
-    end
-  end
-
   def self.mocked_result= result
     @mocked_result ||= []
     @mocked_result << result
@@ -302,6 +297,3 @@ module MockGoogleSpanner
     end
   end
 end
-
-require "google-cloud-spanner"
-Google::Cloud.send :include, MockGoogleSpanner

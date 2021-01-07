@@ -87,10 +87,15 @@ module ActiveRecord
           @null_filtered = null_filtered
           @interleve_in = interleve_in
           @storing = Array(storing)
-          @orders = (orders || {}).symbolize_keys
-
           columns = columns.split(/\W/) if columns.is_a? String
           @columns = Array(columns).map(&:to_s)
+          @orders = orders || {}
+
+          unless @orders.is_a? Hash
+            @orders = columns.each_with_object({}) { |c, r| r[c] = orders }
+          end
+
+          @orders = @orders.symbolize_keys
         end
 
         def columns_with_order
