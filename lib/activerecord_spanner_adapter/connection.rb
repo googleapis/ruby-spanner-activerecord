@@ -28,6 +28,7 @@ module ActiveRecordSpannerAdapter
         @spanners[database_path(config)] ||= Google::Cloud::Spanner.new(
           project_id: config[:project],
           credentials: config[:credentials],
+          emulator_host: config[:emulator_host],
           scope: config[:scope],
           timeout: config[:timeout],
           lib_name: "spanner-activerecord-adapter",
