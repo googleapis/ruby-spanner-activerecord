@@ -22,6 +22,7 @@ class SpannerActiveRecordMockServerTest < Minitest::Test
     @server_thread = Thread.new do
       @server.run
     end
+    @server.wait_till_running
     # Register INFORMATION_SCHEMA queries on the mock server.
     register_select_tables_result
     register_singers_columns_result

@@ -24,6 +24,7 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     @server_thread = Thread.new do
       @server.run
     end
+    @server.wait_till_running
     # Register INFORMATION_SCHEMA queries on the mock server.
     register_schema_migrations_table_result
     register_schema_migrations_columns_result

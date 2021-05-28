@@ -26,6 +26,7 @@ describe "Spanner Mock Server" do
     @server_thread = Thread.new do
       @server.run
     end
+    @server.wait_till_running
     @client = V1::Spanner::Client.new do |config|
       config.credentials = :this_channel_is_insecure
       config.endpoint = "localhost:#{@port}"
