@@ -187,7 +187,7 @@ module ActiveRecordSpannerAdapter
         id: current_transaction.transaction_id
     end
 
-    def snapshot sql, options = {}
+    def snapshot sql, _options = {}
       raise "Nested snapshots are not allowed" if current_transaction
 
       session.snapshot do |snp|

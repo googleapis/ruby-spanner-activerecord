@@ -17,7 +17,7 @@ class SpannerActiveRecordMockServerTest < Minitest::Test
     @server = GRPC::RpcServer.new
     @port = @server.add_http2_port "localhost:0", :this_port_is_insecure
     @mock = SpannerMockServer.new
-    @server.handle(@mock)
+    @server.handle @mock
     # Run the server in a separate thread
     @server_thread = Thread.new do
       @server.run
