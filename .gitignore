@@ -32,6 +32,9 @@ build-iPhoneSimulator/
 #
 # vendor/Pods/
 
+# Ignore RubyMine project files
+.idea
+
 ## Documentation cache and generated files:
 /.yardoc/
 /_yardoc/

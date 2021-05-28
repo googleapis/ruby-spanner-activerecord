@@ -44,11 +44,20 @@ module ActiveRecordSpannerAdapter
     end
 
     def session
+      @last_used = Time.current
       @session ||= spanner.create_session instance_id, database_id
     end
     alias connect! session
 
     def active?
+      # This method should not initialize a session.
+      unless @session
+        return false
+      end
+      # Assume that it is still active if it has been used in the past 50 minutes.
+      if ((Time.current - @last_used) / 60).round < 50
+        return true
+      end
       session.execute_query "SELECT 1"
       true
     rescue StandardError
@@ -113,7 +122,7 @@ module ActiveRecordSpannerAdapter
       end
 
       if transaction_required && current_transaction.nil?
-        transaction = begin_trasaction
+        transaction = begin_transaction
       end
 
       session.execute_query \
@@ -133,7 +142,7 @@ module ActiveRecordSpannerAdapter
 
     # Transactions
 
-    def begin_trasaction
+    def begin_transaction
       raise "Nested transactions are not allowed" if current_transaction
       self.current_transaction = session.create_transaction
     end
@@ -181,7 +190,7 @@ module ActiveRecordSpannerAdapter
     def snapshot sql, options = {}
       raise "Nested snapshots are not allowed" if current_transaction
 
-      session.snapshot options do |snp|
+      session.snapshot do |snp|
         snp.execute_query sql
       end
     rescue Google::Cloud::UnavailableError
@@ -193,7 +202,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def self.database_path config
-      "#{config[:project]}/#{config[:instance]}/#{config[:database]}"
+      "#{config[:emulator_host]}/#{config[:project]}/#{config[:instance]}/#{config[:database]}"
     end
 
     private

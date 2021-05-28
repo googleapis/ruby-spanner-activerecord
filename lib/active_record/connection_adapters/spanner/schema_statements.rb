@@ -47,7 +47,7 @@ module ActiveRecord
             if pk.is_a? Array
               td.primary_keys pk
             else
-              td.primary_key pk, options.fetch(:id, :primary_key), {}
+              td.primary_key pk, options.fetch(:id, :primary_key)
             end
           end
 
@@ -404,7 +404,7 @@ module ActiveRecord
         end
 
         def create_table_definition *args
-          TableDefinition.new self, *args
+          TableDefinition.new self, args[0], options: args[1]
         end
 
         def able_to_ddl_batch? table_name

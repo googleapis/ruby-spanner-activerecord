@@ -45,6 +45,7 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
   end
 
   def test_connection_is_active
+    connection.connect!
     assert_equal connection.active?, true
   end
 

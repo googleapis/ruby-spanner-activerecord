@@ -90,8 +90,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 1
 
     assert_sql_equal(
-      last_executed_sql,
-      "SELECT * FROM information_schema.tables WHERE table_schema=''"
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+      last_executed_sql
     )
 
     result.each do |table|
@@ -107,11 +107,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.tables view: :columns
 
     assert_sql_equal(
-      last_executed_sqls,
       [
-        "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
-      ]
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -120,12 +120,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.tables view: :indexes
 
     assert_sql_equal(
-      last_executed_sqls,
       [
-        "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-      ]
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -134,13 +134,13 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.tables view: :full
 
     assert_sql_equal(
-      last_executed_sqls,
       [
-        "SELECT * FROM information_schema.tables WHERE table_schema=''",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-      ]
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -150,8 +150,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_instance_of ActiveRecordSpannerAdapter::Table, table
 
     assert_sql_equal(
-      last_executed_sql,
-      "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'"
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+      last_executed_sql
     )
   end
 
@@ -160,9 +160,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.table "accounts", view: :columns
 
     assert_sql_equal(
-      last_executed_sqls,
-      "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
+      [
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -171,12 +173,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.table "accounts", view: :indexes
 
     assert_sql_equal(
-      last_executed_sqls,
       [
-        "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-      ]
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -185,13 +187,13 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     info_schema.table "accounts", view: :full
 
     assert_sql_equal(
-      last_executed_sqls,
       [
-        "SELECT * FROM information_schema.tables WHERE table_schema='' AND table_name='accounts'",
-        "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.index_columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT * FROM information_schema.indexes WHERE table_name='accounts' AND spanner_is_managed=false"
-      ]
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
   end
 
@@ -201,8 +203,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 2
 
     assert_sql_equal(
-      last_executed_sql,
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts' ORDER BY ORDINAL_POSITION ASC"
+      "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+      last_executed_sql
     )
 
     result.each do |column|
@@ -230,8 +232,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_instance_of ActiveRecordSpannerAdapter::Table::Column, column
 
     assert_sql_equal(
-      last_executed_sql,
-      "SELECT * FROM information_schema.columns WHERE table_name='accounts' AND column_name='account_id' ORDER BY ORDINAL_POSITION ASC"
+      "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND COLUMN_NAME='account_id' ORDER BY ORDINAL_POSITION ASC",
+      last_executed_sql
     )
   end
 
@@ -242,9 +244,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 1
 
     assert_sql_equal(
-      last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' ORDER BY ORDINAL_POSITION ASC",
-      "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND spanner_is_managed=false"
+      [
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='orders' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
 
     result.each do |index|
@@ -273,9 +277,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_instance_of ActiveRecordSpannerAdapter::Index, index
 
     assert_sql_equal(
-      last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
-      "SELECT * FROM information_schema.indexes WHERE table_name='orders' AND index_name='index_orders_on_user_id' AND spanner_is_managed=false"
+      [
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' AND INDEX_NAME='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='orders' AND INDEX_NAME='index_orders_on_user_id' AND SPANNER_IS_MANAGED=FALSE"
+      ],
+      last_executed_sqls
     )
 
     assert_equal index.table, "orders"
@@ -298,8 +304,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 1
 
     assert_sql_equal(
-      last_executed_sqls,
-      "SELECT * FROM information_schema.index_columns WHERE table_name='orders' AND index_name='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC"
+      "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' AND INDEX_NAME='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
+      last_executed_sqls
     )
 
     column = result.first
