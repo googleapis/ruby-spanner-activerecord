@@ -25,6 +25,7 @@ $spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
 def connector_config
   {
     "adapter" => "spanner",
+    "emulator_host" => ENV["SPANNER_EMULATOR_HOST"],
     "project" => ENV["SPANNER_TEST_PROJECT"],
     "instance" => ENV["SPANNER_TEST_INSTANCE"],
     "credentials" => ENV["SPANNER_TEST_KEYFILE"],
@@ -40,6 +41,15 @@ def spanner
 end
 
 def spanner_instance
+  if ENV["SPANNER_EMULATOR_HOST"]
+    unless spanner.instance ENV["SPANNER_TEST_INSTANCE"]
+      job = spanner.create_instance ENV["SPANNER_TEST_INSTANCE"],
+                                    name:   "Automatically Created Test Instance",
+                                    config: "emulator-config",
+                                    nodes:  1
+      job.wait_until_done!
+    end
+  end
   $spanner_instance ||= spanner.instance ENV["SPANNER_TEST_INSTANCE"]
 end
 
