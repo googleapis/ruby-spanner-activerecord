@@ -18,7 +18,7 @@ module ActiveRecord
 
         def references *args, **options
           args.each do |ref_name|
-            Spanner::ReferenceDefinition.new(ref_name, options).add_to(self)
+            Spanner::ReferenceDefinition.new(ref_name, **options).add_to(self)
           end
         end
         alias belongs_to references

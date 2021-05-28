@@ -28,6 +28,8 @@ desc "Run the spanner connector acceptance tests."
 task :acceptance, :project, :keyfile, :instance do |t, args|
   project = args[:project]
   project ||= ENV["SPANNER_TEST_PROJECT"] || ENV["GCLOUD_TEST_PROJECT"]
+  emulator_host = args[:emulator_host]
+  emulator_host ||= ENV["SPANNER_EMULATOR_HOST"]
   keyfile = args[:keyfile]
   keyfile ||= ENV["SPANNER_TEST_KEYFILE"] || ENV["GCLOUD_TEST_KEYFILE"]
   if keyfile
@@ -35,8 +37,8 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
   else
     keyfile ||= ENV["SPANNER_TEST_KEYFILE_JSON"] || ENV["GCLOUD_TEST_KEYFILE_JSON"]
   end
-  if project.nil? || keyfile.nil?
-    fail "You must provide a project and keyfile."
+  if project.nil? || (keyfile.nil? && emulator_host.nil?)
+    fail "You must provide a project and keyfile or emulator host name."
   end
   instance = args[:instance]
   instance ||= ENV["SPANNER_TEST_INSTANCE"]
@@ -51,6 +53,7 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
   ENV["SPANNER_PROJECT"] = project
   ENV["SPANNER_KEYFILE_JSON"] = keyfile
   ENV["SPANNER_TEST_INSTANCE"] = instance
+  ENV["SPANNER_EMULATOR_HOST"] = emulator_host
 
   Rake::TestTask.new :run do |t|
     t.libs << "acceptance"

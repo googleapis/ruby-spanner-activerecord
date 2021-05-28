@@ -70,9 +70,18 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     assert_equal 1, ddl_requests[1].statements.length
     assert ddl_requests[1].statements[0].starts_with? "CREATE TABLE `ar_internal_metadata`"
     # The actual migration should be executed as one batch.
-    assert_equal 2, ddl_requests[2].statements.length
-    assert ddl_requests[2].statements[0].starts_with? "CREATE TABLE `singers`"
+    assert_equal 5, ddl_requests[2].statements.length
+    assert_equal(
+      "CREATE TABLE `singers` (`singerid` INT64 NOT NULL, `first_name` STRING(200), `last_name` STRING(MAX)) PRIMARY KEY (`singerid`)",
+          ddl_requests[2].statements[0]
+    )
     assert ddl_requests[2].statements[1].starts_with? "CREATE TABLE `albums`"
+    assert ddl_requests[2].statements[2].starts_with? "ALTER TABLE `albums` ADD CONSTRAINT"
+    assert_equal "ALTER TABLE `singers` ADD COLUMN `place_of_birth` STRING(MAX)", ddl_requests[2].statements[3]
+    assert_equal(
+      "CREATE TABLE `albums_singers` (`singer_id` INT64 NOT NULL, `album_id` INT64 NOT NULL) PRIMARY KEY (`singer_id`, `album_id`)",
+      ddl_requests[2].statements[4]
+    )
   end
 
   def register_schema_migrations_table_result
