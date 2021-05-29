@@ -50,9 +50,9 @@ class SpannerActiveRecordMockServerTest < Minitest::Test
     sql = "SELECT `singers`.* FROM `singers`"
     @mock.put_statement_result sql, create_random_singers_result(4)
     Singer.all.each do |singer|
-      assert singer.id != nil
-      assert singer.first_name != nil
-      assert singer.last_name != nil
+      refute_nil singer.id, "singer.id should not be nil"
+      refute_nil singer.first_name, "singer.first_name should not be nil"
+      refute_nil singer.last_name, "singer.last_name should not be nil"
     end
     # None of the requests should use a (read-only) transaction.
     select_requests = @mock.requests.select { |req| req.is_a? V1::ExecuteSqlRequest }

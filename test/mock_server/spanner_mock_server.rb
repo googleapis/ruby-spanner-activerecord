@@ -142,8 +142,6 @@ class SpannerMockServer < V1::Spanner::Service
     raise GRPC::BadStatus.new GRPC::Core::StatusCodes::UNIMPLEMENTED, "Not yet implemented"
   end
 
-  private
-
   def get_statement_result sql
     unless @statement_results.has_key? sql
       @statement_results.each do |key,value|
@@ -158,6 +156,8 @@ class SpannerMockServer < V1::Spanner::Service
     end
     @statement_results[sql]
   end
+
+  private
 
   def validate_session session
     unless @sessions.has_key? session
