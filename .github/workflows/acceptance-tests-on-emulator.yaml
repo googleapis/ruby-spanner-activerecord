@@ -3,7 +3,7 @@ on:
     branches:
       - master
   pull_request:
-name: ci
+name: acceptance tests on emulator
 jobs:
   test:
     runs-on: ubuntu-latest
