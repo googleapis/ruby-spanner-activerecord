@@ -30,7 +30,7 @@ class CreateSingerAndAlbumTables < ActiveRecord::Migration[6.0]
 
       # Execute the change as one DDL batch.
       connection.run_batch
-    rescue Exception
+    rescue StandardError
       connection.abort_batch
       raise
     ensure

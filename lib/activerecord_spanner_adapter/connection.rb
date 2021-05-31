@@ -124,12 +124,12 @@ module ActiveRecordSpannerAdapter
     #     connection.execute_ddl "CREATE INDEX Idx_Users_Name ON `Users` (Name)"
     #   end
     def ddl_batch
-      raise Google::Cloud::FailedPreconditionError "No block given for the DDL batch" unless block_given?
+      raise Google::Cloud::FailedPreconditionError, "No block given for the DDL batch" unless block_given?
       begin
         start_batch_ddl
         yield
         run_batch
-      rescue Exception
+      rescue StandardError
         abort_batch
         raise
       end
@@ -144,13 +144,13 @@ module ActiveRecordSpannerAdapter
     #     connection.execute_ddl "CREATE TABLE `Users` (Id INT64, Name STRING(MAX)) PRIMARY KEY (Id)"
     #     connection.execute_ddl "CREATE INDEX Idx_Users_Name ON `Users` (Name)"
     #     connection.run_batch
-    #   rescue Exception
+    #   rescue StandardError
     #     connection.abort_batch
     #     raise
     #   end
     def start_batch_ddl
       if @ddl_batch
-        raise Google::Cloud::FailedPreconditionError "A DDL batch is already active on this connection"
+        raise Google::Cloud::FailedPreconditionError, "A DDL batch is already active on this connection"
       end
       @ddl_batch = []
     end
@@ -170,7 +170,7 @@ module ActiveRecordSpannerAdapter
     # @see start_batch_ddl
     def run_batch
       unless @ddl_batch
-        raise Google::Cloud::FailedPreconditionError "There is no batch active on this connection"
+        raise Google::Cloud::FailedPreconditionError, "There is no batch active on this connection"
       end
       # Just return if the batch is empty.
       return true if @ddl_batch.empty?
