@@ -20,8 +20,10 @@ module ActiveRecord
       end
 
       def teardown
-        @connection.drop_table "testings", if_exists: true
-        @connection.drop_table "testing_parents", if_exists: true
+        @connection.ddl_batch do
+          @connection.drop_table "testings", if_exists: true
+          @connection.drop_table "testing_parents", if_exists: true
+        end
       end
 
       def test_create_foreign_key_with_table_create
@@ -43,11 +45,13 @@ module ActiveRecord
       end
 
       def test_options_can_be_passed
-        connection.change_table :testing_parents do |t|
-          t.references :other, index: { unique: true }
-        end
-        connection.create_table :testings do |t|
-          t.references :testing_parent, foreign_key: { primary_key: :other_id }
+        connection.ddl_batch do
+          connection.change_table :testing_parents do |t|
+            t.references :other, index: { unique: true }
+          end
+          connection.create_table :testings do |t|
+            t.references :testing_parent, foreign_key: { primary_key: :other_id }
+          end
         end
 
         fk = @connection.foreign_keys("testings").find { |k| k.to_table == "testing_parents" }
@@ -80,14 +84,18 @@ module ActiveRecord
       end
 
       def teardown
-        connection.drop_table "testings", if_exists: true
-        connection.drop_table "testing_parents", if_exists: true
+        connection.ddl_batch do
+          connection.drop_table "testings", if_exists: true
+          connection.drop_table "testing_parents", if_exists: true
+        end
       end
 
       def test_create_foreign_key_with_changing_table
-        connection.create_table :testings
-        connection.change_table :testings do |t|
-          t.references :testing_parent, foreign_key: true
+        connection.ddl_batch do
+          connection.create_table :testings
+          connection.change_table :testings do |t|
+            t.references :testing_parent, foreign_key: true
+          end
         end
 
         fk = connection.foreign_keys("testings").first

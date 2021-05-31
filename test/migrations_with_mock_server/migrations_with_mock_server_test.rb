@@ -60,7 +60,7 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     # Register migration result for the current version (nil) to the new version (1).
     register_version_result nil, "1"
 
-    context.migrate
+    context.migrate 1
 
     # The migration should create the migration tables and the singers and albums tables in one request.
     ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Admin::UpdateDatabaseDdlRequest) }
@@ -81,6 +81,35 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     assert_equal(
       "CREATE TABLE `albums_singers` (`singer_id` INT64 NOT NULL, `album_id` INT64 NOT NULL) PRIMARY KEY (`singer_id`, `album_id`)",
       ddl_requests[2].statements[4]
+    )
+  end
+
+  def test_execute_migration_without_batching
+    context = ActiveRecord::MigrationContext.new(
+      "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+      ActiveRecord::SchemaMigration
+    )
+
+    # Simulate upgrading from version 1 to version 2.
+    register_version_result "1", "2"
+
+    context.migrate 2
+
+    # The migration should create the migration tables and the singers and albums tables in one request.
+    ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Admin::UpdateDatabaseDdlRequest) }
+    # The migration simulation also creates the two migration metadata tables.
+    assert_equal 4, ddl_requests.length
+
+    # The migration statements should not be executed in a batch.
+    assert_equal 1, ddl_requests[2].statements.length
+    assert_equal 1, ddl_requests[3].statements.length
+    assert_equal(
+      "CREATE TABLE `table1` (`id` INT64 NOT NULL, `col1` STRING(MAX), `col2` STRING(MAX)) PRIMARY KEY (`id`)",
+      ddl_requests[2].statements[0]
+    )
+    assert_equal(
+      "CREATE TABLE `table2` (`id` INT64 NOT NULL, `col1` STRING(MAX), `col2` STRING(MAX)) PRIMARY KEY (`id`)",
+      ddl_requests[3].statements[0]
     )
   end
 

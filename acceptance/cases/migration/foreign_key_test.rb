@@ -35,10 +35,12 @@ module ActiveRecord
       end
 
       def teardown
-        connection.drop_table "astronauts", if_exists: true
-        connection.drop_table "rockets", if_exists: true
-        connection.drop_table "fk_test_has_fk", if_exists: true
-        connection.drop_table "fk_test_has_pk", if_exists: true
+        connection.ddl_batch do
+          connection.drop_table "astronauts", if_exists: true
+          connection.drop_table "rockets", if_exists: true
+          connection.drop_table "fk_test_has_fk", if_exists: true
+          connection.drop_table "fk_test_has_pk", if_exists: true
+        end
       end
 
       def test_foreign_keys

@@ -66,7 +66,7 @@ module ActiveRecord
             statements << schema_creation.accept(id)
           end
 
-          execute_schema_statements statements, with_batching: able_to_ddl_batch?(table_name)
+          execute_schema_statements statements
         end
 
         def drop_table table_name, options = {}
@@ -515,12 +515,8 @@ module ActiveRecord
           statements
         end
 
-        def execute_schema_statements statements, with_batching: true
-          if disabled_ddl_batching? || !with_batching
-            return execute_ddl statements
-          end
-
-          Array(statements).each { |s| execute s }
+        def execute_schema_statements statements
+          execute_ddl statements
         end
 
         def information_schema
@@ -529,7 +525,6 @@ module ActiveRecord
 
           return info_schema unless block_given?
 
-          execute_pending_ddl
           yield info_schema
         end
       end

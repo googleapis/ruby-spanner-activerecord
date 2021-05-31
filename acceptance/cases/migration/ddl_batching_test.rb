@@ -19,11 +19,13 @@ module ActiveRecord
 
       class CreateBoxMigration < ActiveRecord::Migration::Current
         def change
-          create_table("boxes") do |t|
-            t.string :name
-          end
+          connection.ddl_batch do
+            create_table("boxes") do |t|
+              t.string :name
+            end
 
-          add_column :boxes, :length, :integer
+            add_column :boxes, :length, :integer
+          end
 
           Box.create(name: "Box1", length: 10)
         end
@@ -33,32 +35,31 @@ module ActiveRecord
         skip_test_table_create!
 
         super
-        ENV["DISABLE_DDL_BATCHING"] = "FALSE"
       end
 
       def teardown
         super
-        ENV["DISABLE_DDL_BATCHING"] = "TRUE"
 
-        [:boxes, :ddl_batch_test].each do |name|
-          if connection.table_exists?(name)
-            connection.drop_table name
+        connection.ddl_batch do
+          [:boxes, :ddl_batch_test].each do |name|
+            if connection.table_exists?(name)
+              connection.drop_table name
+            end
           end
         end
-        connection.execute_pending_ddl
       end
 
       def test_ddl_batching
         information_schema = connection.send :information_schema
 
-        connection.create_table("ddl_batch_test") do |t|
-          t.string :name
+        connection.ddl_batch do
+          connection.create_table("ddl_batch_test") do |t|
+            t.string :name
+          end
+          connection.add_column :ddl_batch_test, :created_at, :time
+
+          assert_not information_schema.table(:ddl_batch_test)
         end
-        connection.add_column :ddl_batch_test, :created_at, :time
-
-        assert_not information_schema.table(:ddl_batch_test)
-
-        connection.execute_pending_ddl
 
         assert information_schema.table(:ddl_batch_test)
       end
