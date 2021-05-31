@@ -97,6 +97,9 @@ module ActiveRecord
       end
       alias reconnect! reset!
 
+      # Spanner Connection API
+      delegate :ddl_batch, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
+
       # Supported features
 
       def supports_bulk_alter?
@@ -153,10 +156,6 @@ module ActiveRecord
 
       def arel_visitor
         Arel::Visitors::Spanner.new self
-      end
-
-      def disabled_ddl_batching?
-        ENV["DISABLE_DDL_BATCHING"] == "TRUE"
       end
 
       private

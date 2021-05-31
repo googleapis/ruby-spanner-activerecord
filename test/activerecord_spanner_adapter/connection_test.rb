@@ -88,4 +88,79 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
       connection.execute_ddl "invalid sql"
     }
   end
+
+  def test_ddl_batch
+    statement1 = "CREATE TABLE users ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    statement2 = "CREATE TABLE sessions ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    connection.ddl_batch do
+      result1 = connection.execute_ddl statement1
+      result2 = connection.execute_ddl statement2
+      assert_equal true, result1
+      assert_equal true, result2
+
+      # The connection is in batch mode and should therefore only buffer the statement.
+      assert_nil last_executed_sqls
+    end
+    # The statements should now have be sent as one batch.
+    assert_sql_equal [statement1, statement2], last_executed_sql
+  end
+
+  def test_empty_ddl_batch
+    connection.ddl_batch do
+    end
+    assert_nil last_executed_sqls
+  end
+
+  def test_ddl_batch_with_no_block
+     err = assert_raises Google::Cloud::FailedPreconditionError do
+       connection.ddl_batch
+     end
+     assert_match /No block given for the DDL batch/, err.message
+  end
+
+  def test_run_ddl_batch
+    connection.start_batch_ddl
+    statement1 = "CREATE TABLE users ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    statement2 = "CREATE TABLE sessions ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    result1 = connection.execute_ddl statement1
+    result2 = connection.execute_ddl statement2
+    assert_equal true, result1
+    assert_equal true, result2
+
+    # The connection is in batch mode and should therefore only buffer the statement.
+    assert_nil last_executed_sqls
+
+    # Run the batch. This should send both statements to Spanner.
+    connection.run_batch
+
+    # The statements should be sent as one batch.
+    assert_sql_equal [statement1, statement2], last_executed_sql
+
+    # It should be possible to start a new batch after running the previous batch.
+    connection.start_batch_ddl
+    # Running an empty batch is a no-op.
+    connection.run_batch
+  end
+
+  def test_abort_ddl_batch
+    connection.start_batch_ddl
+    statement1 = "CREATE TABLE users ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    statement2 = "CREATE TABLE sessions ( id STRING(36) NOT NULL ) PRIMARY KEY (id)"
+    result1 = connection.execute_ddl statement1
+    result2 = connection.execute_ddl statement2
+    assert_equal true, result1
+    assert_equal true, result2
+
+    # The connection is in batch mode and should therefore only buffer the statement.
+    assert_nil last_executed_sqls
+
+    # Abort the batch. This should clear the local buffer.
+    connection.abort_batch
+
+    # Trying to run a batch now will cause an error as there is not batch on the connection.
+    err = assert_raises Google::Cloud::FailedPreconditionError do
+      connection.run_batch
+    end
+    assert_match /There is no batch active on this connection/, err.message
+  end
 end
