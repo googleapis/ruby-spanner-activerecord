@@ -199,6 +199,7 @@ module SpannerAdapter
           t.text :bio
           t.integer :length
           t.float :weight
+          t.numeric :price
           t.boolean :active
           t.binary :file
           t.binary :data, limit: 255
