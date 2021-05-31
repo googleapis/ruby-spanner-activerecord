@@ -113,6 +113,44 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     )
   end
 
+  def test_create_all_native_migration_types
+    context = ActiveRecord::MigrationContext.new(
+      "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+      ActiveRecord::SchemaMigration
+    )
+
+    register_version_result "1", "3"
+
+    context.migrate 3
+
+    # The migration should create the migration tables and the singers and albums tables in one request.
+    ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Admin::UpdateDatabaseDdlRequest) }
+    # The migration simulation also creates the two migration metadata tables.
+    assert_equal 3, ddl_requests.length
+    assert_equal 1, ddl_requests[2].statements.length
+
+    # CREATE TABLE `types_table` (`id` INT64 NOT NULL, `col_string` STRING(MAX), `col_text` STRING(MAX),
+    # `col_integer` INT64, `col_bigint` INT64, `col_float` FLOAT64, `col_decimal` FLOAT64, `col_numeric` numeric,
+    # `col_datetime` TIMESTAMP, `col_time` TIMESTAMP, `col_date` DATE, `col_binary` BYTES(MAX), `col_boolean` BOOL) PRIMARY KEY (`id`)
+    expectedDdl = +"CREATE TABLE `types_table` ("
+    expectedDdl << "`id` INT64 NOT NULL, "
+    expectedDdl << "`col_string` STRING(MAX), "
+    expectedDdl << "`col_text` STRING(MAX), "
+    expectedDdl << "`col_integer` INT64, "
+    expectedDdl << "`col_bigint` INT64, "
+    expectedDdl << "`col_float` FLOAT64, "
+    expectedDdl << "`col_decimal` NUMERIC, "
+    expectedDdl << "`col_numeric` NUMERIC, "
+    expectedDdl << "`col_datetime` TIMESTAMP, "
+    expectedDdl << "`col_time` TIMESTAMP, "
+    expectedDdl << "`col_date` DATE, "
+    expectedDdl << "`col_binary` BYTES(MAX), "
+    expectedDdl << "`col_boolean` BOOL) "
+    expectedDdl << "PRIMARY KEY (`id`)"
+
+    assert_equal expectedDdl, ddl_requests[2].statements[0]
+  end
+
   def register_schema_migrations_table_result
     sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='schema_migrations'"
     register_empty_select_tables_result sql
@@ -249,11 +287,12 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     result_set = V1::ResultSet.new metadata: metadata
 
     if from_version
-      row = Protobuf::ListValue.new
-      row.values.push Protobuf::Value.new(string_value: from_version)
-      result_set.rows.push row
+      (from_version...to_version).each { |version|
+        row = Protobuf::ListValue.new
+        row.values.push Protobuf::Value.new(string_value: version.to_s)
+        result_set.rows.push row
+      }
     end
-
     @mock.put_statement_result sql, StatementResult.new(result_set)
 
     update_sql = "INSERT INTO `schema_migrations` (`version`) VALUES ('#{to_version}')"
