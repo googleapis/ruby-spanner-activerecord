@@ -7,8 +7,7 @@
 module Arel # :nodoc: all
   module Visitors
     class Spanner < Arel::Visitors::ToSql
-
-      def compile(node, collector = Arel::Collectors::SQLString.new)
+      def compile node, collector = Arel::Collectors::SQLString.new
         @index = 0
         accept(node, collector).value
       end

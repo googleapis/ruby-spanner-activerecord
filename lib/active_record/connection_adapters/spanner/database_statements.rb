@@ -32,12 +32,13 @@ module ActiveRecord
           log sql, name do
             types = binds.enum_for(:each_with_index).map do |bind, i|
               [
-                "#{bind.name}_#{i+1}",
-                ActiveRecord::Type::Spanner::SpannerActiveRecordConverter.convert_active_model_type_to_spanner(bind.type)
+                "#{bind.name}_#{i + 1}",
+                ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                  .convert_active_model_type_to_spanner(bind.type)
               ]
             end.to_h
             params = binds.enum_for(:each_with_index).map do |v, i|
-              ["#{v.name}_#{i+1}", v.type.serialize(v.value)]
+              ["#{v.name}_#{i + 1}", v.type.serialize(v.value)]
             end.to_h
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               @connection.execute_query(
