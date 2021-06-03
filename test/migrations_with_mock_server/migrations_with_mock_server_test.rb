@@ -244,7 +244,7 @@ class SpannerMigrationsMockServerTest < Minitest::Test
 
   def register_ar_internal_metadata_results
     # CREATE TABLE `ar_internal_metadata` (`key` STRING(MAX) NOT NULL, `value` STRING(MAX), `created_at` TIMESTAMP NOT NULL, `updated_at` TIMESTAMP NOT NULL) PRIMARY KEY (`key`)
-    sql = "SELECT `ar_internal_metadata`.* FROM `ar_internal_metadata` WHERE `ar_internal_metadata`.`key` = 'environment' LIMIT 1"
+    sql = "SELECT `ar_internal_metadata`.* FROM `ar_internal_metadata` WHERE `ar_internal_metadata`.`key` = @key_1 LIMIT @LIMIT_2"
 
     key = V1::StructType::Field.new name: "key", type: V1::Type.new(code: V1::TypeCode::STRING)
     value = V1::StructType::Field.new name: "value", type: V1::Type.new(code: V1::TypeCode::STRING)
@@ -259,7 +259,7 @@ class SpannerMigrationsMockServerTest < Minitest::Test
   end
 
   def register_ar_internal_metadata_insert_result
-    sql = "INSERT INTO `ar_internal_metadata` (`key`, `value`, `created_at`, `updated_at`) VALUES ('environment', 'default_env', '%"
+    sql = "INSERT INTO `ar_internal_metadata` (`key`, `value`, `created_at`, `updated_at`) VALUES (@key_1, @value_2, @created_at_3, @updated_at_4)"
     @mock.put_statement_result sql, StatementResult.new(1)
   end
 
@@ -295,7 +295,7 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     end
     @mock.put_statement_result sql, StatementResult.new(result_set)
 
-    update_sql = "INSERT INTO `schema_migrations` (`version`) VALUES ('#{to_version}')"
+    update_sql = "INSERT INTO `schema_migrations` (`version`) VALUES (@version_1)"
     @mock.put_statement_result update_sql, StatementResult.new(1)
   end
 end

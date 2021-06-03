@@ -14,6 +14,7 @@ require "active_record/connection_adapters/spanner/schema_definitions"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
 require "active_record/type/spanner/bytes"
+require "active_record/type/spanner/spanner_active_record_converter"
 require "active_record/type/spanner/time"
 require "arel/visitors/spanner"
 require "activerecord_spanner_adapter/connection"
@@ -58,7 +59,8 @@ module ActiveRecord
       include Spanner::SchemaStatements
 
       def initialize connection, logger, connection_options, config
-        config[:prepared_statements] = false
+        # Use prepared statements by default if the user has not specified anything else.
+        config[:prepared_statements] = config[:prepared_statements].nil? ? true : config[:prepared_statements]
         super connection, logger, config
         @connection_options = connection_options
       end
@@ -168,6 +170,7 @@ module ActiveRecord
         )
         m.register_type "DATE", Type::Date.new
         m.register_type "FLOAT64", Type::Float.new
+        m.register_type "NUMERIC", Type::Decimal.new
         m.register_type "INT64", Type::Integer.new(limit: 8)
         register_class_with_limit m, %r{^STRING}i, Type::String
         m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new

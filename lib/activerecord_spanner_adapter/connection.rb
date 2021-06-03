@@ -183,11 +183,11 @@ module ActiveRecordSpannerAdapter
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, transaction_required: nil
+    def execute_query sql, params: nil, types: nil, transaction_required: nil
       if params
         converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
-            params, nil
+            params, types
           )
       end
 
