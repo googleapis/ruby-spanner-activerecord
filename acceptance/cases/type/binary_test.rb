@@ -24,7 +24,7 @@ module ActiveRecord
         record = TestTypeModel.create(data: data)
         record.reload
 
-        assert_equal "hello", record.data
+        assert_equal "hello", record.data.read
       end
 
       def test_set_binary_data_byte_string_in_create
@@ -33,7 +33,7 @@ module ActiveRecord
         record = TestTypeModel.create(data: data.read)
         record.reload
 
-        assert_equal "hello1", record.data
+        assert_equal "hello1", record.data.read
       end
 
       def test_check_max_limit
@@ -51,7 +51,7 @@ module ActiveRecord
           record = TestTypeModel.create(file: f)
           record.reload
 
-          assert_equal "hello 123", record.file
+          assert_equal "hello 123", record.file.read
         end
       end
     end
