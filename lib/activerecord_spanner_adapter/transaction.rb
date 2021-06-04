@@ -6,6 +6,8 @@
 
 module ActiveRecordSpannerAdapter
   class Transaction
+    attr_reader :state
+
     def initialize connection
       @connection = connection
       @state = :INITIALIZED
@@ -44,6 +46,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def rollback
+      # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
       if active?
         @connection.session.rollback @grpc_transaction.transaction_id
@@ -56,7 +59,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def transaction_selector
-      return unless @state == :STARTED
+      return unless active?
 
       Google::Spanner::V1::TransactionSelector.new \
         id: @grpc_transaction.transaction_id

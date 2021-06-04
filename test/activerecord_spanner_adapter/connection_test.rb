@@ -163,4 +163,146 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
     end
     assert_match /There is no batch active on this connection/, err.message
   end
+
+  def test_begin_transaction
+    assert_nil connection.current_transaction
+
+    connection.begin_transaction
+
+    refute_nil connection.current_transaction
+    assert connection.current_transaction.active?
+  end
+
+  def test_commit_transaction
+    connection.begin_transaction
+    assert connection.current_transaction.active?
+
+    connection.commit_transaction
+    refute connection.current_transaction.active?
+  end
+
+  def test_rollback_transaction
+    connection.begin_transaction
+    assert connection.current_transaction.active?
+
+    connection.rollback_transaction
+    refute connection.current_transaction.active?
+  end
+
+  def test_no_nested_transactions
+    connection.begin_transaction
+
+    err = assert_raises(StandardError) {
+      connection.begin_transaction
+    }
+    assert err.message.include?("Nested transactions are not allowed")
+  end
+
+  def test_cannot_commit_without_transaction
+    err = assert_raises(StandardError) {
+      connection.commit_transaction
+    }
+    assert err.message.include?("This connection does not have a transaction")
+  end
+
+  def test_cannot_rollback_without_transaction
+    err = assert_raises(StandardError) {
+      connection.rollback_transaction
+    }
+    assert err.message.include?("This connection does not have a transaction")
+  end
+
+  def test_cannot_commit_after_commit
+    connection.begin_transaction
+    connection.commit_transaction
+
+    err = assert_raises(StandardError) {
+      connection.commit_transaction
+    }
+    assert err.message.include?("This transaction is not active")
+  end
+
+  def test_cannot_rollback_after_commit
+    connection.begin_transaction
+    connection.commit_transaction
+
+    err = assert_raises(StandardError) {
+      connection.rollback_transaction
+    }
+    assert err.message.include?("This transaction is not active")
+  end
+
+  def test_cannot_commit_after_rollback
+    connection.begin_transaction
+    connection.rollback_transaction
+
+    err = assert_raises(StandardError) {
+      connection.commit_transaction
+    }
+    assert err.message.include?("This transaction is not active")
+  end
+
+  def test_cannot_rollback_after_commit
+    connection.begin_transaction
+    connection.rollback_transaction
+
+    err = assert_raises(StandardError) {
+      connection.rollback_transaction
+    }
+    assert err.message.include?("This transaction is not active")
+  end
+
+  def test_select_outside_transaction_does_not_initiate_implicit_transaction
+    assert_nil connection.current_transaction
+
+    connection.execute_query "SELECT 1"
+
+    assert_nil connection.current_transaction
+  end
+
+  def test_transaction_is_cleared_after_select_outside_transaction
+    connection.begin_transaction
+    connection.commit_transaction
+    refute_nil connection.current_transaction
+
+    connection.execute_query "SELECT 1"
+
+    assert_nil connection.current_transaction
+  end
+
+  def test_update_outside_transaction_initiates_implicit_transaction
+    assert_nil connection.current_transaction
+
+    connection.execute_query "UPDATE FOO SET BAR = 1 WHERE TRUE", transaction_required: true
+
+    refute_nil connection.current_transaction
+    refute connection.current_transaction.active?
+  end
+
+  def test_ddl_outside_transaction_does_not_initiate_transaction
+    assert_nil connection.current_transaction
+
+    connection.execute_ddl "CREATE TABLE FOO"
+
+    assert_nil connection.current_transaction
+  end
+
+  def test_ddl_clears_transaction
+    connection.begin_transaction
+    connection.commit_transaction
+    refute_nil connection.current_transaction
+
+    connection.execute_ddl "CREATE TABLE FOO"
+
+    assert_nil connection.current_transaction
+  end
+
+  def test_ddl_is_not_allowed_during_transaction
+    connection.begin_transaction
+
+    err = assert_raises(StandardError) {
+      connection.execute_ddl "CREATE TABLE FOO"
+    }
+    assert err.message.include?("DDL cannot be executed during a transaction")
+  end
 end

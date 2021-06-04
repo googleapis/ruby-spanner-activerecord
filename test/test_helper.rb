@@ -203,8 +203,8 @@ module MockGoogleSpanner
     end
     alias execute execute_query
 
-    def begin_trasaction
-      grcp = Google::Spanner::V1::Transaction.new id: SecureRandom.base64
+    def create_transaction
+      grpc = Google::Spanner::V1::Transaction.new id: SecureRandom.base64
       Google::Cloud::Spanner::Transaction.from_grpc grpc, self
     end
 

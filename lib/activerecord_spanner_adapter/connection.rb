@@ -101,6 +101,9 @@ module ActiveRecordSpannerAdapter
 
     # @params [Array<String>, String] sql Single or list of statements
     def execute_ddl statements, operation_id: nil, wait_until_done: true
+      raise "DDL cannot be executed during a transaction" if current_transaction&.active?
+      self.current_transaction = nil
+
       statements = Array statements
       return unless statements.any?
 
@@ -193,6 +196,9 @@ module ActiveRecordSpannerAdapter
 
       if transaction_required && !current_transaction&.active?
         transaction = begin_transaction
+        self.current_transaction = transaction
+      elsif !current_transaction&.active?
+        self.current_transaction = nil
       end
 
       session.execute_query \
@@ -205,11 +211,6 @@ module ActiveRecordSpannerAdapter
       # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
       current_transaction&.mark_aborted
       raise
-    rescue Google::Cloud::NotFoundError
-      # Session is idle for too long then it will throw an error not found.
-      # In this case reset and retry.
-      reset!
-      retry
     ensure
       commit_transaction if transaction
     end
@@ -217,17 +218,19 @@ module ActiveRecordSpannerAdapter
     # Transactions
 
     def begin_transaction
+      raise "Nested transactions are not allowed" if current_transaction&.active?
       self.current_transaction = Transaction.new self
       current_transaction.begin
+      current_transaction
     end
 
     def commit_transaction
-      return unless current_transaction
+      raise "This connection does not have a transaction" unless current_transaction
       current_transaction.commit
     end
 
     def rollback_transaction
-      return unless current_transaction
+      raise "This connection does not have a transaction" unless current_transaction
       current_transaction.rollback
     end
 
