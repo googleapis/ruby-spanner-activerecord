@@ -5,6 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 require_relative "statement_result"
+require "google/rpc/error_details_pb"
 require "google/spanner/v1/spanner_pb"
 require "google/spanner/v1/spanner_services_pb"
 require "google/cloud/spanner/v1/spanner"
@@ -25,6 +26,7 @@ class SpannerMockServer < V1::Spanner::Service
     @statement_results = {}
     @sessions = {}
     @transactions = {}
+    @aborted_transactions = {}
     @requests = []
     put_statement_result "SELECT 1", StatementResult.create_select1_result
   end
@@ -80,6 +82,7 @@ class SpannerMockServer < V1::Spanner::Service
   def do_execute_sql request, streaming
     @requests << request
     validate_session request.session
+    validate_transaction request.session, request.transaction.id if request.transaction&.id
     result = get_statement_result request.sql
     if result.result_type == StatementResult::EXCEPTION
       raise result.result
@@ -109,7 +112,12 @@ class SpannerMockServer < V1::Spanner::Service
   def begin_transaction request, _unused_call
     @requests << request
     validate_session request.session
-    do_create_transaction request.session
+    transaction = do_create_transaction request.session
+    if @abort_next_transaction
+      abort_transaction request.session, transaction.id
+      @abort_next_transaction = false
+    end
+    transaction
   end
 
   def commit request, _unused_call
@@ -140,6 +148,16 @@ class SpannerMockServer < V1::Spanner::Service
   def get_database request, _unused_call
     @requests << request
     raise GRPC::BadStatus.new GRPC::Core::StatusCodes::UNIMPLEMENTED, "Not yet implemented"
+  end
+
+  def abort_transaction session, id
+    return if session.nil? || id.nil?
+    name = "#{session}/transactions/#{id}"
+    @aborted_transactions[name] = true
+  end
+
+  def abort_next_transaction
+    @abort_next_transaction = true
   end
 
   def get_statement_result sql
@@ -181,6 +199,14 @@ class SpannerMockServer < V1::Spanner::Service
       raise GRPC::BadStatus.new(
         GRPC::Core::StatusCodes::NOT_FOUND,
         "Transaction not found: Transaction with id #{transaction} not found"
+      )
+    end
+    if @aborted_transactions.has_key?(name)
+      retry_info = Google::Rpc::RetryInfo.new(retry_delay: Google::Protobuf::Duration.new(seconds: 0, nanos: 1))
+      raise GRPC::BadStatus.new(
+        GRPC::Core::StatusCodes::ABORTED,
+        "Transaction aborted",
+        { "google.rpc.retryinfo-bin": Google::Rpc::RetryInfo.encode(retry_info) }
       )
     end
   end

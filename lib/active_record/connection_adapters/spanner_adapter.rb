@@ -20,6 +20,7 @@ require "arel/visitors/spanner"
 require "activerecord_spanner_adapter/connection"
 require "activerecord_spanner_adapter/errors"
 require "activerecord_spanner_adapter/information_schema"
+require "activerecord_spanner_adapter/transaction"
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
