@@ -103,6 +103,23 @@ module ActiveRecord
 
         # Transaction
 
+        def transaction(requires_new: nil, isolation: nil, joinable: true)
+          if !requires_new && current_transaction.joinable?
+            return super
+          end
+
+          backoff = 0.2
+          begin
+            super
+          rescue ActiveRecord::StatementInvalid => err
+            if err.cause.is_a?(Google::Cloud::AbortedError)
+              sleep(delay_from_aborted(err) || backoff *= 1.3)
+              retry
+            end
+            raise
+          end
+        end
+
         def begin_db_transaction
           log "BEGIN" do
             @connection.begin_transaction
@@ -138,6 +155,26 @@ module ActiveRecord
           else
             :dql
           end
+        end
+
+        ##
+        # Retrieves the delay value from Google::Cloud::AbortedError or
+        # GRPC::Aborted
+        def delay_from_aborted err
+          return nil if err.nil?
+          if err.respond_to?(:metadata) && err.metadata["google.rpc.retryinfo-bin"]
+            retry_info = Google::Rpc::RetryInfo.decode(err.metadata["google.rpc.retryinfo-bin"])
+            seconds = retry_info["retry_delay"].seconds
+            nanos = retry_info["retry_delay"].nanos
+            return seconds if nanos.zero?
+            return seconds + (nanos / 1_000_000_000.0)
+          end
+
+          # No metadata? Try the inner error
+          delay_from_aborted err.cause
+        rescue StandardError
+          # Any error indicates the backoff should be handled elsewhere
+          nil
         end
       end
     end

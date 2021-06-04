@@ -94,7 +94,7 @@ class SpannerMockServerConnectionTest
 
       connection = create_connection
       connection.begin_transaction
-      update_count = connection.current_transaction.execute_update sql
+      update_count = connection.execute_query(sql).row_count
       _(update_count).must_equal 3
     end
   end

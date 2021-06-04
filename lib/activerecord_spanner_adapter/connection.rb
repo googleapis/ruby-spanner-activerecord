@@ -191,7 +191,7 @@ module ActiveRecordSpannerAdapter
           )
       end
 
-      if transaction_required && current_transaction.nil?
+      if transaction_required && !current_transaction&.active?
         transaction = begin_transaction
       end
 
@@ -200,7 +200,11 @@ module ActiveRecordSpannerAdapter
         params: converted_params,
         types: types,
         transaction: transaction_selector,
-        seqno: (current_transaction&.seqno += 1)
+        seqno: (current_transaction&.next_sequence_number)
+    rescue Google::Cloud::AbortedError
+      # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
+      current_transaction&.mark_aborted
+      raise
     rescue Google::Cloud::NotFoundError
       # Session is idle for too long then it will throw an error not found.
       # In this case reset and retry.
@@ -213,48 +217,24 @@ module ActiveRecordSpannerAdapter
     # Transactions
 
     def begin_transaction
-      raise "Nested transactions are not allowed" if current_transaction
-      self.current_transaction = session.create_transaction
+      # raise "Nested transactions are not allowed" if current_transaction
+      self.current_transaction = Transaction.new(self)
+      current_transaction.begin
     end
 
     def commit_transaction deadline: 120
       return unless current_transaction
-
-      start_time = Time.now
-      backoff = 1.0
-      session.commit_transaction current_transaction
-    rescue GRPC::Aborted, Google::Cloud::AbortedError => err
-      if Time.now - start_time > deadline
-        if err.is_a? GRPC::BadStatus
-          err = Google::Cloud::Error.from_error err
-        end
-        raise err
-      end
-      sleep(delay_from_aborted(err) || backoff *= 1.3)
-      retry
-    rescue Google::Cloud::FailedPreconditionError => err
-      raise err
-    rescue StandardError => err
-      rollback_transaction
-      return nil if err.is_a? Google::Cloud::Spanner::Rollback
-      raise err
-    ensure
-      self.current_transaction = nil
+      current_transaction.commit deadline: deadline
     end
 
     def rollback_transaction
       if current_transaction
-        session.rollback current_transaction.transaction_id
+        current_transaction.rollback
       end
-    ensure
-      self.current_transaction = nil
     end
 
     def transaction_selector
-      return unless current_transaction
-
-      Google::Spanner::V1::TransactionSelector.new \
-        id: current_transaction.transaction_id
+      return current_transaction&.transaction_selector if current_transaction&.active?
     end
 
     def snapshot sql, _options = {}
@@ -282,24 +262,6 @@ module ActiveRecordSpannerAdapter
       job.wait_until_done! if wait_until_done
       raise Google::Cloud::Error.from_error job.error if job.error?
       job.done?
-    end
-
-    ##
-    # Retrieves the delay value from Google::Cloud::AbortedError or
-    # GRPC::Aborted
-    def delay_from_aborted err
-      return nil if err.nil?
-      if err.respond_to?(:metadata) && err.metadata["retryDelay"]
-        seconds = err.metadata["retryDelay"]["seconds"].to_i
-        nanos = err.metadata["retryDelay"]["nanos"].to_i
-        return seconds if nanos.zero?
-        return seconds + (nanos / 1000000000.0)
-      end
-      # No metadata? Try the inner error
-      delay_from_aborted err.cause
-    rescue StandardError
-      # Any error indicates the backoff should be handled elsewhere
-      nil
     end
   end
 end
