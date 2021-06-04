@@ -217,20 +217,18 @@ module ActiveRecordSpannerAdapter
     # Transactions
 
     def begin_transaction
-      # raise "Nested transactions are not allowed" if current_transaction
-      self.current_transaction = Transaction.new(self)
+      self.current_transaction = Transaction.new self
       current_transaction.begin
     end
 
-    def commit_transaction deadline: 120
+    def commit_transaction
       return unless current_transaction
-      current_transaction.commit deadline: deadline
+      current_transaction.commit
     end
 
     def rollback_transaction
-      if current_transaction
-        current_transaction.rollback
-      end
+      return unless current_transaction
+      current_transaction.rollback
     end
 
     def transaction_selector

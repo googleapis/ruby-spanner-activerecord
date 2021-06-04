@@ -13,7 +13,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def active?
-      return @state == :STARTED
+      @state == :STARTED
     end
 
     def begin
@@ -31,13 +31,12 @@ module ActiveRecordSpannerAdapter
       @sequence_number += 1
     end
 
-    def commit deadline: 120
+    def commit
       raise "This transaction is not active" unless active?
 
       begin
         @connection.session.commit_transaction @grpc_transaction
         @state = :COMMITTED
-
       rescue StandardError
         @state = :FAILED
         raise
@@ -61,20 +60,6 @@ module ActiveRecordSpannerAdapter
 
       Google::Spanner::V1::TransactionSelector.new \
         id: @grpc_transaction.transaction_id
-    end
-
-    ##
-    # Retries the entire read/write transaction.
-    def retry_transaction err, deadline: 120
-      start_time = Time.now
-      backoff = 1.0
-      if Time.now - start_time > deadline
-        if err.is_a? GRPC::BadStatus
-          err = Google::Cloud::Error.from_error err
-        end
-        raise err
-      end
-      sleep(delay_from_aborted(err) || backoff *= 1.3)
     end
   end
 end

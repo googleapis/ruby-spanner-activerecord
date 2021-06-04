@@ -103,7 +103,7 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction(requires_new: nil, isolation: nil, joinable: true)
+        def transaction requires_new: nil, isolation: nil, joinable: true
           if !requires_new && current_transaction.joinable?
             return super
           end
@@ -112,7 +112,7 @@ module ActiveRecord
           begin
             super
           rescue ActiveRecord::StatementInvalid => err
-            if err.cause.is_a?(Google::Cloud::AbortedError)
+            if err.cause.is_a? Google::Cloud::AbortedError
               sleep(delay_from_aborted(err) || backoff *= 1.3)
               retry
             end
@@ -163,7 +163,7 @@ module ActiveRecord
         def delay_from_aborted err
           return nil if err.nil?
           if err.respond_to?(:metadata) && err.metadata["google.rpc.retryinfo-bin"]
-            retry_info = Google::Rpc::RetryInfo.decode(err.metadata["google.rpc.retryinfo-bin"])
+            retry_info = Google::Rpc::RetryInfo.decode err.metadata["google.rpc.retryinfo-bin"]
             seconds = retry_info["retry_delay"].seconds
             nanos = retry_info["retry_delay"].nanos
             return seconds if nanos.zero?
