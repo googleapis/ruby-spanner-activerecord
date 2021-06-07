@@ -23,6 +23,23 @@ require "activerecord_spanner_adapter/information_schema"
 require "activerecord_spanner_adapter/transaction"
 
 module ActiveRecord
+  class Base
+    def self.buffer_create attributes = nil, &block
+      if attributes.is_a?(Array)
+        attributes.collect { |attr| buffer_create(attr, &block) }
+      else
+        object = new attributes, &block
+        object.buffer
+        object
+      end
+    end
+
+    def buffer *args, **options, &block
+      @_buffer_mutation = true
+      save *args, **options, &block
+    end
+  end
+
   module ConnectionHandling # :nodoc:
     def spanner_connection config
       connection = ActiveRecordSpannerAdapter::Connection.new config

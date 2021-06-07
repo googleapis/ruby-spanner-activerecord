@@ -273,4 +273,12 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     assert_equal singer.id.to_s, request.params["singer_id_1"]
     assert_equal :INT64, request.param_types["singer_id_1"].code
   end
+
+  def test_create_singer_using_mutation
+    # Create a singer without a transaction block. This will cause the singer to be created using a mutation instead of
+    # DML, as it would be impossible to read back the update during the transaction anyways. Mutations are a lot more
+    # efficient than DML statements.
+    Singer.buffer_create(first_name: "Dave", last_name: "Allison")
+
+  end
 end
