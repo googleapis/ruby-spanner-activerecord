@@ -7,15 +7,22 @@
 module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
+    attr_reader :isolation
 
-    def initialize connection
+    def initialize connection, isolation
       @connection = connection
+      @isolation = isolation
       @state = :INITIALIZED
       @sequence_number = 0
+      @mutations = []
     end
 
     def active?
       @state == :STARTED
+    end
+
+    def buffer mutation
+      @mutations << mutation
     end
 
     def begin
@@ -37,7 +44,7 @@ module ActiveRecordSpannerAdapter
       raise "This transaction is not active" unless active?
 
       begin
-        @connection.session.commit_transaction @grpc_transaction
+        @connection.session.commit_transaction @grpc_transaction, @mutations
         @state = :COMMITTED
       rescue StandardError
         @state = :FAILED

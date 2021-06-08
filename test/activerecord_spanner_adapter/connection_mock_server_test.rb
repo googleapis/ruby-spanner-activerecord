@@ -48,9 +48,9 @@ class SpannerMockServerConnectionTest
       connection.disconnect!
 
       _(@mock.requests.length).must_equal 3
-      _(@mock.requests[0]).must_be_kind_of V1::CreateSessionRequest
-      _(@mock.requests[1]).must_be_kind_of V1::ExecuteSqlRequest
-      _(@mock.requests[2]).must_be_kind_of V1::DeleteSessionRequest
+      _(@mock.requests[0]).must_be_kind_of Google::Cloud::Spanner::V1::CreateSessionRequest
+      _(@mock.requests[1]).must_be_kind_of Google::Cloud::Spanner::V1::ExecuteSqlRequest
+      _(@mock.requests[2]).must_be_kind_of Google::Cloud::Spanner::V1::DeleteSessionRequest
     end
 
     it "can execute random query" do
@@ -83,9 +83,9 @@ class SpannerMockServerConnectionTest
       connection.disconnect!
 
       _(@mock.requests.length).must_equal 3
-      _(@mock.requests[0]).must_be_kind_of V1::CreateSessionRequest
-      _(@mock.requests[1]).must_be_kind_of V1::ExecuteSqlRequest
-      _(@mock.requests[2]).must_be_kind_of V1::DeleteSessionRequest
+      _(@mock.requests[0]).must_be_kind_of Google::Cloud::Spanner::V1::CreateSessionRequest
+      _(@mock.requests[1]).must_be_kind_of Google::Cloud::Spanner::V1::ExecuteSqlRequest
+      _(@mock.requests[2]).must_be_kind_of Google::Cloud::Spanner::V1::DeleteSessionRequest
     end
 
     it "can execute transaction" do

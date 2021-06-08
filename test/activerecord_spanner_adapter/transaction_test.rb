@@ -11,7 +11,7 @@ class TransactionTest < TestHelper::MockActiveRecordTest
 
   def setup
     super
-    @transaction = ActiveRecordSpannerAdapter::Transaction.new connection
+    @transaction = ActiveRecordSpannerAdapter::Transaction.new connection, nil
   end
 
   def test_begin

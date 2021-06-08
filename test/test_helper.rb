@@ -208,7 +208,7 @@ module MockGoogleSpanner
       Google::Cloud::Spanner::Transaction.from_grpc grpc, self
     end
 
-    def commit_transaction transaction
+    def commit_transaction transaction, mutations
       Time.now
     end
 

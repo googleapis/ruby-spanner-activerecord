@@ -14,10 +14,8 @@ require "google/spanner/admin/database/v1/spanner_database_admin_services_pb"
 require "google/cloud/spanner/admin/database/v1/database_admin"
 require "google/longrunning/operations_pb"
 
-Admin = Google::Cloud::Spanner::Admin::Database::V1
-
 # Mock implementation of Spanner Database Admin
-class DatabaseAdminMockServer < Admin::DatabaseAdmin::Service
+class DatabaseAdminMockServer < Google::Cloud::Spanner::Admin::Database::V1::DatabaseAdmin::Service
   attr_reader :requests
 
   def initialize
@@ -27,7 +25,7 @@ class DatabaseAdminMockServer < Admin::DatabaseAdmin::Service
 
   def get_database request, _unused_call
     @requests << request
-    Admin::Database.new name: request.name
+    Google::Cloud::Spanner::Admin::Database::V1::Database.new name: request.name
   end
 
   def update_database_ddl request, _unused_call

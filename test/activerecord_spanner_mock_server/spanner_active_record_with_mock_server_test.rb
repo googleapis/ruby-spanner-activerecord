@@ -19,12 +19,12 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
       refute_nil singer.last_name, "singer.last_name should not be nil"
     end
     # None of the requests should use a (read-only) transaction.
-    select_requests = @mock.requests.select { |req| req.is_a? V1::ExecuteSqlRequest }
+    select_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::ExecuteSqlRequest }
     select_requests.each do |request|
       assert_nil request.transaction
     end
     # Executing a simple query should not initiate any transactions.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_empty begin_transaction_requests
   end
 
@@ -37,16 +37,16 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     refute_nil singer.first_name
     refute_nil singer.last_name
     # None of the requests should use a (read-only) transaction.
-    select_requests = @mock.requests.select { |req| req.is_a? V1::ExecuteSqlRequest }
+    select_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::ExecuteSqlRequest }
     select_requests.each do |request|
       assert_nil request.transaction
     end
     # Executing a simple query should not initiate any transactions.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_empty begin_transaction_requests
 
     # Check the encoded parameters.
-    select_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == sql }
+    select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
     select_requests.each do |request|
       assert_equal "1", request.params["LIMIT_2"]
       assert_equal "1", request.params["id_1"]
@@ -66,12 +66,12 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
       refute_nil singer.last_name, "singer.last_name should not be nil"
     end
     # None of the requests should use a (read-only) transaction.
-    select_requests = @mock.requests.select { |req| req.is_a? V1::ExecuteSqlRequest }
+    select_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::ExecuteSqlRequest }
     select_requests.each do |request|
       assert_nil request.transaction
     end
     # Executing a simple query should not initiate any transactions.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_empty begin_transaction_requests
   end
 
@@ -91,10 +91,10 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     singer.first_name = 'Dave'
     singer.save!
 
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 1, begin_transaction_requests.length
     # Check the encoded parameters.
-    select_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == update_sql }
+    select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
     select_requests.each do |request|
       assert_equal "Dave", request.params["first_name_1"]
       assert_equal singer.id.to_s, request.params["id_2"]
@@ -116,17 +116,17 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
       singers[1].update! first_name: "Name2"
     end
 
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 1, begin_transaction_requests.length
     # All of the SQL requests should use a transaction.
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && (req.sql.starts_with?("SELECT `singers`.*") || req.sql.starts_with?("UPDATE")) }
+    sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql.starts_with?("SELECT `singers`.*") || req.sql.starts_with?("UPDATE")) }
     sql_requests.each do |request|
       refute_nil request.transaction
       @id ||= request.transaction.id
       assert_equal @id, request.transaction.id
     end
 
-    update_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == update_sql }
+    update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
     assert_equal 2, update_requests.length
 
     singers = Singer.where id: 1..2
@@ -142,9 +142,11 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@first_name_1, @last_name_2, @last_performance_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
 
-    Singer.create(first_name: "Dave", last_name: "Allison", last_performance: ::Time.parse("2021-05-12T10:30:00+02:00"))
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", last_performance: ::Time.parse("2021-05-12T10:30:00+02:00"))
+    end
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :TIMESTAMP, request.param_types["last_performance_3"].code
     assert_equal "2021-05-12T08:30:00.000000000Z", request.params["last_performance_3"]
   end
@@ -158,9 +160,12 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     # same value as ::Time.parse(..) would encode it to.
     timestamp_string = "04/07/2017 2:19pm"
     timestamp = ::Time.parse(timestamp_string)
-    Singer.create(first_name: "Dave", last_name: "Allison", last_performance: timestamp_string)
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", last_performance: timestamp_string)
+    end
+
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :TIMESTAMP, request.param_types["last_performance_3"].code
     assert_equal timestamp.utc.rfc3339(9), request.params["last_performance_3"]
   end
@@ -176,7 +181,7 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     timestamp = ::Time.parse(timestamp_string)
     Singer.find_by(last_performance: timestamp_string)
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == select_sql }.first
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
     assert_equal :TIMESTAMP, request.param_types["last_performance_1"].code
     assert_equal timestamp.utc.rfc3339(9), request.params["last_performance_1"]
   end
@@ -184,11 +189,13 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
   def test_create_singer_with_picture
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
-
     data = StringIO.new "hello"
-    Singer.create(first_name: "Dave", last_name: "Allison", picture: data)
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", picture: data)
+    end
+
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :BYTES, request.param_types["picture_3"].code
     assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["picture_3"]
   end
@@ -196,11 +203,13 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
   def test_create_singer_with_picture_as_string
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
-
     data = StringIO.new "hello"
-    Singer.create(first_name: "Dave", last_name: "Allison", picture: data.read)
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", picture: data.read)
+    end
+
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :BYTES, request.param_types["picture_3"].code
     assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["picture_3"]
   end
@@ -208,11 +217,13 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
   def test_create_singer_with_picture_as_binary
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
-
     data = IO.read("#{Dir.pwd}/test/activerecord_spanner_mock_server/logo.svg", mode: "rb")
-    Singer.create(first_name: "Dave", last_name: "Allison", picture: data)
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", picture: data)
+    end
+
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :BYTES, request.param_types["picture_3"].code
     assert_equal Base64.strict_encode64(data.force_encoding("ASCII-8BIT")), request.params["picture_3"]
   end
@@ -221,9 +232,11 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `revenues`, `id`) VALUES (@first_name_1, @last_name_2, @revenues_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
 
-    Singer.create(first_name: "Dave", last_name: "Allison", revenues: 42952.13)
+    Singer.transaction do
+      Singer.create(first_name: "Dave", last_name: "Allison", revenues: 42952.13)
+    end
 
-    request = @mock.requests.select {|req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+    request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
     assert_equal :NUMERIC, request.param_types["revenues_3"].code
     assert_equal "42952.13", request.params["revenues_3"]
   end
@@ -232,11 +245,13 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     @mock.put_statement_result"SELECT COUNT(*) FROM `singers`", StatementResult.create_single_int_result_set("C", 1)
     assert_equal 1, Singer.count
 
-    delete_sql = "DELETE FROM `singers` WHERE true"
+    delete_sql = "DELETE FROM `singers` WHERE TRUE"
     @mock.put_statement_result delete_sql, StatementResult.new(1)
-    Singer.delete_all
+    Singer.transaction do
+      Singer.delete_all
+    end
 
-    delete_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == delete_sql }
+    delete_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }
     assert_equal 1, delete_requests.length
 
     @mock.put_statement_result"SELECT COUNT(*) FROM `singers`", StatementResult.create_single_int_result_set("C", 0)
@@ -251,10 +266,12 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
 
     singer = Singer.create(first_name: "Dave", last_name: "Allison")
 
-    singer.destroy
+    Singer.transaction do
+      singer.destroy
+    end
 
-    assert_equal 2, @mock.requests.select { |req| req.is_a?(V1::CommitRequest) }.count
-    delete_request = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
+    assert_equal 2, @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.count
+    delete_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
     assert_equal singer.id.to_s, delete_request.params["id_1"]
   end
 
@@ -269,7 +286,7 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     albums = singer.albums
 
     assert_equal 2, albums.length
-    request = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == select_albums_sql }.first
+    request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_albums_sql }.first
     assert_equal singer.id.to_s, request.params["singer_id_1"]
     assert_equal :INT64, request.param_types["singer_id_1"].code
   end
@@ -278,7 +295,100 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     # Create a singer without a transaction block. This will cause the singer to be created using a mutation instead of
     # DML, as it would be impossible to read back the update during the transaction anyways. Mutations are a lot more
     # efficient than DML statements.
-    Singer.buffer_create(first_name: "Dave", last_name: "Allison")
+    singer = Singer.create(first_name: "Dave", last_name: "Allison")
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+    mutations = commit_requests[0].mutations
+    assert_equal 1, mutations.length
+    mutation = mutations[0]
+    assert_equal :insert, mutation.operation
+    assert_equal "singers", mutation.insert.table
 
+    assert_equal 1, mutation.insert.values.length
+    assert_equal 3, mutation.insert.values[0].length
+    assert_equal "Dave", mutation.insert.values[0][0]
+    assert_equal "Allison", mutation.insert.values[0][1]
+    assert_equal singer.id, mutation.insert.values[0][2].to_i
+
+    assert_equal 3, mutation.insert.columns.length
+    assert_equal "first_name", mutation.insert.columns[0]
+    assert_equal "last_name", mutation.insert.columns[1]
+    assert_equal "id", mutation.insert.columns[2]
+  end
+
+  def test_update_singer_using_mutation
+    sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+    @mock.put_statement_result sql, create_random_singers_result(1)
+    singer = Singer.find_by id: 1
+
+    singer.update last_name: "Allison-Stevenson"
+
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+
+    mutations = commit_requests[0].mutations
+    assert_equal 1, mutations.length
+    mutation = mutations[0]
+    assert_equal :update, mutation.operation
+    assert_equal "singers", mutation.update.table
+
+    assert_equal 1, mutation.update.values.length
+    assert_equal 2, mutation.update.values[0].length
+    assert_equal singer.id, mutation.update.values[0][0].to_i
+    assert_equal "Allison-Stevenson", mutation.update.values[0][1]
+
+    assert_equal 2, mutation.update.columns.length
+    assert_equal "id", mutation.update.columns[0]
+    assert_equal "last_name", mutation.update.columns[1]
+  end
+
+  def test_delete_all_using_mutation
+    Singer.delete_all
+
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+
+    mutations = commit_requests[0].mutations
+    assert_equal 1, mutations.length
+    mutation = mutations[0]
+    assert_equal :delete, mutation.operation
+    assert_equal "singers", mutation.delete.table
+    assert mutation.delete.key_set.all
+  end
+
+  def test_destroy_singer_using_mutation
+    sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+    @mock.put_statement_result sql, create_random_singers_result(1)
+    singer = Singer.find_by id: 1
+
+    singer.destroy
+
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+
+    mutations = commit_requests[0].mutations
+    assert_equal 1, mutations.length
+    mutation = mutations[0]
+    assert_equal :delete, mutation.operation
+    assert_equal "singers", mutation.delete.table
+    assert_equal 1, mutation.delete.key_set.keys.length
+    assert_equal singer.id, mutation.delete.key_set.keys[0][0].to_i
+  end
+
+  def test_create_multiple_singers_using_mutations
+    # Creating multiple singers without a transaction in one call should only create one transaction.
+    Singer.create(
+      [
+        { first_name: "Dave", last_name: "Allison" },
+        { first_name: "Alice", last_name: "Ericsson" },
+        { first_name: "Nancy", last_name: "Gardner" }
+      ]
+    )
+
+    # There should be one commit request with 3 mutations.
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+    mutations = commit_requests[0].mutations
+    assert_equal 3, mutations.length
   end
 end

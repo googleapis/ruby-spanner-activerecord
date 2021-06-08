@@ -23,12 +23,12 @@ module Google
       end
 
       class Session
-        def commit_transaction transaction
+        def commit_transaction transaction, mutations = []
           ensure_service!
 
           resp = service.commit(
             path,
-            transaction.commit.mutations,
+            mutations,
             transaction_id: transaction.transaction_id
           )
           @last_updated_at = Time.now
