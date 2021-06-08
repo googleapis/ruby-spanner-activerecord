@@ -33,7 +33,7 @@ module ActiveRecord
     module Spanner
       module Quoting
         def quote_column_name name
-          self.class.quoted_column_names[name] ||= "`#{super.gsub '`', '``'}`"
+          self.class.quoted_column_names[name] ||= "`#{super.gsub '`', '``'}`".freeze
         end
 
         def quote_table_name name

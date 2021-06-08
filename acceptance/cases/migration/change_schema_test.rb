@@ -99,7 +99,7 @@ module ActiveRecord
           t.column :foo, :string, null: false
         end
 
-        assert_raises ActiveRecord::NotNullViolation do
+        assert_raises ActiveRecord::StatementInvalid do
           connection.transaction {
             connection.execute "insert into testings (id, foo) values (#{generate_id}, NULL)"
           }
@@ -246,8 +246,6 @@ module ActiveRecord
       end
 
       def test_keeping_notnull_constraints_on_change
-        skip "Unimplemented error: Cannot add NOT NULL column to existing table."
-
         connection.create_table :testings do |t|
           t.column :title, :string
         end
@@ -260,15 +258,15 @@ module ActiveRecord
 
         assert_nothing_raised {
           person_klass.connection.transaction {
-            person_klass.connection.execute("insert into testings (id, title) values (#{generate_id}, tester')")
+            person_klass.connection.execute("insert into testings (id, title, wealth) values (#{generate_id}, 'tester', 100000)")
           }
         }
 
         # change column, make it nullable
         person_klass.connection.change_column "testings", "wealth", :integer, null: true
         person_klass.reset_column_information
-        assert_nil person_klass.columns_hash["money"].default
-        assert_equal true, person_klass.columns_hash["money"].null
+        assert_nil person_klass.columns_hash["wealth"].default
+        assert_equal true, person_klass.columns_hash["wealth"].null
       end
 
       def test_change_column_null

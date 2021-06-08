@@ -47,7 +47,7 @@ module ActiveRecord
             if pk.is_a? Array
               td.primary_keys pk
             else
-              td.primary_key pk, options.fetch(:id, :primary_key), {}
+              td.primary_key pk, options.fetch(:id, :primary_key), **{}
             end
           end
 
@@ -62,7 +62,7 @@ module ActiveRecord
           statements << schema_creation.accept(td)
 
           td.indexes.each do |column_name, index_options|
-            id = create_index_definition table_name, column_name, index_options
+            id = create_index_definition table_name, column_name, **index_options
             statements << schema_creation.accept(id)
           end
 
@@ -74,12 +74,22 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
+        # Creates a join table that uses all the columns in the table as the primary key by default, unless
+        # an explicit primary key has been defined for the table. ActiveRecord will by default generate join
+        # tables without a primary key. Cloud Spanner however requires all tables to have a primary key.
+        # Instead of adding an additional column to the table only for the purpose of being the primary key,
+        # the Spanner ActiveRecord adapter defines a primary key that contains all the columns in the join
+        # table, as all values in the table should be unique anyways.
         def create_join_table table_1, table_2, column_options: {}, **options
-          return super unless block_given?
-
           super do |td|
-            yield td
-            td.primary_key :id unless td.columns.any?(&:primary_key?)
+            unless td.columns.any?(&:primary_key?)
+              td.columns.each do |col|
+                def col.primary_key?
+                  true
+                end
+              end
+            end
+            yield td if block_given?
           end
         end
 
@@ -113,7 +123,7 @@ module ActiveRecord
           nullable = options.delete(:null) == false
 
           at = create_alter_table table_name
-          at.add_column column_name, type, options
+          at.add_column column_name, type, **options
 
           statements = [schema_creation.accept(at)]
 
@@ -184,7 +194,7 @@ module ActiveRecord
           end
 
           td = create_table_definition table_name
-          cd = td.new_column_definition column.name, type, options
+          cd = td.new_column_definition column.name, type, **options
 
           ccd = Spanner::ChangeColumnDefinition.new table_name, cd, column.name
           statements << schema_creation.accept(ccd)
@@ -194,7 +204,7 @@ module ActiveRecord
             id = create_index_definition(
               table_name,
               index.column_names,
-              index.options
+              **index.options
             )
             statements << schema_creation.accept(id)
           end
@@ -223,7 +233,7 @@ module ActiveRecord
 
           # Add Column
           cast_type = lookup_cast_type column.spanner_type
-          add_column table_name, new_column_name, cast_type.type, column.options
+          add_column table_name, new_column_name, cast_type.type, **column.options
 
           # Copy data
           copy_data table_name, column_name, new_column_name
@@ -264,7 +274,7 @@ module ActiveRecord
         end
 
         def add_index table_name, column_name, options = {}
-          id = create_index_definition table_name, column_name, options
+          id = create_index_definition table_name, column_name, **options
 
           if data_source_exists?(table_name) &&
              index_name_exists?(table_name, id.name)
@@ -363,7 +373,7 @@ module ActiveRecord
         # Reference Column
 
         def add_reference table_name, ref_name, **options
-          ReferenceDefinition.new(ref_name, options).add_to(
+          ReferenceDefinition.new(ref_name, **options).add_to(
             update_table_definition(table_name, self)
           )
         end
@@ -404,7 +414,7 @@ module ActiveRecord
         end
 
         def create_table_definition *args
-          TableDefinition.new self, *args
+          TableDefinition.new self, args[0], options: args[1]
         end
 
         def able_to_ddl_batch? table_name
@@ -519,13 +529,13 @@ module ActiveRecord
         end
 
         def information_schema
-          info_scheam = \
+          info_schema = \
             ActiveRecordSpannerAdapter::Connection.information_schema @config
 
-          return info_scheam unless block_given?
+          return info_schema unless block_given?
 
           execute_pending_ddl
-          yield info_scheam
+          yield info_schema
         end
       end
     end

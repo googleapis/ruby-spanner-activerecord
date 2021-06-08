@@ -102,7 +102,7 @@ module ActiveRecord
 
         def begin_db_transaction
           log "BEGIN" do
-            @connection.begin_trasaction
+            @connection.begin_transaction
           end
         end
 
