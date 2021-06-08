@@ -23,9 +23,10 @@ module ActiveRecordSpannerAdapter
     end
 
     def tables table_name: nil, schema_name: nil, view: nil
-      sql = +"SELECT * FROM information_schema.tables" \
-          " WHERE table_schema=%<schema_name>s"
-      sql << " AND table_name=%<table_name>s" if table_name
+      sql = +"SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION"
+      sql << " FROM INFORMATION_SCHEMA.TABLES"
+      sql << " WHERE TABLE_SCHEMA=%<schema_name>s"
+      sql << " AND TABLE_NAME=%<table_name>s" if table_name
 
       rows = execute_query(
         sql,
@@ -61,9 +62,10 @@ module ActiveRecordSpannerAdapter
     end
 
     def table_columns table_name, column_name: nil
-      sql = +"SELECT * FROM information_schema.columns"
-      sql << " WHERE table_name=%<table_name>s" if table_name
-      sql << " AND column_name=%<column_name>s" if column_name
+      sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION"
+      sql << " FROM INFORMATION_SCHEMA.COLUMNS"
+      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND COLUMN_NAME=%<column_name>s" if column_name
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
@@ -98,11 +100,12 @@ module ActiveRecordSpannerAdapter
         index_name: index_name
       )
 
-      sql = +"SELECT * FROM information_schema.indexes" \
-        " WHERE table_name=%<table_name>s"
-      sql << " AND index_name=%<index_name>s" if index_name
-      sql << " AND index_type=%<index_type>s" if index_type
-      sql << " AND spanner_is_managed=false"
+      sql = +"SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE"
+      sql << " FROM INFORMATION_SCHEMA.INDEXES"
+      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND INDEX_NAME=%<index_name>s" if index_name
+      sql << " AND INDEX_TYPE=%<index_type>s" if index_type
+      sql << " AND SPANNER_IS_MANAGED=FALSE"
 
       execute_query(
         sql,
@@ -139,9 +142,10 @@ module ActiveRecordSpannerAdapter
     end
 
     def index_columns table_name, index_name: nil
-      sql = +"SELECT * FROM information_schema.index_columns" \
-            " WHERE table_name=%<table_name>s"
-      sql << " AND index_name=%<index_name>s" if index_name
+      sql = +"SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION"
+      sql << " FROM INFORMATION_SCHEMA.INDEX_COLUMNS"
+      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND INDEX_NAME=%<index_name>s" if index_name
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
       execute_query(
@@ -213,9 +217,7 @@ module ActiveRecordSpannerAdapter
       params = params.transform_values { |v| quote v }
       sql = format sql, params
 
-      @mutex.synchronize do
-        @connection.snapshot(sql, strong: true).rows
-      end
+      @connection.execute_query(sql).rows
     end
   end
 end

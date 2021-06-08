@@ -1,0 +1,38 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+name: acceptance tests on emulator
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+          - 9020:9020
+
+    strategy:
+      max-parallel: 4
+      matrix:
+        ruby: [2.5, 2.6, 2.7, 3.0]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Ruby
+    # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby
+    # (see https://github.com/ruby/setup-ruby#versioning):
+      uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: ${{ matrix.ruby }}
+    - name: Install dependencies
+      run: bundle install
+    - name: Run acceptance tests on emulator
+      run: bundle exec rake acceptance
+      env:
+        SPANNER_EMULATOR_HOST: localhost:9010
+        SPANNER_TEST_PROJECT: test-project
+        SPANNER_TEST_INSTANCE: test-instance

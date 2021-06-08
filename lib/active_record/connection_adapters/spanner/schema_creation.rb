@@ -47,10 +47,16 @@ module ActiveRecord
         end
 
         def visit_ColumnDefinition o
-          o.sql_type = type_to_sql o.type, o.options
+          o.sql_type = type_to_sql o.type, **o.options
           column_sql = +"#{quote_column_name o.name} #{o.sql_type}"
           add_column_options! column_sql, column_options(o)
           column_sql
+        end
+
+        def visit_AddColumnDefinition o
+          # Overridden to add the optional COLUMN keyword. The keyword is only optional
+          # on real Cloud Spanner, the emulator requires the COLUMN keyword to be included.
+          +"ADD COLUMN #{accept o.column}"
         end
 
         def visit_DropColumnDefinition o
