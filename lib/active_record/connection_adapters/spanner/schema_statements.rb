@@ -74,7 +74,12 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        # Creates a join table that uses all the columns in the table as the primary key.
+        # Creates a join table that uses all the columns in the table as the primary key by default, unless
+        # an explicit primary key has been defined for the table. ActiveRecord will by default generate join
+        # tables without a primary key. Cloud Spanner however requires all tables to have a primary key.
+        # Instead of adding an additional column to the table only for the purpose of being the primary key,
+        # the Spanner ActiveRecord adapter defines a primary key that contains all the columns in the join
+        # table, as all values in the table should be unique anyways.
         def create_join_table table_1, table_2, column_options: {}, **options
           super do |td|
             unless td.columns.any?(&:primary_key?)
