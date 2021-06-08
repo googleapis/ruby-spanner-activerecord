@@ -27,7 +27,7 @@ describe "Spanner Mock Server" do
       @server.run
     end
     @server.wait_till_running
-    @client = V1::Spanner::Client.new do |config|
+    @client = Google::Cloud::Spanner::V1::Spanner::Client.new do |config|
       config.credentials = :this_channel_is_insecure
       config.endpoint = "localhost:#{@port}"
     end
@@ -39,12 +39,12 @@ describe "Spanner Mock Server" do
   end
 
   it "creates single session" do
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
     _(session.name).must_match "projects/p/instances/i/databases/d/sessions/"
   end
 
   it "creates batch of sessions" do
-    response = @client.batch_create_sessions V1::BatchCreateSessionsRequest.new(
+    response = @client.batch_create_sessions Google::Cloud::Spanner::V1::BatchCreateSessionsRequest.new(
       database: "projects/p/instances/i/databases/d",
       session_count: 2
     )
@@ -55,27 +55,27 @@ describe "Spanner Mock Server" do
   end
 
   it "gets session" do
-    created = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    session = @client.get_session V1::GetSessionRequest.new name: created.name
+    created = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    session = @client.get_session Google::Cloud::Spanner::V1::GetSessionRequest.new name: created.name
     _(session.name).must_match created.name
   end
 
   it "lists sessions" do
-    created = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    paged_response = @client.list_sessions V1::ListSessionsRequest.new database: "projects/p/instances/i/databases/d"
+    created = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    paged_response = @client.list_sessions Google::Cloud::Spanner::V1::ListSessionsRequest.new database: "projects/p/instances/i/databases/d"
     _((paged_response.response.sessions.select {|session| session.name == created.name}).length).must_equal 1
   end
 
   it "deletes session" do
-    created = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    @client.delete_session V1::DeleteSessionRequest.new name: created.name
-    paged_response = @client.list_sessions V1::ListSessionsRequest.new database: "projects/p/instances/i/databases/d"
+    created = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    @client.delete_session Google::Cloud::Spanner::V1::DeleteSessionRequest.new name: created.name
+    paged_response = @client.list_sessions Google::Cloud::Spanner::V1::ListSessionsRequest.new database: "projects/p/instances/i/databases/d"
     _((paged_response.response.sessions.select {|session| session.name == created.name}).length).must_equal 0
   end
 
   it "can execute SELECT 1" do
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    resultSet = @client.execute_sql V1::ExecuteSqlRequest.new session: session.name, sql: "SELECT 1"
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    resultSet = @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: "SELECT 1"
     _(resultSet.rows.length).must_equal 1 # Number of rows
     _(resultSet.rows[0].values.length).must_equal 1 # Number of columns
     _(resultSet.rows[0].values[0].string_value).must_equal "1" # Value
@@ -91,9 +91,9 @@ describe "Spanner Mock Server" do
       )
     )
 
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
     assert_raises Google::Cloud::NotFoundError do
-      @client.execute_sql V1::ExecuteSqlRequest.new session: session.name, sql: sql
+      @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: sql
     end
   end
 
@@ -101,14 +101,14 @@ describe "Spanner Mock Server" do
     sql = "UPDATE TestTable SET Value=1 WHERE TRUE"
     @mock.put_statement_result sql, StatementResult.new(100)
 
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    update_count = @client.execute_sql V1::ExecuteSqlRequest.new session: session.name, sql: sql
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    update_count = @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: sql
     _(update_count.stats.row_count_exact).must_equal 100
   end
 
   it "returns a streaming result for SELECT 1" do
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    stream = @client.execute_streaming_sql V1::ExecuteSqlRequest.new session: session.name, sql: "SELECT 1"
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    stream = @client.execute_streaming_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: "SELECT 1"
     stream.each do |partial|
       _(partial.values.length).must_equal 1 # Number values in partial result set
       _(partial.values[0].string_value).must_equal "1" # Value
@@ -128,8 +128,8 @@ describe "Spanner Mock Server" do
     sql = "SELECT * FROM RandomTable"
     @mock.put_statement_result sql, StatementResult.create_random_result(100)
 
-    session = @client.create_session V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
-    stream = @client.execute_streaming_sql V1::ExecuteSqlRequest.new session: session.name, sql: sql
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+    stream = @client.execute_streaming_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: sql
     row_count = 0
     stream.each do |partial|
       _(partial.values.length).must_equal 8 # Number values in partial result set

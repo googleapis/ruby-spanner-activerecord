@@ -62,16 +62,23 @@ module ActiveRecord
           )
         end
 
-        def insert(arel, name = nil, pk = nil, id_value = nil, sequence_name = nil, binds = [])
-          sql, binds = to_sql_and_binds(arel, binds)
-          value = exec_insert(sql, name, binds, pk, sequence_name)
-          id_value || last_inserted_id(value)
+        def exec_mutation mutation
+          @connection.current_transaction.buffer mutation
         end
 
         def update arel, name = nil, binds = []
-          sql, binds = to_sql_and_binds arel, binds
-          sql = "#{sql} WHERE true" if arel.ast.wheres.empty?
-          exec_update sql, name, binds
+          # Add a `WHERE TRUE` if it is an update_all or delete_all call that uses DML.
+          if !should_use_mutation(arel) && arel.respond_to?(:ast) && arel.ast.wheres.empty?
+            arel.ast.wheres << Arel::Nodes::SqlLiteral.new("TRUE")
+          end
+          return super unless should_use_mutation arel
+
+          if arel.is_a? Arel::DeleteManager
+            exec_mutation create_delete_mutation(arel, binds)
+          else
+            raise "Unsupported update for use with mutations: #{arel}"
+          end
+          0 # Affected rows (unknown)
         end
         alias delete update
 
@@ -87,7 +94,7 @@ module ActiveRecord
 
         def truncate table_name, name = nil
           Array(table_name).each do |t|
-            log "TURNCATE #{t}", name do
+            log "TRUNCATE #{t}", name do
               @connection.truncate t
             end
           end
@@ -126,9 +133,34 @@ module ActiveRecord
           end
         end
 
+        def transaction_isolation_levels
+          {
+            read_uncommitted:   "READ UNCOMMITTED",
+            read_committed:     "READ COMMITTED",
+            repeatable_read:    "REPEATABLE READ",
+            serializable:       "SERIALIZABLE",
+
+            # These are not really isolation levels, but it is the only (best) way to pass in additional
+            # transaction options to the connection.
+            read_only:          "READ_ONLY",
+            buffered_mutations: "BUFFERED_MUTATIONS"
+          }
+        end
+
         def begin_db_transaction
           log "BEGIN" do
             @connection.begin_transaction
+          end
+        end
+
+        def begin_isolated_db_transaction isolation
+          raise "Unsupported isolation level: #{isolation}" unless \
+               isolation == :serializable \
+            || isolation == :read_only \
+            || isolation == :buffered_mutations
+
+          log "BEGIN #{isolation}" do
+            @connection.begin_transaction isolation
           end
         end
 
@@ -145,6 +177,37 @@ module ActiveRecord
         end
 
         private
+
+        # An insert/update/delete statement could use mutations in some specific circumstances.
+        # This method returns an indication whether a specific operation should use mutations instead of DML
+        # based on the operation itself, and the current transaction.
+        def should_use_mutation arel
+          !@connection.current_transaction.nil? \
+            && @connection.current_transaction.isolation == :buffered_mutations \
+            && can_use_mutation(arel) \
+        end
+
+        def can_use_mutation arel
+          return true if arel.is_a?(Arel::DeleteManager) && arel.respond_to?(:ast) && arel.ast.wheres.empty?
+          false
+        end
+
+        def create_delete_mutation arel, binds = []
+          unless arel.is_a? Arel::DeleteManager
+            raise "A delete mutation can only be created from a DeleteManager"
+          end
+          # Check if it is a delete_all operation.
+          unless arel.ast.wheres.empty?
+            raise "A delete mutation can only be created without a WHERE clause"
+          end
+
+          Google::Cloud::Spanner::V1::Mutation.new(
+            delete: Google::Cloud::Spanner::V1::Mutation::Delete.new(
+              table: arel.ast.relation.name,
+              key_set: {all: true}
+            )
+          )
+        end
 
         DDL_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
                    .build_read_query_regexp(:create, :alter, :drop).freeze

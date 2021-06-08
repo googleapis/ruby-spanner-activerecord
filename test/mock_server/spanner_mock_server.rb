@@ -14,11 +14,8 @@ require "grpc"
 require "gapic/grpc/service_stub"
 require "securerandom"
 
-V1 = Google::Cloud::Spanner::V1
-Protobuf = Google::Protobuf
-
 # Mock implementation of Spanner
-class SpannerMockServer < V1::Spanner::Service
+class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   attr_reader :requests
 
   def initialize
@@ -43,7 +40,7 @@ class SpannerMockServer < V1::Spanner::Service
   def batch_create_sessions request, _unused_call
     @requests << request
     num_created = 0
-    response = V1::BatchCreateSessionsResponse.new
+    response = Google::Cloud::Spanner::V1::BatchCreateSessionsResponse.new
     while num_created < request.session_count
       response.session << do_create_session(request.database)
       num_created += 1
@@ -58,7 +55,7 @@ class SpannerMockServer < V1::Spanner::Service
 
   def list_sessions request, _unused_call
     @requests << request
-    response = V1::ListSessionsResponse.new
+    response = Google::Cloud::Spanner::V1::ListSessionsResponse.new
     @sessions.each_value do |s|
       response.sessions << s
     end
@@ -124,7 +121,7 @@ class SpannerMockServer < V1::Spanner::Service
     @requests << request
     validate_session request.session
     validate_transaction request.session, request.transaction_id
-    V1::CommitResponse.new commit_timestamp: Protobuf::Timestamp.new(seconds: Time.now.to_i)
+    Google::Cloud::Spanner::V1::CommitResponse.new commit_timestamp: Google::Protobuf::Timestamp.new(seconds: Time.now.to_i)
   end
 
   def rollback request, _unused_call
@@ -132,7 +129,7 @@ class SpannerMockServer < V1::Spanner::Service
     validate_session request.session
     name = "#{request.session}/transactions/#{request.transaction_id}"
     @transactions.delete name
-    Protobuf::Empty.new
+    Google::Protobuf::Empty.new
   end
 
   def partition_query request, _unused_call
@@ -188,7 +185,7 @@ class SpannerMockServer < V1::Spanner::Service
 
   def do_create_session database
     name = "#{database}/sessions/#{SecureRandom.uuid}"
-    session = V1::Session.new name: name
+    session = Google::Cloud::Spanner::V1::Session.new name: name
     @sessions[name] = session
     session
   end
@@ -214,7 +211,7 @@ class SpannerMockServer < V1::Spanner::Service
   def do_create_transaction session
     id = SecureRandom.uuid
     name = "#{session}/transactions/#{id}"
-    transaction = V1::Transaction.new id: id
+    transaction = Google::Cloud::Spanner::V1::Transaction.new id: id
     @transactions[name] = transaction
     transaction
   end

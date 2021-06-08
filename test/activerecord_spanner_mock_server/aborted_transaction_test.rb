@@ -17,9 +17,9 @@ class AbortedTransactionTest < BaseSpannerMockServerTest
     end
 
     # There should only be one transaction.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 1, begin_transaction_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_equal 1, commit_requests.length
   end
 
@@ -35,13 +35,13 @@ class AbortedTransactionTest < BaseSpannerMockServerTest
     end
 
     # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 2, begin_transaction_requests.length
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }
+    sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
     assert_equal 2, sql_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_equal 1, commit_requests.length
-    rollback_requests = @mock.requests.select { |req| req.is_a? V1::RollbackRequest }
+    rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
     assert_empty rollback_requests
   end
 
@@ -54,13 +54,13 @@ class AbortedTransactionTest < BaseSpannerMockServerTest
       Singer.find_by id: 1
     end
 
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 2, begin_transaction_requests.length
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == select_sql }
+    sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }
     assert_equal 2, sql_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_equal 1, commit_requests.length
-    rollback_requests = @mock.requests.select { |req| req.is_a? V1::RollbackRequest }
+    rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
     assert_empty rollback_requests
   end
 
@@ -73,54 +73,43 @@ class AbortedTransactionTest < BaseSpannerMockServerTest
       already_aborted = abort_current_transaction unless already_aborted
     end
 
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 2, begin_transaction_requests.length
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == select_sql }
+    sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }
     assert_equal 2, sql_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_equal 2, commit_requests.length
-    rollback_requests = @mock.requests.select { |req| req.is_a? V1::RollbackRequest }
+    rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
     assert_empty rollback_requests
   end
 
-  def test_implicit_transaction_aborted_dml_is_automatically_retried
-    insert_sql = register_insert_singer_result
-
+  def test_implicit_transaction_aborted_single_insert_is_automatically_retried
     # This will abort the next transaction that is started on the mock server.
     @mock.abort_next_transaction
     # The following statement will automatically start a transaction, although it is not in a transaction block.
     # The transaction is automatically retried if the transaction is aborted.
-    # TODO: This statement should preferably use mutations instead of DML.
     Singer.create(first_name: "Dave", last_name: "Allison")
 
-    # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
+    # There should be two transaction attempts.
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
     assert_equal 2, begin_transaction_requests.length
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }
-    assert_equal 2, sql_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
-    assert_equal 1, commit_requests.length
-    rollback_requests = @mock.requests.select { |req| req.is_a? V1::RollbackRequest }
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+    assert_equal 2, commit_requests.length
+    rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
     assert_empty rollback_requests
   end
 
   def test_implicit_transaction_aborted_batch_insert_is_automatically_retried
-    insert_sql = register_insert_singer_result
-
     @mock.abort_next_transaction
-    # TODO: This statement should preferably use mutations instead of DML.
-    # TODO: Creating a batch of objects should preferable create only one transaction.
     Singer.create([{first_name: "Dave", last_name: "Allison"}, {first_name: "Alice", last_name: "Becker"}])
 
-    # 3 transactions, as the first one is aborted, and after that there are 2 successful transactions
-    # (one for each object).
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? V1::BeginTransactionRequest }
-    assert_equal 3, begin_transaction_requests.length
-    sql_requests = @mock.requests.select { |req| req.is_a?(V1::ExecuteSqlRequest) && req.sql == insert_sql }
-    assert_equal 3, sql_requests.length
-    commit_requests = @mock.requests.select { |req| req.is_a? V1::CommitRequest }
+    # The batch will be inserted as one transaction containing two mutations. The first attempt will abort, and
+    # the second will succeed.
+    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+    assert_equal 2, begin_transaction_requests.length
+    commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_equal 2, commit_requests.length
-    rollback_requests = @mock.requests.select { |req| req.is_a? V1::RollbackRequest }
+    rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
     assert_empty rollback_requests
   end
 

@@ -217,9 +217,9 @@ module ActiveRecordSpannerAdapter
 
     # Transactions
 
-    def begin_transaction
+    def begin_transaction isolation = nil
       raise "Nested transactions are not allowed" if current_transaction&.active?
-      self.current_transaction = Transaction.new self
+      self.current_transaction = Transaction.new self, isolation
       current_transaction.begin
       current_transaction
     end

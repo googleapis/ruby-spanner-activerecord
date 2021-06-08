@@ -17,28 +17,13 @@ require "active_record/type/spanner/bytes"
 require "active_record/type/spanner/spanner_active_record_converter"
 require "active_record/type/spanner/time"
 require "arel/visitors/spanner"
+require "activerecord_spanner_adapter/base"
 require "activerecord_spanner_adapter/connection"
 require "activerecord_spanner_adapter/errors"
 require "activerecord_spanner_adapter/information_schema"
 require "activerecord_spanner_adapter/transaction"
 
 module ActiveRecord
-  class Base
-    def self.buffer_create attributes = nil, &block
-      if attributes.is_a?(Array)
-        attributes.collect { |attr| buffer_create(attr, &block) }
-      else
-        object = new attributes, &block
-        object.buffer
-        object
-      end
-    end
-
-    def buffer *args, **options, &block
-      @_buffer_mutation = true
-      save *args, **options, &block
-    end
-  end
 
   module ConnectionHandling # :nodoc:
     def spanner_connection config
@@ -120,6 +105,10 @@ module ActiveRecord
 
       # Spanner Connection API
       delegate :ddl_batch, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
+
+      def current_spanner_transaction
+        @connection.current_transaction
+      end
 
       # Supported features
 
