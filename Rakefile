@@ -42,6 +42,9 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   end
   instance = args[:instance]
   instance ||= ENV["SPANNER_TEST_INSTANCE"]
+  if instance.nil?
+    fail "You must provide an instance name"
+  end
 
   # clear any env var already set
   require "google/cloud/spanner/credentials"
