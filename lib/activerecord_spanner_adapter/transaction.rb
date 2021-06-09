@@ -32,7 +32,11 @@ module ActiveRecordSpannerAdapter
     def begin
       raise "Nested transactions are not allowed" if @state != :INITIALIZED
       begin
-        @grpc_transaction = @connection.session.create_transaction
+        if @isolation == :read_only
+          @grpc_transaction = @connection.session.create_snapshot strong: true
+        else
+          @grpc_transaction = @connection.session.create_transaction
+        end
         @state = :STARTED
       rescue StandardError
         @state = :FAILED
@@ -41,14 +45,14 @@ module ActiveRecordSpannerAdapter
     end
 
     def next_sequence_number
-      @sequence_number += 1
+      @sequence_number += 1 unless @isolation == :read_only
     end
 
     def commit
       raise "This transaction is not active" unless active?
 
       begin
-        @connection.session.commit_transaction @grpc_transaction, @mutations
+        @connection.session.commit_transaction @grpc_transaction, @mutations unless @isolation == :read_only
         @state = :COMMITTED
       rescue StandardError
         @state = :FAILED
@@ -60,7 +64,7 @@ module ActiveRecordSpannerAdapter
       # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
       if active?
-        @connection.session.rollback @grpc_transaction.transaction_id
+        @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
       end
       @state = :ROLLED_BACK
     end

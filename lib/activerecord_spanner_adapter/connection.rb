@@ -238,16 +238,6 @@ module ActiveRecordSpannerAdapter
       return current_transaction&.transaction_selector if current_transaction&.active?
     end
 
-    def snapshot sql, _options = {}
-      raise "Nested snapshots are not allowed" if current_transaction
-
-      session.snapshot do |snp|
-        snp.execute_query sql
-      end
-    rescue Google::Cloud::UnavailableError
-      retry
-    end
-
     def truncate table_name
       session.delete table_name
     end

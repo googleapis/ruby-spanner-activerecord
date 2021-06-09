@@ -35,7 +35,7 @@ module Google
           Convert.timestamp_to_time resp.commit_timestamp
         end
 
-        def snapshot strong: nil,
+        def create_snapshot strong: nil,
                      timestamp: nil, read_timestamp: nil,
                      staleness: nil, exact_staleness: nil
           validate_snapshot_args! strong: strong, timestamp: timestamp,
@@ -43,18 +43,11 @@ module Google
                                   staleness: staleness,
                                   exact_staleness: exact_staleness
           ensure_service!
-          if Thread.current[:transaction_id]
-            raise "Nested snapshots are not allowed"
-          end
 
           snp_grpc = service.create_snapshot \
             path, timestamp: (timestamp || read_timestamp),
             staleness: (staleness || exact_staleness)
-          Thread.current[:transaction_id] = snp_grpc.id
-          snp = Snapshot.from_grpc snp_grpc, self
-          yield snp if block_given?
-        ensure
-          Thread.current[:transaction_id] = nil
+          Snapshot.from_grpc snp_grpc, self
         end
 
         private
