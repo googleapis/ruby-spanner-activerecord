@@ -6,6 +6,6 @@
 
 class Author < ActiveRecord::Base
   has_many :posts
-  has_many :commnets, through: :posts
+  has_many :comments, through: :posts
   belongs_to :organization
 end

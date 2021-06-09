@@ -153,6 +153,13 @@ module ActiveRecord
           end
         end
 
+        # Begins a transaction on the database with the specified isolation level. Cloud Spanner only supports
+        # isolation level :serializable, but also defines two additional 'isolation levels' that can be used
+        # to start specific types of Spanner transactions:
+        # * :read_only: Starts a read-only snapshot transaction using a strong timestamp bound. TODO: Implement
+        # * :buffered_mutations: Starts a read/write transaction that will use mutations instead of DML for single-row
+        #                        inserts/updates/deletes. Mutations are buffered locally until the transaction is
+        #                        committed, and any changes during a transaction cannot be read by the application.
         def begin_isolated_db_transaction isolation
           raise "Unsupported isolation level: #{isolation}" unless \
                isolation == :serializable \

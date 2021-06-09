@@ -7,7 +7,6 @@
 module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
-    attr_reader :isolation
 
     def initialize connection, isolation
       @connection = connection
@@ -19,6 +18,11 @@ module ActiveRecordSpannerAdapter
 
     def active?
       @state == :STARTED
+    end
+
+    def isolation
+      return nil unless active?
+      @isolation
     end
 
     def buffer mutation
