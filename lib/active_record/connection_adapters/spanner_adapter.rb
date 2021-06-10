@@ -24,7 +24,6 @@ require "activerecord_spanner_adapter/information_schema"
 require "activerecord_spanner_adapter/transaction"
 
 module ActiveRecord
-
   module ConnectionHandling # :nodoc:
     def spanner_connection config
       connection = ActiveRecordSpannerAdapter::Connection.new config

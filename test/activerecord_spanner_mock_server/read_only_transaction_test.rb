@@ -14,6 +14,7 @@ class ReadOnlyTransactionTest < BaseSpannerMockServerTest
 
     ActiveRecord::Base.transaction isolation: :read_only do
       Singer.find_by(id: 1)
+      Singer.find_by(id: 2)
     end
 
     # There should only be one read-only transaction.
@@ -22,9 +23,13 @@ class ReadOnlyTransactionTest < BaseSpannerMockServerTest
     assert begin_transaction_requests[0].options.read_only
     assert begin_transaction_requests[0].options.read_only.return_read_timestamp
 
-    execute_sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }.first
-    assert execute_sql_request.transaction.id
-    assert_equal 0, execute_sql_request.seqno
+    execute_sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+    id = execute_sql_requests.first.transaction.id
+    execute_sql_requests.each do |req|
+      assert_equal id, req.transaction.id
+      assert_equal 0, req.seqno
+    end
+    assert_equal 2, execute_sql_requests.length
 
     # Even though `commit` is called on the ActiveRecord transaction, that commit should not be propagated
     # to the backend, as read-only transactions cannot be committed.
@@ -68,7 +73,8 @@ class ReadOnlyTransactionTest < BaseSpannerMockServerTest
       Singer.find_by id: 1
     end
 
-    begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+    begin_transaction_requests = @mock.requests.select { |req|
+      req.is_a?(Google::Cloud::Spanner::V1::BeginTransactionRequest) && req.options.read_only }
     assert_equal 5, begin_transaction_requests.length
     commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
     assert_empty commit_requests
