@@ -73,11 +73,9 @@ module ActiveRecord
           end
           return super unless should_use_mutation arel
 
-          if arel.is_a? Arel::DeleteManager
-            exec_mutation create_delete_mutation(arel, binds)
-          else
-            raise "Unsupported update for use with mutations: #{arel}"
-          end
+          raise "Unsupported update for use with mutations: #{arel}" unless arel.is_a? Arel::DeleteManager
+
+          exec_mutation create_delete_all_mutation arel if arel.is_a? Arel::DeleteManager
           0 # Affected rows (unknown)
         end
         alias delete update
@@ -162,9 +160,7 @@ module ActiveRecord
         #                        committed, and any changes during a transaction cannot be read by the application.
         def begin_isolated_db_transaction isolation
           raise "Unsupported isolation level: #{isolation}" unless \
-               isolation == :serializable \
-            || isolation == :read_only \
-            || isolation == :buffered_mutations
+              [:serializable, :read_only, :buffered_mutations].include? isolation
 
           log "BEGIN #{isolation}" do
             @connection.begin_transaction isolation
@@ -199,7 +195,7 @@ module ActiveRecord
           false
         end
 
-        def create_delete_mutation arel, binds = []
+        def create_delete_all_mutation arel
           unless arel.is_a? Arel::DeleteManager
             raise "A delete mutation can only be created from a DeleteManager"
           end
@@ -211,7 +207,7 @@ module ActiveRecord
           Google::Cloud::Spanner::V1::Mutation.new(
             delete: Google::Cloud::Spanner::V1::Mutation::Delete.new(
               table: arel.ast.relation.name,
-              key_set: {all: true}
+              key_set: { all: true }
             )
           )
         end
