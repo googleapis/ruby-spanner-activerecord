@@ -19,8 +19,10 @@ module ActiveRecord
       end
 
       def teardown
-        %w(artists_musics musics_videos catalog).each do |table_name|
-          connection.drop_table table_name, if_exists: true
+        connection.ddl_batch do
+          %w(artists_musics musics_videos catalog).each do |table_name|
+            connection.drop_table table_name, if_exists: true
+          end
         end
       end
 

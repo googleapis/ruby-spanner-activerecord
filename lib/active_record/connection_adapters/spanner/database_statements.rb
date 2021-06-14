@@ -26,8 +26,6 @@ module ActiveRecord
             return
           end
 
-          execute_pending_ddl
-
           transaction_required = statement_type == :dml
           materialize_transactions
 
@@ -89,13 +87,6 @@ module ActiveRecord
           end
         rescue Google::Cloud::Error => error
           raise ActiveRecord::StatementInvalid, error
-        end
-
-        def execute_pending_ddl
-          return if @connection.ddl_statements.empty?
-
-          execute_ddl @connection.ddl_statements
-          @connection.ddl_statements.clear
         end
 
         # Transaction

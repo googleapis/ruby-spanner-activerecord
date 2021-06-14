@@ -10,14 +10,13 @@ require "activerecord_spanner_adapter/information_schema"
 
 module ActiveRecordSpannerAdapter
   class Connection
-    attr_reader :instance_id, :database_id, :spanner, :ddl_statements
+    attr_reader :instance_id, :database_id, :spanner
     attr_accessor :current_transaction
 
     def initialize config
       @instance_id = config[:instance]
       @database_id = config[:database]
       @spanner = self.class.spanners config
-      @ddl_statements = []
     end
 
     def self.spanners config
@@ -105,10 +104,81 @@ module ActiveRecordSpannerAdapter
       statements = Array statements
       return unless statements.any?
 
-      job = database.update statements: statements, operation_id: operation_id
-      job.wait_until_done! if wait_until_done
-      raise Google::Cloud::Error.from_error job.error if job.error?
-      job.done?
+      # If a DDL batch is active we only buffer the statements on the connection until the batch is run.
+      if @ddl_batch
+        @ddl_batch.push(*statements)
+        return true
+      end
+
+      execute_ddl_statements statements, operation_id, wait_until_done
+    end
+
+    # DDL Batching
+
+    ##
+    # Executes a set of DDL statements as one batch. This method raises an error if no block is given.
+    #
+    # @example
+    #   connection.ddl_batch do
+    #     connection.execute_ddl "CREATE TABLE `Users` (Id INT64, Name STRING(MAX)) PRIMARY KEY (Id)"
+    #     connection.execute_ddl "CREATE INDEX Idx_Users_Name ON `Users` (Name)"
+    #   end
+    def ddl_batch
+      raise Google::Cloud::FailedPreconditionError, "No block given for the DDL batch" unless block_given?
+      begin
+        start_batch_ddl
+        yield
+        run_batch
+      rescue StandardError
+        abort_batch
+        raise
+      end
+    end
+
+    ##
+    # Starts a manual DDL batch. The batch must be ended by calling either run_batch or abort_batch.
+    #
+    # @example
+    #   begin
+    #     connection.start_batch_ddl
+    #     connection.execute_ddl "CREATE TABLE `Users` (Id INT64, Name STRING(MAX)) PRIMARY KEY (Id)"
+    #     connection.execute_ddl "CREATE INDEX Idx_Users_Name ON `Users` (Name)"
+    #     connection.run_batch
+    #   rescue StandardError
+    #     connection.abort_batch
+    #     raise
+    #   end
+    def start_batch_ddl
+      if @ddl_batch
+        raise Google::Cloud::FailedPreconditionError, "A DDL batch is already active on this connection"
+      end
+      @ddl_batch = []
+    end
+
+    ##
+    # Aborts the current batch on this connection. This is a no-op if there is no batch on this connection.
+    #
+    # @see start_batch_ddl
+    def abort_batch
+      @ddl_batch = nil
+    end
+
+    ##
+    # Runs the current batch on this connection. This will raise a FailedPreconditionError if there is no
+    # active batch on this connection.
+    #
+    # @see start_batch_ddl
+    def run_batch
+      unless @ddl_batch
+        raise Google::Cloud::FailedPreconditionError, "There is no batch active on this connection"
+      end
+      # Just return if the batch is empty.
+      return true if @ddl_batch.empty?
+      begin
+        execute_ddl_statements @ddl_batch, nil, true
+      ensure
+        @ddl_batch = nil
+      end
     end
 
     # DQL, DML Statements
@@ -206,6 +276,13 @@ module ActiveRecordSpannerAdapter
     end
 
     private
+
+    def execute_ddl_statements statements, operation_id, wait_until_done
+      job = database.update statements: statements, operation_id: operation_id
+      job.wait_until_done! if wait_until_done
+      raise Google::Cloud::Error.from_error job.error if job.error?
+      job.done?
+    end
 
     ##
     # Retrieves the delay value from Google::Cloud::AbortedError or
