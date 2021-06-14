@@ -32,11 +32,12 @@ module ActiveRecordSpannerAdapter
     def begin
       raise "Nested transactions are not allowed" if @state != :INITIALIZED
       begin
-        if @isolation == :read_only
-          @grpc_transaction = @connection.session.create_snapshot strong: true
-        else
-          @grpc_transaction = @connection.session.create_transaction
-        end
+        @grpc_transaction =
+          if @isolation == :read_only
+            @connection.session.create_snapshot strong: true
+          else
+            @connection.session.create_transaction
+          end
         @state = :STARTED
       rescue StandardError
         @state = :FAILED

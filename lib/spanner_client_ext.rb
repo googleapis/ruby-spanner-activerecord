@@ -36,8 +36,8 @@ module Google
         end
 
         def create_snapshot strong: nil,
-                     timestamp: nil, read_timestamp: nil,
-                     staleness: nil, exact_staleness: nil
+                            timestamp: nil, read_timestamp: nil,
+                            staleness: nil, exact_staleness: nil
           validate_snapshot_args! strong: strong, timestamp: timestamp,
                                   read_timestamp: read_timestamp,
                                   staleness: staleness,
