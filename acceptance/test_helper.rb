@@ -16,8 +16,6 @@ require "activerecord-spanner-adapter"
 require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
 
-ENV["DISABLE_DDL_BATCHING"] = "TRUE"
-
 # rubocop:disable Style/GlobalVars
 
 $spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
