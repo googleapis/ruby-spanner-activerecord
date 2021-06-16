@@ -5,6 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 require_relative "statement_result"
+require "google/rpc/error_details_pb"
 require "google/spanner/v1/spanner_pb"
 require "google/spanner/v1/spanner_services_pb"
 require "google/cloud/spanner/v1/spanner"
@@ -13,11 +14,8 @@ require "grpc"
 require "gapic/grpc/service_stub"
 require "securerandom"
 
-V1 = Google::Cloud::Spanner::V1
-Protobuf = Google::Protobuf
-
 # Mock implementation of Spanner
-class SpannerMockServer < V1::Spanner::Service
+class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   attr_reader :requests
 
   def initialize
@@ -25,6 +23,7 @@ class SpannerMockServer < V1::Spanner::Service
     @statement_results = {}
     @sessions = {}
     @transactions = {}
+    @aborted_transactions = {}
     @requests = []
     put_statement_result "SELECT 1", StatementResult.create_select1_result
   end
@@ -41,7 +40,7 @@ class SpannerMockServer < V1::Spanner::Service
   def batch_create_sessions request, _unused_call
     @requests << request
     num_created = 0
-    response = V1::BatchCreateSessionsResponse.new
+    response = Google::Cloud::Spanner::V1::BatchCreateSessionsResponse.new
     while num_created < request.session_count
       response.session << do_create_session(request.database)
       num_created += 1
@@ -56,7 +55,7 @@ class SpannerMockServer < V1::Spanner::Service
 
   def list_sessions request, _unused_call
     @requests << request
-    response = V1::ListSessionsResponse.new
+    response = Google::Cloud::Spanner::V1::ListSessionsResponse.new
     @sessions.each_value do |s|
       response.sessions << s
     end
@@ -80,6 +79,7 @@ class SpannerMockServer < V1::Spanner::Service
   def do_execute_sql request, streaming
     @requests << request
     validate_session request.session
+    validate_transaction request.session, request.transaction.id if request.transaction&.id
     result = get_statement_result request.sql
     if result.result_type == StatementResult::EXCEPTION
       raise result.result
@@ -109,14 +109,19 @@ class SpannerMockServer < V1::Spanner::Service
   def begin_transaction request, _unused_call
     @requests << request
     validate_session request.session
-    do_create_transaction request.session
+    transaction = do_create_transaction request.session
+    if @abort_next_transaction
+      abort_transaction request.session, transaction.id
+      @abort_next_transaction = false
+    end
+    transaction
   end
 
   def commit request, _unused_call
     @requests << request
     validate_session request.session
     validate_transaction request.session, request.transaction_id
-    V1::CommitResponse.new commit_timestamp: Protobuf::Timestamp.new(seconds: Time.now.to_i)
+    Google::Cloud::Spanner::V1::CommitResponse.new commit_timestamp: Google::Protobuf::Timestamp.new(seconds: Time.now.to_i)
   end
 
   def rollback request, _unused_call
@@ -124,7 +129,7 @@ class SpannerMockServer < V1::Spanner::Service
     validate_session request.session
     name = "#{request.session}/transactions/#{request.transaction_id}"
     @transactions.delete name
-    Protobuf::Empty.new
+    Google::Protobuf::Empty.new
   end
 
   def partition_query request, _unused_call
@@ -140,6 +145,16 @@ class SpannerMockServer < V1::Spanner::Service
   def get_database request, _unused_call
     @requests << request
     raise GRPC::BadStatus.new GRPC::Core::StatusCodes::UNIMPLEMENTED, "Not yet implemented"
+  end
+
+  def abort_transaction session, id
+    return if session.nil? || id.nil?
+    name = "#{session}/transactions/#{id}"
+    @aborted_transactions[name] = true
+  end
+
+  def abort_next_transaction
+    @abort_next_transaction = true
   end
 
   def get_statement_result sql
@@ -170,7 +185,7 @@ class SpannerMockServer < V1::Spanner::Service
 
   def do_create_session database
     name = "#{database}/sessions/#{SecureRandom.uuid}"
-    session = V1::Session.new name: name
+    session = Google::Cloud::Spanner::V1::Session.new name: name
     @sessions[name] = session
     session
   end
@@ -183,12 +198,20 @@ class SpannerMockServer < V1::Spanner::Service
         "Transaction not found: Transaction with id #{transaction} not found"
       )
     end
+    if @aborted_transactions.has_key?(name)
+      retry_info = Google::Rpc::RetryInfo.new(retry_delay: Google::Protobuf::Duration.new(seconds: 0, nanos: 1))
+      raise GRPC::BadStatus.new(
+        GRPC::Core::StatusCodes::ABORTED,
+        "Transaction aborted",
+        { "google.rpc.retryinfo-bin": Google::Rpc::RetryInfo.encode(retry_info) }
+      )
+    end
   end
 
   def do_create_transaction session
     id = SecureRandom.uuid
     name = "#{session}/transactions/#{id}"
-    transaction = V1::Transaction.new id: id
+    transaction = Google::Cloud::Spanner::V1::Transaction.new id: id
     @transactions[name] = transaction
     transaction
   end

@@ -25,7 +25,7 @@ YARD::Rake::YardocTask.new do |y|
 end
 
 desc "Run the spanner connector acceptance tests."
-task :acceptance, :project, :keyfile, :instance do |t, args|
+task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   project = args[:project]
   project ||= ENV["SPANNER_TEST_PROJECT"] || ENV["GCLOUD_TEST_PROJECT"]
   emulator_host = args[:emulator_host]
@@ -52,6 +52,9 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
     ENV[path] = nil
   end
 
+  tests = args[:tests]
+  tests ||= "**"
+
   # always overwrite when running tests
   ENV["SPANNER_PROJECT"] = project
   ENV["SPANNER_KEYFILE_JSON"] = keyfile
@@ -61,7 +64,7 @@ task :acceptance, :project, :keyfile, :instance do |t, args|
   Rake::TestTask.new :run do |t|
     t.libs << "acceptance"
     t.libs << "lib"
-    t.test_files = FileList["acceptance/**/*_test.rb"]
+    t.test_files = FileList["acceptance/#{tests}/*_test.rb"]
     t.warning = false
   end
 

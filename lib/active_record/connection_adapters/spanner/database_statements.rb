@@ -62,10 +62,21 @@ module ActiveRecord
           )
         end
 
+        def exec_mutation mutation
+          @connection.current_transaction.buffer mutation
+        end
+
         def update arel, name = nil, binds = []
-          sql, binds = to_sql_and_binds arel, binds
-          sql = "#{sql} WHERE true" if arel.ast.wheres.empty?
-          exec_update sql, name, binds
+          # Add a `WHERE TRUE` if it is an update_all or delete_all call that uses DML.
+          if !should_use_mutation(arel) && arel.respond_to?(:ast) && arel.ast.wheres.empty?
+            arel.ast.wheres << Arel::Nodes::SqlLiteral.new("TRUE")
+          end
+          return super unless should_use_mutation arel
+
+          raise "Unsupported update for use with mutations: #{arel}" unless arel.is_a? Arel::DeleteManager
+
+          exec_mutation create_delete_all_mutation arel if arel.is_a? Arel::DeleteManager
+          0 # Affected rows (unknown)
         end
         alias delete update
 
@@ -81,7 +92,7 @@ module ActiveRecord
 
         def truncate table_name, name = nil
           Array(table_name).each do |t|
-            log "TURNCATE #{t}", name do
+            log "TRUNCATE #{t}", name do
               @connection.truncate t
             end
           end
@@ -103,9 +114,56 @@ module ActiveRecord
 
         # Transaction
 
+        def transaction requires_new: nil, isolation: nil, joinable: true
+          if !requires_new && current_transaction.joinable?
+            return super
+          end
+
+          backoff = 0.2
+          begin
+            super
+          rescue ActiveRecord::StatementInvalid => err
+            if err.cause.is_a? Google::Cloud::AbortedError
+              sleep(delay_from_aborted(err) || backoff *= 1.3)
+              retry
+            end
+            raise
+          end
+        end
+
+        def transaction_isolation_levels
+          {
+            read_uncommitted:   "READ UNCOMMITTED",
+            read_committed:     "READ COMMITTED",
+            repeatable_read:    "REPEATABLE READ",
+            serializable:       "SERIALIZABLE",
+
+            # These are not really isolation levels, but it is the only (best) way to pass in additional
+            # transaction options to the connection.
+            read_only:          "READ_ONLY",
+            buffered_mutations: "BUFFERED_MUTATIONS"
+          }
+        end
+
         def begin_db_transaction
           log "BEGIN" do
             @connection.begin_transaction
+          end
+        end
+
+        # Begins a transaction on the database with the specified isolation level. Cloud Spanner only supports
+        # isolation level :serializable, but also defines two additional 'isolation levels' that can be used
+        # to start specific types of Spanner transactions:
+        # * :read_only: Starts a read-only snapshot transaction using a strong timestamp bound. TODO: Implement
+        # * :buffered_mutations: Starts a read/write transaction that will use mutations instead of DML for single-row
+        #                        inserts/updates/deletes. Mutations are buffered locally until the transaction is
+        #                        committed, and any changes during a transaction cannot be read by the application.
+        def begin_isolated_db_transaction isolation
+          raise "Unsupported isolation level: #{isolation}" unless \
+              [:serializable, :read_only, :buffered_mutations].include? isolation
+
+          log "BEGIN #{isolation}" do
+            @connection.begin_transaction isolation
           end
         end
 
@@ -123,6 +181,37 @@ module ActiveRecord
 
         private
 
+        # An insert/update/delete statement could use mutations in some specific circumstances.
+        # This method returns an indication whether a specific operation should use mutations instead of DML
+        # based on the operation itself, and the current transaction.
+        def should_use_mutation arel
+          !@connection.current_transaction.nil? \
+            && @connection.current_transaction.isolation == :buffered_mutations \
+            && can_use_mutation(arel) \
+        end
+
+        def can_use_mutation arel
+          return true if arel.is_a?(Arel::DeleteManager) && arel.respond_to?(:ast) && arel.ast.wheres.empty?
+          false
+        end
+
+        def create_delete_all_mutation arel
+          unless arel.is_a? Arel::DeleteManager
+            raise "A delete mutation can only be created from a DeleteManager"
+          end
+          # Check if it is a delete_all operation.
+          unless arel.ast.wheres.empty?
+            raise "A delete mutation can only be created without a WHERE clause"
+          end
+
+          Google::Cloud::Spanner::V1::Mutation.new(
+            delete: Google::Cloud::Spanner::V1::Mutation::Delete.new(
+              table: arel.ast.relation.name,
+              key_set: { all: true }
+            )
+          )
+        end
+
         DDL_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
                    .build_read_query_regexp(:create, :alter, :drop).freeze
 
@@ -138,6 +227,26 @@ module ActiveRecord
           else
             :dql
           end
+        end
+
+        ##
+        # Retrieves the delay value from Google::Cloud::AbortedError or
+        # GRPC::Aborted
+        def delay_from_aborted err
+          return nil if err.nil?
+          if err.respond_to?(:metadata) && err.metadata["google.rpc.retryinfo-bin"]
+            retry_info = Google::Rpc::RetryInfo.decode err.metadata["google.rpc.retryinfo-bin"]
+            seconds = retry_info["retry_delay"].seconds
+            nanos = retry_info["retry_delay"].nanos
+            return seconds if nanos.zero?
+            return seconds + (nanos / 1_000_000_000.0)
+          end
+
+          # No metadata? Try the inner error
+          delay_from_aborted err.cause
+        rescue StandardError
+          # Any error indicates the backoff should be handled elsewhere
+          nil
         end
       end
     end

@@ -101,6 +101,9 @@ module ActiveRecordSpannerAdapter
 
     # @params [Array<String>, String] sql Single or list of statements
     def execute_ddl statements, operation_id: nil, wait_until_done: true
+      raise "DDL cannot be executed during a transaction" if current_transaction&.active?
+      self.current_transaction = nil
+
       statements = Array statements
       return unless statements.any?
 
@@ -191,8 +194,11 @@ module ActiveRecordSpannerAdapter
           )
       end
 
-      if transaction_required && current_transaction.nil?
+      if transaction_required && !current_transaction&.active?
         transaction = begin_transaction
+        self.current_transaction = transaction
+      elsif !current_transaction&.active?
+        self.current_transaction = nil
       end
 
       session.execute_query \
@@ -200,71 +206,36 @@ module ActiveRecordSpannerAdapter
         params: converted_params,
         types: types,
         transaction: transaction_selector,
-        seqno: (current_transaction&.seqno += 1)
-    rescue Google::Cloud::NotFoundError
-      # Session is idle for too long then it will throw an error not found.
-      # In this case reset and retry.
-      reset!
-      retry
+        seqno: (current_transaction&.next_sequence_number)
+    rescue Google::Cloud::AbortedError
+      # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
+      current_transaction&.mark_aborted
+      raise
     ensure
       commit_transaction if transaction
     end
 
     # Transactions
 
-    def begin_transaction
-      raise "Nested transactions are not allowed" if current_transaction
-      self.current_transaction = session.create_transaction
+    def begin_transaction isolation = nil
+      raise "Nested transactions are not allowed" if current_transaction&.active?
+      self.current_transaction = Transaction.new self, isolation
+      current_transaction.begin
+      current_transaction
     end
 
-    def commit_transaction deadline: 120
-      return unless current_transaction
-
-      start_time = Time.now
-      backoff = 1.0
-      session.commit_transaction current_transaction
-    rescue GRPC::Aborted, Google::Cloud::AbortedError => err
-      if Time.now - start_time > deadline
-        if err.is_a? GRPC::BadStatus
-          err = Google::Cloud::Error.from_error err
-        end
-        raise err
-      end
-      sleep(delay_from_aborted(err) || backoff *= 1.3)
-      retry
-    rescue Google::Cloud::FailedPreconditionError => err
-      raise err
-    rescue StandardError => err
-      rollback_transaction
-      return nil if err.is_a? Google::Cloud::Spanner::Rollback
-      raise err
-    ensure
-      self.current_transaction = nil
+    def commit_transaction
+      raise "This connection does not have a transaction" unless current_transaction
+      current_transaction.commit
     end
 
     def rollback_transaction
-      if current_transaction
-        session.rollback current_transaction.transaction_id
-      end
-    ensure
-      self.current_transaction = nil
+      raise "This connection does not have a transaction" unless current_transaction
+      current_transaction.rollback
     end
 
     def transaction_selector
-      return unless current_transaction
-
-      Google::Spanner::V1::TransactionSelector.new \
-        id: current_transaction.transaction_id
-    end
-
-    def snapshot sql, _options = {}
-      raise "Nested snapshots are not allowed" if current_transaction
-
-      session.snapshot do |snp|
-        snp.execute_query sql
-      end
-    rescue Google::Cloud::UnavailableError
-      retry
+      return current_transaction&.transaction_selector if current_transaction&.active?
     end
 
     def truncate table_name
