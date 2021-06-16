@@ -65,6 +65,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   def delete_session request, _unused_call
     @requests << request
     @sessions.delete request.name
+    Google::Protobuf::Empty.new
   end
 
   def execute_sql request, _unused_call
@@ -170,6 +171,10 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
       )
     end
     @statement_results[sql]
+  end
+
+  def delete_all_sessions
+    @sessions.clear
   end
 
   private
