@@ -12,7 +12,7 @@ module ActiveRecord
       module DatabaseStatements
         # DDL, DML and DQL Statements
 
-        def execute sql, name = nil
+        def execute sql, name = nil, binds = []
           statement_type = sql_statement_type sql
 
           if preventing_writes? && statement_type == :dml
@@ -30,9 +30,21 @@ module ActiveRecord
           materialize_transactions
 
           log sql, name do
+            types = binds.enum_for(:each_with_index).map do |bind, i|
+              [
+                "#{bind.name}_#{i + 1}",
+                ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                  .convert_active_model_type_to_spanner(bind.type)
+              ]
+            end.to_h
+            params = binds.enum_for(:each_with_index).map do |v, i|
+              ["#{v.name}_#{i + 1}", v.type.serialize(v.value)]
+            end.to_h
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               @connection.execute_query(
                 sql,
+                params: params,
+                types: types,
                 transaction_required: transaction_required
               )
             end
@@ -43,8 +55,8 @@ module ActiveRecord
           exec_query sql, name
         end
 
-        def exec_query sql, name = "SQL", _binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
-          result = execute sql, name
+        def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
+          result = execute sql, name, binds
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)
           )
@@ -57,8 +69,8 @@ module ActiveRecord
         end
         alias delete update
 
-        def exec_update sql, name = "SQL", _binds = []
-          result = execute sql, name
+        def exec_update sql, name = "SQL", binds = []
+          result = execute sql, name, binds
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(

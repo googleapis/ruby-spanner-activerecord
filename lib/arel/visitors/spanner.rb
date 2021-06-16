@@ -7,11 +7,17 @@
 module Arel # :nodoc: all
   module Visitors
     class Spanner < Arel::Visitors::ToSql
+      def compile node, collector = Arel::Collectors::SQLString.new
+        @index = 0
+        accept(node, collector).value
+      end
+
       private
 
       # rubocop:disable Naming/MethodName
       def visit_Arel_Nodes_BindParam o, collector
-        collector.add_bind(o.value) { "@#{o.value.name}" }
+        @index += 1
+        collector.add_bind(o.value) { "@#{o.value.name}_#{@index}" }
       end
       # rubocop:enable Naming/MethodName
     end

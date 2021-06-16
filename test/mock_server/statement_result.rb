@@ -13,14 +13,18 @@ class StatementResult
   EXCEPTION = 3
 
   def self.create_select1_result
-    col1 = V1::StructType::Field.new name: "Col1", type: V1::Type.new(code: V1::TypeCode::INT64)
+    create_single_int_result_set "Col1", 1
+  end
+
+  def self.create_single_int_result_set col_name, value
+    col1 = V1::StructType::Field.new name: col_name, type: V1::Type.new(code: V1::TypeCode::INT64)
     metadata = V1::ResultSetMetadata.new
     metadata.row_type = V1::StructType.new
     metadata.row_type.fields << col1
     resultSet = V1::ResultSet.new
     resultSet.metadata = metadata
     row = Protobuf::ListValue.new
-    row.values << Protobuf::Value.new(string_value: "1")
+    row.values << Protobuf::Value.new(string_value: value.to_s)
     resultSet.rows << row
 
     StatementResult.new(resultSet)
@@ -55,20 +59,23 @@ class StatementResult
                                                   SecureRandom.random_number(1..12),
                                                   SecureRandom.random_number(1..28))
         ), 10),
-        random_value_or_null(Protobuf::Value.new(string_value: sprintf("%04d-%02d-%02dT%02d:%02d:%02d.%dZ",
-                                                  SecureRandom.random_number(1900..2021),
-                                                  SecureRandom.random_number(1..12),
-                                                  SecureRandom.random_number(1..28),
-                                                  SecureRandom.random_number(0..23),
-                                                  SecureRandom.random_number(0..59),
-                                                  SecureRandom.random_number(0..59),
-                                                  SecureRandom.random_number(1..999999999))
-        ),10)
+        random_value_or_null(Protobuf::Value.new(string_value: random_timestamp_string),10)
       )
       result_set.rows.push row
     }
 
     StatementResult.new result_set
+  end
+
+  def self.random_timestamp_string
+    sprintf("%04d-%02d-%02dT%02d:%02d:%02d.%dZ",
+            SecureRandom.random_number(1900..2021),
+            SecureRandom.random_number(1..12),
+            SecureRandom.random_number(1..28),
+            SecureRandom.random_number(0..23),
+            SecureRandom.random_number(0..59),
+            SecureRandom.random_number(0..59),
+            SecureRandom.random_number(1..999999999))
   end
 
   def self.random_value_or_null value, null_fraction_divisor
