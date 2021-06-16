@@ -217,8 +217,8 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
   def test_create_singer_with_picture_as_binary
     insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
     @mock.put_statement_result insert_sql, StatementResult.new(1)
-    data = IO.read("#{Dir.pwd}/test/activerecord_spanner_mock_server/logo.svg", mode: "rb")
 
+    data = IO.read("#{Dir.pwd}/test/activerecord_spanner_mock_server/cloudspannerlogo.png", mode: "rb")
     Singer.transaction do
       Singer.create(first_name: "Dave", last_name: "Allison", picture: data)
     end
