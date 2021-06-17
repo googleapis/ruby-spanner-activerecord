@@ -41,12 +41,13 @@ module ActiveRecord
               ["#{v.name}_#{i + 1}", v.type.serialize(v.value)]
             end.to_h
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_query(
-                sql,
-                params: params,
-                types: types,
-                transaction_required: transaction_required
-              )
+              if transaction_required
+                transaction do
+                  @connection.execute_query sql, params: params, types: types
+                end
+              else
+                @connection.execute_query sql, params: params, types: types
+              end
             end
           end
         end
@@ -123,7 +124,7 @@ module ActiveRecord
           begin
             super
           rescue ActiveRecord::StatementInvalid => err
-            if err.cause.is_a? Google::Cloud::AbortedError
+            if err.cause.is_a?(Google::Cloud::AbortedError)
               sleep(delay_from_aborted(err) || backoff *= 1.3)
               retry
             end
@@ -241,7 +242,6 @@ module ActiveRecord
             return seconds if nanos.zero?
             return seconds + (nanos / 1_000_000_000.0)
           end
-
           # No metadata? Try the inner error
           delay_from_aborted err.cause
         rescue StandardError

@@ -186,7 +186,7 @@ module ActiveRecordSpannerAdapter
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, types: nil, transaction_required: nil
+    def execute_query sql, params: nil, types: nil
       if params
         converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
@@ -194,25 +194,32 @@ module ActiveRecordSpannerAdapter
           )
       end
 
-      if transaction_required && !current_transaction&.active?
-        transaction = begin_transaction
-        self.current_transaction = transaction
-      elsif !current_transaction&.active?
+      # Clear the transaction from the previous statement.
+      unless current_transaction&.active?
         self.current_transaction = nil
       end
 
-      session.execute_query \
-        sql,
-        params: converted_params,
-        types: types,
-        transaction: transaction_selector,
-        seqno: (current_transaction&.next_sequence_number)
-    rescue Google::Cloud::AbortedError
-      # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
-      current_transaction&.mark_aborted
-      raise
-    ensure
-      commit_transaction if transaction
+      begin
+        session.execute_query \
+          sql,
+          params: converted_params,
+          types: types,
+          transaction: transaction_selector,
+          seqno: (current_transaction&.next_sequence_number)
+      rescue Google::Cloud::AbortedError => e
+        # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
+        current_transaction&.mark_aborted
+        raise
+      rescue Google::Cloud::NotFoundError => e
+        if is_session_not_found(e) || is_transaction_not_found(e)
+          reset!
+          # Force a retry of the entire transaction if this statement was executed as part of a transaction.
+          # Otherwise, just retry the statement itself.
+          raise_aborted_err if current_transaction&.active?
+          retry
+        end
+        raise
+      end
     end
 
     # Transactions
@@ -244,6 +251,37 @@ module ActiveRecordSpannerAdapter
 
     def self.database_path config
       "#{config[:emulator_host]}/#{config[:project]}/#{config[:instance]}/#{config[:database]}"
+    end
+
+    def is_session_not_found err
+      if err.respond_to?(:metadata) && err.metadata["google.rpc.resourceinfo-bin"]
+        resource_info = Google::Rpc::ResourceInfo.decode err.metadata["google.rpc.resourceinfo-bin"]
+        type = resource_info["resource_type"]
+        return "type.googleapis.com/google.spanner.v1.Session".eql? type
+      end
+      false
+    end
+
+    def is_transaction_not_found err
+      if err.respond_to?(:metadata) && err.metadata["google.rpc.resourceinfo-bin"]
+        resource_info = Google::Rpc::ResourceInfo.decode err.metadata["google.rpc.resourceinfo-bin"]
+        type = resource_info["resource_type"]
+        return "type.googleapis.com/google.spanner.v1.Transaction".eql? type
+      end
+      false
+    end
+
+    def raise_aborted_err
+      retry_info = Google::Rpc::RetryInfo.new(retry_delay: Google::Protobuf::Duration.new(seconds: 0, nanos: 1))
+      begin
+        raise GRPC::BadStatus.new(
+          GRPC::Core::StatusCodes::ABORTED,
+          "Transaction aborted",
+          { "google.rpc.retryinfo-bin": Google::Rpc::RetryInfo.encode(retry_info) }
+        )
+      rescue GRPC::BadStatus
+        raise Google::Cloud::AbortedError
+      end
     end
 
     private
