@@ -39,6 +39,13 @@ module ActiveRecordSpannerAdapter
             @connection.session.create_transaction
           end
         @state = :STARTED
+      rescue Google::Cloud::NotFoundError => e
+        if @connection.is_session_not_found(e)
+          @connection.reset!
+          retry
+        end
+        @state = :FAILED
+        raise
       rescue StandardError
         @state = :FAILED
         raise
@@ -55,6 +62,14 @@ module ActiveRecordSpannerAdapter
       begin
         @connection.session.commit_transaction @grpc_transaction, @mutations unless @isolation == :read_only
         @state = :COMMITTED
+      rescue Google::Cloud::NotFoundError => e
+        if @connection.is_session_not_found(e)
+          shoot_and_forget_rollback
+          @connection.reset!
+          @connection.raise_aborted_err
+        end
+        @state = :FAILED
+        raise
       rescue StandardError
         @state = :FAILED
         raise
@@ -65,9 +80,17 @@ module ActiveRecordSpannerAdapter
       # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
       if active?
-        @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+        shoot_and_forget_rollback
       end
       @state = :ROLLED_BACK
+    end
+
+    def shoot_and_forget_rollback
+      begin
+        @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+      rescue StandardError => e
+        # Ignored
+      end
     end
 
     def mark_aborted

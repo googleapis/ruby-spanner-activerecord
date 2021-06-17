@@ -181,9 +181,14 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
 
   def validate_session session
     unless @sessions.has_key? session
+      resource_info = Google::Rpc::ResourceInfo.new(
+        resource_type: "type.googleapis.com/google.spanner.v1.Session",
+        resource_name: session
+      )
       raise GRPC::BadStatus.new(
         GRPC::Core::StatusCodes::NOT_FOUND,
-        "Session not found: Session with id #{session} not found"
+        "Session not found: Session with id #{session} not found",
+        {"google.rpc.resourceinfo-bin": Google::Rpc::ResourceInfo.encode(resource_info)}
       )
     end
   end
