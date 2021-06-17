@@ -1,0 +1,46 @@
+# Copyright 2021 Google LLC
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
+require_relative "config/environment"
+require "docker"
+
+desc "Lists all available samples."
+task :list do
+  Dir.entries(".").select { |entry|
+    File.directory? File.join(".", entry) \
+    and !(entry =='.' || entry == '..') \
+    and File.exist?(File.join(".", entry, 'application.rb'))
+  }.each do |dir|
+    puts dir
+  end
+end
+
+desc "Runs a simple ActiveRecord tutorial on a Spanner emulator."
+task :run, [:sample] do |t, args|
+  sample = args[:sample] || "quickstart"
+
+  container = Docker::Container.create(
+    'Image' => 'gcr.io/cloud-spanner-emulator/emulator',
+    'ExposedPorts' => { '9010/tcp' => {} },
+      'HostConfig' => {
+        'PortBindings' => {
+        '9010/tcp' => [{ 'HostPort' => '9010' }]
+      }
+    }
+  )
+
+  begin
+    container.start!
+    Dir.chdir(sample) {
+      sh 'ruby ../bin/create_emulator_instance.rb'
+      sh 'rake db:migrate'
+      sh 'rake db:seed'
+      sh 'ruby application.rb'
+    }
+  ensure
+    container.stop!
+  end
+end
