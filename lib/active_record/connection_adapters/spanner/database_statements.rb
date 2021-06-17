@@ -124,7 +124,7 @@ module ActiveRecord
           begin
             super
           rescue ActiveRecord::StatementInvalid => err
-            if err.cause.is_a?(Google::Cloud::AbortedError)
+            if err.cause.is_a? Google::Cloud::AbortedError
               sleep(delay_from_aborted(err) || backoff *= 1.3)
               retry
             end

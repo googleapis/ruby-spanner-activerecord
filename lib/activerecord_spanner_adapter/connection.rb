@@ -211,7 +211,7 @@ module ActiveRecordSpannerAdapter
         current_transaction&.mark_aborted
         raise
       rescue Google::Cloud::NotFoundError => e
-        if is_session_not_found(e) || is_transaction_not_found(e)
+        if session_not_found?(e) || transaction_not_found?(e)
           reset!
           # Force a retry of the entire transaction if this statement was executed as part of a transaction.
           # Otherwise, just retry the statement itself.
@@ -253,7 +253,7 @@ module ActiveRecordSpannerAdapter
       "#{config[:emulator_host]}/#{config[:project]}/#{config[:instance]}/#{config[:database]}"
     end
 
-    def is_session_not_found err
+    def session_not_found? err
       if err.respond_to?(:metadata) && err.metadata["google.rpc.resourceinfo-bin"]
         resource_info = Google::Rpc::ResourceInfo.decode err.metadata["google.rpc.resourceinfo-bin"]
         type = resource_info["resource_type"]
@@ -262,7 +262,7 @@ module ActiveRecordSpannerAdapter
       false
     end
 
-    def is_transaction_not_found err
+    def transaction_not_found? err
       if err.respond_to?(:metadata) && err.metadata["google.rpc.resourceinfo-bin"]
         resource_info = Google::Rpc::ResourceInfo.decode err.metadata["google.rpc.resourceinfo-bin"]
         type = resource_info["resource_type"]
@@ -272,12 +272,12 @@ module ActiveRecordSpannerAdapter
     end
 
     def raise_aborted_err
-      retry_info = Google::Rpc::RetryInfo.new(retry_delay: Google::Protobuf::Duration.new(seconds: 0, nanos: 1))
+      retry_info = Google::Rpc::RetryInfo.new retry_delay: Google::Protobuf::Duration.new(seconds: 0, nanos: 1)
       begin
         raise GRPC::BadStatus.new(
           GRPC::Core::StatusCodes::ABORTED,
           "Transaction aborted",
-          { "google.rpc.retryinfo-bin": Google::Rpc::RetryInfo.encode(retry_info) }
+          "google.rpc.retryinfo-bin": Google::Rpc::RetryInfo.encode(retry_info)
         )
       rescue GRPC::BadStatus
         raise Google::Cloud::AbortedError

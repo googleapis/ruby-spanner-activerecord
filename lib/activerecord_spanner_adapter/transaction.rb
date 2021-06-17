@@ -40,7 +40,7 @@ module ActiveRecordSpannerAdapter
           end
         @state = :STARTED
       rescue Google::Cloud::NotFoundError => e
-        if @connection.is_session_not_found(e)
+        if @connection.session_not_found? e
           @connection.reset!
           retry
         end
@@ -63,7 +63,7 @@ module ActiveRecordSpannerAdapter
         @connection.session.commit_transaction @grpc_transaction, @mutations unless @isolation == :read_only
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
-        if @connection.is_session_not_found(e)
+        if @connection.session_not_found? e
           shoot_and_forget_rollback
           @connection.reset!
           @connection.raise_aborted_err
@@ -86,11 +86,9 @@ module ActiveRecordSpannerAdapter
     end
 
     def shoot_and_forget_rollback
-      begin
-        @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
-      rescue StandardError => e
-        # Ignored
-      end
+      @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+    rescue StandardError # rubocop:disable Lint/HandleExceptions
+      # Ignored
     end
 
     def mark_aborted
