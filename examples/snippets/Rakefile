@@ -9,37 +9,44 @@ require "docker"
 
 desc "Lists all available samples."
 task :list do
-  Dir.entries(".").select { |entry|
-    File.directory? File.join(".", entry) \
-    and !(entry =='.' || entry == '..') \
-    and File.exist?(File.join(".", entry, 'application.rb'))
-  }.each do |dir|
-    puts dir
+  samples = Dir.entries(".").select do |entry|
+    File.directory?(File.join(".", entry)) \
+     && !%w[. ..].include?(entry) \
+     && File.exist?(File.join(".", entry, "application.rb"))
   end
+  puts "Available samples: "
+  samples.sort.each { |dir| puts "  #{dir}" }
+  puts ""
+  puts "Run a sample with the command `bundle exec rake run\\[<sample-name>\\]`"
 end
 
 desc "Runs a simple ActiveRecord tutorial on a Spanner emulator."
-task :run, [:sample] do |t, args|
-  sample = args[:sample] || "quickstart"
+task :run, [:sample] do |_t, args|
+  sample = args[:sample]
+  unless sample
+    puts "Missing argument :sample. Running quickstart sample"
+    puts ""
+    sample = "quickstart"
+  end
 
   container = Docker::Container.create(
-    'Image' => 'gcr.io/cloud-spanner-emulator/emulator',
-    'ExposedPorts' => { '9010/tcp' => {} },
-      'HostConfig' => {
-        'PortBindings' => {
-        '9010/tcp' => [{ 'HostPort' => '9010' }]
+    "Image" => "gcr.io/cloud-spanner-emulator/emulator",
+    "ExposedPorts" => { "9010/tcp" => {} },
+    "HostConfig" => {
+      "PortBindings" => {
+        "9010/tcp" => [{ "HostPort" => "9010" }]
       }
     }
   )
 
   begin
     container.start!
-    Dir.chdir(sample) {
-      sh 'ruby ../bin/create_emulator_instance.rb'
-      sh 'rake db:migrate'
-      sh 'rake db:seed'
-      sh 'ruby application.rb'
-    }
+    Dir.chdir sample do
+      sh "ruby ../bin/create_emulator_instance.rb"
+      sh "rake db:migrate"
+      sh "rake db:seed"
+      sh "ruby application.rb"
+    end
   ensure
     container.stop!
   end

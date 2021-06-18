@@ -6,13 +6,13 @@ This directory contains a number of simple standalone samples that shows how to 
 The samples can be executed using the following command in this directory:
 
 ```bash
-bundle exec rake sample\[<sample_name>\]
+bundle exec rake run\[<sample_name>\]
 ```
 
 Example:
 
 ```bash
-bundle exec rake sample\[quickstart\]
+bundle exec rake run\[quickstart\]
 ```
 
 The available samples can be listed using the command

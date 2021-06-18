@@ -4,13 +4,13 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require 'io/console'
-require_relative '../config/environment'
+require "io/console"
+require_relative "../config/environment"
 require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run
+  def self.run # rubocop:disable Metrics/AbcSize
     # Fetch all singers and albums from the database. The database has been pre-filled by the `db/seeds.rb` script.
     puts "Known singers and their albums:"
     puts ""
@@ -37,9 +37,9 @@ class Application
     puts ""
     puts "Getting all singers with a last name that starts with 'A'"
 
-    last_name = Singer.arel_table['last_name']
-    Singer.where(last_name.matches("A%")).each do |singer|
-      puts "#{singer.first_name} #{singer.last_name}"
+    last_name = Singer.arel_table["last_name"]
+    Singer.where(last_name.matches("A%")).each do |s|
+      puts "#{s.first_name} #{s.last_name}"
     end
 
     puts ""
