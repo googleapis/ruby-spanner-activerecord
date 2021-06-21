@@ -70,3 +70,9 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
 
   Rake::Task["run"].invoke
 end
+
+desc +"Runs the `examples/snippets/quickstart` example on a Spanner emulator. See the directory `examples/snippets`"
+      "for more examples."
+task :example do
+  Dir.chdir("examples/snippets/quickstart") { sh "bundle exec rake run" }
+end
