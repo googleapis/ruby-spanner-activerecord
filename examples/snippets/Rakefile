@@ -30,7 +30,7 @@ task :run, [:sample] do |_t, args|
   end
 
   puts "Downloading Spanner emulator image..."
-  Docker::Image.create("fromImage" => "gcr.io/cloud-spanner-emulator/emulator:latest")
+  Docker::Image.create "fromImage" => "gcr.io/cloud-spanner-emulator/emulator:latest"
   puts "Creating Spanner emulator container..."
   container = Docker::Container.create(
     "Image" => "gcr.io/cloud-spanner-emulator/emulator:latest",
