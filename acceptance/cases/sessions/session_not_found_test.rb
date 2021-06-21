@@ -55,7 +55,8 @@ module ActiveRecord
 
       def test_single_read
         delete_all_sessions
-        Organization.find_by id: @organization.id
+        organization = Organization.find_by id: @organization.id
+        refute_nil organization
       end
 
       def test_single_mutation
@@ -73,7 +74,8 @@ module ActiveRecord
       def test_begin_transaction
         delete_all_sessions
         Organization.transaction do
-          Organization.find_by id: @organization.id
+          organization = Organization.find_by id: @organization.id
+          refute_nil organization
         end
       end
 
@@ -82,7 +84,8 @@ module ActiveRecord
         Organization.transaction do
           attempts += 1
           delete_all_sessions if attempts == 1
-          Organization.find_by id: @organization.id
+          organization = Organization.find_by id: @organization.id
+          refute_nil organization
         end
         # The transaction could also be aborted by the backend, hence the > 1.
         assert attempts > 1, "Should retry at least once"

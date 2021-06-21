@@ -80,6 +80,10 @@ module ActiveRecordSpannerAdapter
       # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
       if active?
+        # We do a shoot-and-forget rollback here, as the error that caused the transaction to be rolled back could
+        # also have invalidated the transaction (e.g. `Session not found`). If the rollback fails for any other
+        # reason, we also do not need to retry it or propagate the error to the application, as the transaction will
+        # automatically be aborted by Cloud Spanner after 10 seconds anyways.
         shoot_and_forget_rollback
       end
       @state = :ROLLED_BACK

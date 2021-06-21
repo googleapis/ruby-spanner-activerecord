@@ -206,7 +206,7 @@ module ActiveRecordSpannerAdapter
           types: types,
           transaction: transaction_selector,
           seqno: (current_transaction&.next_sequence_number)
-      rescue Google::Cloud::AbortedError => e
+      rescue Google::Cloud::AbortedError
         # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
         current_transaction&.mark_aborted
         raise
