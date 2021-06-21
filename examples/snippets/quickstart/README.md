@@ -15,9 +15,9 @@ This sample will:
 2. Fill the sample database with some data by calling `rake db:seed`. This will execute the script in `db/seeds.rb`.
 The seed script fills the database with 10 random singers and 30 random albums.
 3. Run the `application.rb` file. This application will:
-3.1. List all known singers and albums.
-3.2. Select a random singer and update the name of this singer.
-3.3. Select all singers whose last name start with an 'A'.
+   1. List all known singers and albums.
+   2. Select a random singer and update the name of this singer.
+   3. Select all singers whose last names start with an 'A'.
 
 Run the application with the command
 

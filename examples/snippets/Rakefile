@@ -29,8 +29,11 @@ task :run, [:sample] do |_t, args|
     sample = "quickstart"
   end
 
+  puts "Downloading Spanner emulator image..."
+  Docker::Image.create("fromImage" => "gcr.io/cloud-spanner-emulator/emulator:latest")
+  puts "Creating Spanner emulator container..."
   container = Docker::Container.create(
-    "Image" => "gcr.io/cloud-spanner-emulator/emulator",
+    "Image" => "gcr.io/cloud-spanner-emulator/emulator:latest",
     "ExposedPorts" => { "9010/tcp" => {} },
     "HostConfig" => {
       "PortBindings" => {
@@ -40,6 +43,7 @@ task :run, [:sample] do |_t, args|
   )
 
   begin
+    puts "Starting Spanner emulator..."
     container.start!
     Dir.chdir sample do
       sh "ruby ../bin/create_emulator_instance.rb"

@@ -1,6 +1,6 @@
 # Sample snippets
 
-This directory contains a number of simple standalone samples that shows how to use ActiveRecord with Cloud Spanner.
+This directory contains a number of simple standalone samples that show how to use ActiveRecord with Cloud Spanner.
 
 ### Running from this directory
 The samples can be executed using the following command in this directory:

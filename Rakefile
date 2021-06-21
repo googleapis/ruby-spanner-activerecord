@@ -71,27 +71,8 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   Rake::Task["run"].invoke
 end
 
-desc 'Runs a simple ActiveRecord tutorial on a Spanner emulator.'
-task :example do |t|
-  t.libs << "examples/snippets"
-  t.libs << "lib"
-
-  container = Docker::Container.create(
-    'Image' => 'gcr.io/cloud-spanner-emulator/emulator',
-    'ExposedPorts' => { '9010/tcp' => {} },
-    'HostConfig' => {
-      'PortBindings' => {
-        '9010/tcp' => [{ 'HostPort' => '9010' }]
-      }
-    }
-  )
-  begin
-    container.start!
-    sh 'ruby examples/snippets/bin/create_emulator_instance.rb'
-    sh 'rake db:migrate'
-    sh 'rake db:seed'
-    sh 'ruby examples/snippets/quickstart/application.rb'
-  ensure
-    container.stop!
-  end
+desc +"Runs the `examples/snippets/quickstart` example on a Spanner emulator. See the directory `examples/snippets`"
+      "for more examples."
+task :example do
+  Dir.chdir("examples/snippets/quickstart") { sh "bundle exec rake run" }
 end
