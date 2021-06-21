@@ -42,6 +42,7 @@ module ActiveRecord
       ADAPTER_NAME = "spanner".freeze
       NATIVE_DATABASE_TYPES = {
         primary_key:  "INT64",
+        parent_key:   "INT64",
         string:       { name: "STRING", limit: "MAX" },
         text:         { name: "STRING", limit: "MAX" },
         integer:      { name: "INT64" },

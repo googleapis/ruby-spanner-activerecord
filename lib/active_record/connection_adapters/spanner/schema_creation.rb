@@ -32,11 +32,19 @@ module ActiveRecord
                            end
                            PrimaryKeyDefinition.new pk_names
                          end
-          create_sql << accept(primary_keys)
 
-          if o.interleave_in
-            create_sql << " , INTERLEAVE IN PARENT #{o.interleave_in}"
+          if o.interleave_in?
+            parent_names = o.columns.each_with_object [] do |c, r|
+              if c.type == :parent_key
+                r << c.name
+              end
+            end
+            primary_keys.name = parent_names.concat(primary_keys.name)
+            create_sql << accept(primary_keys)
+            create_sql << ", INTERLEAVE IN PARENT #{quote_table_name(o.interleave_in_parent)}"
             create_sql << " ON DELETE #{o.on_delete}" if o.on_delete
+          else
+            create_sql << accept(primary_keys)
           end
 
           create_sql

@@ -7,6 +7,9 @@
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../mock_server/database_admin_mock_server"
 require_relative "../test_helper"
+require_relative "models/album"
+require_relative "models/singer"
+require_relative "models/track"
 
 require "securerandom"
 
@@ -149,6 +152,41 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     expectedDdl << "PRIMARY KEY (`id`)"
 
     assert_equal expectedDdl, ddl_requests[2].statements[0]
+  end
+
+  def test_interleaved_table
+    context = ActiveRecord::MigrationContext.new(
+      "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+      ActiveRecord::SchemaMigration
+    )
+
+    register_version_result "1", "4"
+
+    context.migrate 4
+
+    # The migration should create the migration tables and the singers, albums and tracks tables in one request.
+    ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+    # The migration simulation also creates the two migration metadata tables.
+    assert_equal 3, ddl_requests.length
+    assert_equal 3, ddl_requests[2].statements.length
+
+    expectedDdl = "CREATE TABLE `singers` "
+    expectedDdl << "(`singerid` INT64 NOT NULL, `first_name` STRING(200), `last_name` STRING(MAX)) "
+    expectedDdl << "PRIMARY KEY (`singerid`)"
+    assert_equal expectedDdl, ddl_requests[2].statements[0]
+
+    expectedDdl = "CREATE TABLE `albums` "
+    expectedDdl << "(`albumid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `title` STRING(MAX)"
+    expectedDdl << ") PRIMARY KEY (`singerid`, `albumid`), INTERLEAVE IN PARENT `singers`"
+    assert_equal expectedDdl, ddl_requests[2].statements[1]
+
+    expectedDdl = "CREATE TABLE `tracks` "
+    expectedDdl << "(`trackid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `albumid` INT64 NOT NULL, `title` STRING(MAX), `duration` NUMERIC)"
+    expectedDdl << " PRIMARY KEY (`singerid`, `albumid`, `trackid`), INTERLEAVE IN PARENT `albums` ON DELETE CASCADE"
+    assert_equal expectedDdl, ddl_requests[2].statements[2]
+
+    singer = Singer.create first_name: "test", last_name: "test"
+    Album.create singer: singer, title: "foo"
   end
 
   def register_schema_migrations_table_result

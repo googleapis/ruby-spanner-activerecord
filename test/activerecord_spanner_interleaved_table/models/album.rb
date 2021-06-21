@@ -6,5 +6,4 @@
 
 class Album < ActiveRecord::Base
   belongs_to :singer
-  has_many :tracks
 end

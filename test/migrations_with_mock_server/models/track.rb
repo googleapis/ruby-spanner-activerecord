@@ -4,7 +4,6 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class Album < ActiveRecord::Base
-  belongs_to :singer
-  has_many :tracks
+class Track < ActiveRecord::Base
+  belongs_to :album
 end
