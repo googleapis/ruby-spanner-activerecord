@@ -89,12 +89,7 @@ module ActiveRecordSpannerAdapter
       table_columns(table_name, column_name: column_name).first
     end
 
-    def table_primary_keys_old table_name
-      index = indexes(table_name, index_type: "PRIMARY_KEY").first
-      index&.columns || []
-    end
-
-    def table_primary_keys table_name
+    def table_primary_keys table_name, include_parent_keys = false
       sql = +"WITH TABLE_PK_COLS AS ( "
       sql << "SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION "
       sql << "FROM INFORMATION_SCHEMA.INDEX_COLUMNS C "
@@ -107,11 +102,13 @@ module ActiveRecordSpannerAdapter
       sql << "WHERE TABLE_NAME = %<table_name>s "
       sql << "AND TABLE_CATALOG = '' "
       sql << "AND TABLE_SCHEMA = '' "
-      sql << "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN ( "
-      sql << "  SELECT COLUMN_NAME "
-      sql << "  FROM TABLE_PK_COLS "
-      sql << "  WHERE TABLE_NAME = T.PARENT_TABLE_NAME "
-      sql << ")) "
+      unless include_parent_keys
+        sql << "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN ( "
+        sql << "  SELECT COLUMN_NAME "
+        sql << "  FROM TABLE_PK_COLS "
+        sql << "  WHERE TABLE_NAME = T.PARENT_TABLE_NAME "
+        sql << ")) "
+      end
       sql << "ORDER BY ORDINAL_POSITION"
       execute_query(
         sql,

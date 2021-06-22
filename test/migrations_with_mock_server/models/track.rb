@@ -4,6 +4,8 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class Track < ActiveRecord::Base
-  belongs_to :album
+module TestMigrationsWithMockServer
+  class Track < ActiveRecord::Base
+    belongs_to :album
+  end
 end
