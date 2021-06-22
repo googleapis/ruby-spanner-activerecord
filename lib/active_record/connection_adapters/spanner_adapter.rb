@@ -41,7 +41,7 @@ module ActiveRecord
 
   module ConnectionAdapters
     module AbstractPool
-      def get_schema_cache(connection)
+      def get_schema_cache connection
         @schema_cache ||= SpannerSchemaCache.new connection
         @schema_cache.connection = connection
         @schema_cache

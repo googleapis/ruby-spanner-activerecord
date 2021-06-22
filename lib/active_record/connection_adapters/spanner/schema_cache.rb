@@ -22,7 +22,10 @@ module ActiveRecord
       end
 
       def primary_and_parent_keys table_name
-        @primary_and_parent_keys[table_name] ||= data_source_exists?(table_name) ? connection.primary_and_parent_keys(table_name) : nil
+        @primary_and_parent_keys[table_name] ||=
+          if data_source_exists? table_name
+            connection.primary_and_parent_keys table_name
+          end
       end
 
       def clear!
@@ -32,4 +35,3 @@ module ActiveRecord
     end
   end
 end
-

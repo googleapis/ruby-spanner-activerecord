@@ -39,9 +39,9 @@ module ActiveRecord
                 r << c.name
               end
             end
-            primary_keys.name = parent_names.concat(primary_keys.name)
+            primary_keys.name = parent_names.concat primary_keys.name
             create_sql << accept(primary_keys)
-            create_sql << ", INTERLEAVE IN PARENT #{quote_table_name(o.interleave_in_parent)}"
+            create_sql << ", INTERLEAVE IN PARENT #{quote_table_name o.interleave_in_parent}"
             create_sql << " ON DELETE #{o.on_delete}" if o.on_delete
           else
             create_sql << accept(primary_keys)
