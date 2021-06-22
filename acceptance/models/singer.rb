@@ -5,6 +5,6 @@
 # https://opensource.org/licenses/MIT.
 
 class Singer < ActiveRecord::Base
-  has_many :albums, foreign_key: "singerid"
-  has_many :tracks, through: :albums
+  has_many :albums, foreign_key: "singerid", dependent: :delete_all
+  has_many :tracks, foreign_key: "singerid"
 end

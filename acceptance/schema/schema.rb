@@ -93,6 +93,7 @@ ActiveRecord::Schema.define do
       t.primary_key :singerid
       t.column :first_name, :string, limit: 200
       t.string :last_name
+      t.integer :tracks_count
     end
 
     create_table :albums, id: false do |t|

@@ -5,5 +5,16 @@
 # https://opensource.org/licenses/MIT.
 
 class Track < ActiveRecord::Base
-  belongs_to :album
+  belongs_to :album, foreign_key: "albumid"
+  belongs_to :singer, foreign_key: "singerid", counter_cache: true
+
+  def initialize attributes = nil
+    super
+    self.singer ||= self.album&.singer
+  end
+
+  def album=value
+    super
+    self.singer = value&.singer
+  end
 end

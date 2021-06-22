@@ -8,5 +8,5 @@ class Album < ActiveRecord::Base
   # The relationship with singer is not really a foreign key, but an INTERLEAVE IN relationship. We still need to
   # use the `foreign_key` attribute to indicate which column to use for the relationship.
   belongs_to :singer, foreign_key: "singerid"
-  has_many :tracks
+  has_many :tracks, foreign_key: "albumid", dependent: :delete_all
 end
