@@ -270,15 +270,6 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
     assert_nil connection.current_transaction
   end
 
-  def test_update_outside_transaction_initiates_implicit_transaction
-    assert_nil connection.current_transaction
-
-    connection.execute_query "UPDATE FOO SET BAR = 1 WHERE TRUE", transaction_required: true
-
-    refute_nil connection.current_transaction
-    refute connection.current_transaction.active?
-  end
-
   def test_ddl_outside_transaction_does_not_initiate_transaction
     assert_nil connection.current_transaction
 

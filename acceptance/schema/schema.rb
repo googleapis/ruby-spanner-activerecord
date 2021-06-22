@@ -7,7 +7,7 @@
 # frozen_string_literal: true
 
 ActiveRecord::Schema.define do
-  connection.ddl_batch do
+  ActiveRecord::Base.connection.ddl_batch do
     create_table :firms do |t|
       t.string  :name
       t.integer :rating

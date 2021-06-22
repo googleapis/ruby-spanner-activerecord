@@ -39,6 +39,13 @@ module ActiveRecordSpannerAdapter
             @connection.session.create_transaction
           end
         @state = :STARTED
+      rescue Google::Cloud::NotFoundError => e
+        if @connection.session_not_found? e
+          @connection.reset!
+          retry
+        end
+        @state = :FAILED
+        raise
       rescue StandardError
         @state = :FAILED
         raise
@@ -55,6 +62,14 @@ module ActiveRecordSpannerAdapter
       begin
         @connection.session.commit_transaction @grpc_transaction, @mutations unless @isolation == :read_only
         @state = :COMMITTED
+      rescue Google::Cloud::NotFoundError => e
+        if @connection.session_not_found? e
+          shoot_and_forget_rollback
+          @connection.reset!
+          @connection.raise_aborted_err
+        end
+        @state = :FAILED
+        raise
       rescue StandardError
         @state = :FAILED
         raise
@@ -65,9 +80,19 @@ module ActiveRecordSpannerAdapter
       # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
       if active?
-        @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+        # We do a shoot-and-forget rollback here, as the error that caused the transaction to be rolled back could
+        # also have invalidated the transaction (e.g. `Session not found`). If the rollback fails for any other
+        # reason, we also do not need to retry it or propagate the error to the application, as the transaction will
+        # automatically be aborted by Cloud Spanner after 10 seconds anyways.
+        shoot_and_forget_rollback
       end
       @state = :ROLLED_BACK
+    end
+
+    def shoot_and_forget_rollback
+      @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+    rescue StandardError # rubocop:disable Lint/HandleExceptions
+      # Ignored
     end
 
     def mark_aborted
