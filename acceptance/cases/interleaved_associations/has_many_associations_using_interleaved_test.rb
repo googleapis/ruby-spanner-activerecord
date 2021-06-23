@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2021 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
@@ -187,6 +187,24 @@ module ActiveRecord
 
         singer.reload
         assert_equal 6, singer.tracks_count
+      end
+
+      def test_cascade_destroy
+        assert_equal 4, singer.tracks.count
+
+        assert album1.destroy
+
+        singer.reload
+        assert_equal 2, singer.tracks.count
+      end
+
+      def test_cascade_delete
+        assert_equal 4, singer.tracks.count
+
+        assert album1.delete
+
+        singer.reload
+        assert_equal 2, singer.tracks.count
       end
     end
   end
