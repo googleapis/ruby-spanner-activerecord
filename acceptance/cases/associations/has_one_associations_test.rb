@@ -17,57 +17,39 @@ module ActiveRecord
     class HasOneTest < SpannerAdapter::TestCase
       include SpannerAdapter::Associations::TestHelper
 
-      attr_accessor :singer, :album1, :album2, :track1_1, :track1_2, :track2_1, :track2_2
+      attr_accessor :firm, :account
 
       def setup
         super
 
-        @singer = Singer.create first_name: "FirstName1", last_name: "LastName1"
+        @account = Account.create name: "Account - #{rand 1000}", credit_limit: 100
+        @firm = Firm.create name: "Firm-#{rand 1000}", account: account
 
-        @album2 = Album.create title: "Title2", singer: singer
-        @album1 = Album.create title: "Title1", singer: singer
-
-        @track2_1 = Track.create title: "Title2_1", album: album2, duration: 3.6
-        @track2_2 = Track.create title: "Title2_2", album: album2, duration: 3.3
-        @track1_1 = Track.create title: "Title1_1", album: album1, duration: 4.5
-        @track1_2 = Track.create title: "Title1_2", album: album1
-
-        @singer.reload
-        @album1.reload
-        @album2.reload
-        @track1_1.reload
-        @track2_1.reload
-        @track1_2.reload
-        @track2_2.reload
+        @account.reload
+        @firm.reload
       end
 
       def teardown
-        Album.destroy_all
-        Singer.destroy_all
+        Firm.destroy_all
+        Account.destroy_all
+        Department.destroy_all
       end
 
       def test_has_one
-        assert_equal singer, album1.singer
-        assert_equal singer, album2.singer
-
-        assert_equal album1, track1_1.album
-        assert_equal album1, track1_2.album
-        assert_equal album2, track2_1.album
-        assert_equal album2, track2_2.album
+        assert_equal account, firm.account
+        assert_equal account.credit_limit, firm.account.credit_limit
       end
 
       def test_has_one_does_not_use_order_by
-        sql_log = capture_sql { album1.singer }
+        sql_log = capture_sql { firm.account }
         assert sql_log.all? { |sql| !/order by/i.match?(sql) }, "ORDER BY was used in the query: #{sql_log}"
       end
 
-      def test_find_using_primary_key
-        assert_equal Singer.find_by(singerid: singer.id), album1.singer
+      def test_finding_using_primary_key
+        assert_equal Account.find_by(firm_id: firm.id), firm.account
       end
 
       def test_successful_build_association
-
-
         account = firm.build_account(credit_limit: 1000)
         assert account.save
 
