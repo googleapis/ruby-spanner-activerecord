@@ -166,12 +166,5 @@ module ActiveRecord
       Base.connection.current_spanner_transaction.buffer mutation
       1 # Affected rows
     end
-
-    # Same as `id_in_database`, but also includes any parent keys if the table is interleaved in a parent table.
-    def id_and_parent_key_in_database
-      primary_and_parent_key.each do |col|
-        attribute_in_database col
-      end
-    end
   end
 end

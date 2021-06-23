@@ -89,6 +89,11 @@ module ActiveRecordSpannerAdapter
       table_columns(table_name, column_name: column_name).first
     end
 
+    # Returns the primary key columns of the given table. By default it will only return the columns that are not part
+    # of the primary key of the parent table (if any). These are the columns that are considered the primary key by
+    # ActiveRecord. The parent primary key columns are filtered out by default to allow interleaved tables to be
+    # considered as tables with a single-column primary key by ActiveRecord. The actual primary key of the table will
+    # include both the parent primary key columns and the 'own' primary key columns of a table.
     def table_primary_keys table_name, include_parent_keys = false
       sql = +"WITH TABLE_PK_COLS AS ( "
       sql << "SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION "
