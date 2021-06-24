@@ -89,9 +89,43 @@ module ActiveRecordSpannerAdapter
       table_columns(table_name, column_name: column_name).first
     end
 
-    def table_primary_keys table_name
-      index = indexes(table_name, index_type: "PRIMARY_KEY").first
-      index&.columns || []
+    # Returns the primary key columns of the given table. By default it will only return the columns that are not part
+    # of the primary key of the parent table (if any). These are the columns that are considered the primary key by
+    # ActiveRecord. The parent primary key columns are filtered out by default to allow interleaved tables to be
+    # considered as tables with a single-column primary key by ActiveRecord. The actual primary key of the table will
+    # include both the parent primary key columns and the 'own' primary key columns of a table.
+    def table_primary_keys table_name, include_parent_keys = false
+      sql = +"WITH TABLE_PK_COLS AS ( "
+      sql << "SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION "
+      sql << "FROM INFORMATION_SCHEMA.INDEX_COLUMNS C "
+      sql << "WHERE C.INDEX_TYPE = 'PRIMARY_KEY' "
+      sql << "AND TABLE_CATALOG = '' "
+      sql << "AND TABLE_SCHEMA = '') "
+      sql << "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION "
+      sql << "FROM TABLE_PK_COLS "
+      sql << "INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) "
+      sql << "WHERE TABLE_NAME = %<table_name>s "
+      sql << "AND TABLE_CATALOG = '' "
+      sql << "AND TABLE_SCHEMA = '' "
+      unless include_parent_keys
+        sql << "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN ( "
+        sql << "  SELECT COLUMN_NAME "
+        sql << "  FROM TABLE_PK_COLS "
+        sql << "  WHERE TABLE_NAME = T.PARENT_TABLE_NAME "
+        sql << ")) "
+      end
+      sql << "ORDER BY ORDINAL_POSITION"
+      execute_query(
+        sql,
+        table_name: table_name
+      ).map do |row|
+        Index::Column.new \
+          table_name,
+          row["INDEX_NAME"],
+          row["COLUMN_NAME"],
+          order: row["COLUMN_ORDERING"],
+          ordinal_position: row["ORDINAL_POSITION"]
+      end
     end
 
     def indexes table_name, index_name: nil, index_type: nil
