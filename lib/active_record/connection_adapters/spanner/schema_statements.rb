@@ -391,7 +391,7 @@ module ActiveRecord
         end
 
         # rubocop:disable Lint/UnusedMethodArgument
-        def type_to_sql type, limit: nil, precision: nil, scale: nil, **_opts
+        def type_to_sql type, limit: nil, precision: nil, scale: nil, **opts
           type = type.to_sym if type
           native = native_database_types[type]
 
@@ -399,9 +399,8 @@ module ActiveRecord
 
           sql_type = (native.is_a?(Hash) ? native[:name] : native).dup
 
-          if [:string, :text, :binary].include? type
-            return "#{sql_type}(#{limit || native[:limit]})"
-          end
+          sql_type = "#{sql_type}(#{limit || native[:limit]})" if [:string, :text, :binary].include?(type)
+          sql_type = "ARRAY<#{sql_type}>" if opts[:array]
 
           sql_type
         end

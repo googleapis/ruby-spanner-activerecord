@@ -99,6 +99,15 @@ def register_select_tables_result spanner_mock_server
     Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
   )
   result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: ""),
+    Google::Protobuf::Value.new(string_value: ""),
+    Google::Protobuf::Value.new(string_value: "all_types"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    )
+  result_set.rows.push row
 
   spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
 end
@@ -300,6 +309,229 @@ end
 
 def register_albums_index_columns_result spanner_mock_server
   sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
+
+  index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  column_ordering = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_ORDERING", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+  metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+  metadata.row_type.fields.push index_name, column_name, column_ordering, ordinal_position
+  result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "PRIMARY_KEY"),
+    Google::Protobuf::Value.new(string_value: "id"),
+    Google::Protobuf::Value.new(string_value: "ASC"),
+    Google::Protobuf::Value.new(string_value: "1"),
+    )
+  result_set.rows.push row
+
+  spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+end
+
+def register_all_types_columns_result spanner_mock_server
+  sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='all_types' ORDER BY ORDINAL_POSITION ASC"
+
+  column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BYTES)
+  ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+  metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+  metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+  result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "id"),
+    Google::Protobuf::Value.new(string_value: "INT64"),
+    Google::Protobuf::Value.new(string_value: "NO"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "1")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_string"),
+    Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "2")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_int64"),
+    Google::Protobuf::Value.new(string_value: "INT64"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "3")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_float64"),
+    Google::Protobuf::Value.new(string_value: "FLOAT64"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "4")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_numeric"),
+    Google::Protobuf::Value.new(string_value: "NUMERIC"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "5")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_bool"),
+    Google::Protobuf::Value.new(string_value: "BOOL"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "6")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_bytes"),
+    Google::Protobuf::Value.new(string_value: "BYTES(MAX)"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "7")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_date"),
+    Google::Protobuf::Value.new(string_value: "DATE"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "8")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_timestamp"),
+    Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "9")
+  )
+  result_set.rows.push row
+
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_string"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<STRING(MAX)>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "10")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_int64"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<INT64>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "11")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_float64"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<FLOAT64>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "12")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_numeric"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<NUMERIC>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "13")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_bool"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<BOOL>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "14")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_bytes"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<BYTES(MAX)>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "15")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_date"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<DATE>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "16")
+  )
+  result_set.rows.push row
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "col_array_timestamp"),
+    Google::Protobuf::Value.new(string_value: "ARRAY<TIMESTAMP>"),
+    Google::Protobuf::Value.new(string_value: "YES"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(string_value: "17")
+  )
+  result_set.rows.push row
+
+  spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+end
+
+def register_all_types_primary_key_result spanner_mock_server
+  sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='all_types' AND INDEX_TYPE='PRIMARY_KEY' AND SPANNER_IS_MANAGED=FALSE"
+
+  index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  index_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  is_unique = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_UNIQUE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BOOL)
+  is_null_filtered = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULL_FILTERED", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BOOL)
+  parent_table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "PARENT_TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+  index_state = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_STATE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+
+  metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+  metadata.row_type.fields.push index_name, index_type, is_unique, is_null_filtered, parent_table_name, index_state
+  result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+  row = Google::Protobuf::ListValue.new
+  row.values.push(
+    Google::Protobuf::Value.new(string_value: "PRIMARY_KEY"), # INDEX_NAME
+    Google::Protobuf::Value.new(string_value: "PRIMARY_KEY"), # INDEX_TYPE
+    Google::Protobuf::Value.new(bool_value: true),
+    Google::Protobuf::Value.new(bool_value: false),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    )
+  result_set.rows.push row
+
+  spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+end
+
+def register_all_types_index_columns_result spanner_mock_server
+  sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='all_types' ORDER BY ORDINAL_POSITION ASC"
 
   index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
   column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)

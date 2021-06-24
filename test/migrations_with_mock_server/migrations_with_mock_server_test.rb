@@ -131,7 +131,12 @@ class SpannerMigrationsMockServerTest < Minitest::Test
 
     # CREATE TABLE `types_table` (`id` INT64 NOT NULL, `col_string` STRING(MAX), `col_text` STRING(MAX),
     # `col_integer` INT64, `col_bigint` INT64, `col_float` FLOAT64, `col_decimal` FLOAT64, `col_numeric` numeric,
-    # `col_datetime` TIMESTAMP, `col_time` TIMESTAMP, `col_date` DATE, `col_binary` BYTES(MAX), `col_boolean` BOOL) PRIMARY KEY (`id`)
+    # `col_datetime` TIMESTAMP, `col_time` TIMESTAMP, `col_date` DATE, `col_binary` BYTES(MAX), `col_boolean` BOOL
+    # `col_array_string` ARRAY<STRING(MAX)>, `col_array_text` ARRAY<STRING(MAX)>, `col_array_integer` ARRAY<INT64>,
+    # `col_array_bigint` ARRAY<INT64>, `col_array_float` ARRAY<FLOAT64>, `col_array_decimal` ARRAY<FLOAT64>,
+    # `col_array_numeric` ARRAY<NUMERIC>, `col_array_datetime` ARRAY<TIMESTAMP>, `col_array_time` ARRAY<TIMESTAMP>,
+    # `col_array_date` ARRAY<DATE>, `col_array_binary` ARRAY<BYTES(MAX)>, `col_array_boolean` ARRAY<BOOL>,
+    # ) PRIMARY KEY (`id`)
     expectedDdl = +"CREATE TABLE `types_table` ("
     expectedDdl << "`id` INT64 NOT NULL, "
     expectedDdl << "`col_string` STRING(MAX), "
@@ -145,7 +150,19 @@ class SpannerMigrationsMockServerTest < Minitest::Test
     expectedDdl << "`col_time` TIMESTAMP, "
     expectedDdl << "`col_date` DATE, "
     expectedDdl << "`col_binary` BYTES(MAX), "
-    expectedDdl << "`col_boolean` BOOL) "
+    expectedDdl << "`col_boolean` BOOL, "
+    expectedDdl << "`col_array_string` ARRAY<STRING(MAX)>, "
+    expectedDdl << "`col_array_text` ARRAY<STRING(MAX)>, "
+    expectedDdl << "`col_array_integer` ARRAY<INT64>, "
+    expectedDdl << "`col_array_bigint` ARRAY<INT64>, "
+    expectedDdl << "`col_array_float` ARRAY<FLOAT64>, "
+    expectedDdl << "`col_array_decimal` ARRAY<NUMERIC>, "
+    expectedDdl << "`col_array_numeric` ARRAY<NUMERIC>, "
+    expectedDdl << "`col_array_datetime` ARRAY<TIMESTAMP>, "
+    expectedDdl << "`col_array_time` ARRAY<TIMESTAMP>, "
+    expectedDdl << "`col_array_date` ARRAY<DATE>, "
+    expectedDdl << "`col_array_binary` ARRAY<BYTES(MAX)>, "
+    expectedDdl << "`col_array_boolean` ARRAY<BOOL>) "
     expectedDdl << "PRIMARY KEY (`id`)"
 
     assert_equal expectedDdl, ddl_requests[2].statements[0]

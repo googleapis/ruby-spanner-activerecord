@@ -391,4 +391,77 @@ class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     mutations = commit_requests[0].mutations
     assert_equal 3, mutations.length
   end
+
+  def test_create_all_types
+    AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
+                    col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
+                    col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+                    col_array_string: ["string1", nil, "string2"],
+                    col_array_int64: [100, nil, 200],
+                    col_array_float64: [3.14, nil, 2.0/3.0],
+                    col_array_numeric: [6.626, nil, 3.20],
+                    col_array_bool: [true, nil, false],
+                    col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
+                    col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
+                    col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
+                                          ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+
+    commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+    assert_equal 1, commit_requests.length
+    mutations = commit_requests[0].mutations
+    assert_equal 1, mutations.length
+    mutation = mutations[0]
+    assert_equal :insert, mutation.operation
+    assert_equal "all_types", mutation.insert.table
+
+    col_index = -1
+    assert_equal "col_string", mutation.insert.columns[col_index += 1]
+    assert_equal "col_int64", mutation.insert.columns[col_index += 1]
+    assert_equal "col_float64", mutation.insert.columns[col_index += 1]
+    assert_equal "col_numeric", mutation.insert.columns[col_index += 1]
+    assert_equal "col_bool", mutation.insert.columns[col_index += 1]
+    assert_equal "col_bytes", mutation.insert.columns[col_index += 1]
+    assert_equal "col_date", mutation.insert.columns[col_index += 1]
+    assert_equal "col_timestamp", mutation.insert.columns[col_index += 1]
+
+    assert_equal "col_array_string", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_int64", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_float64", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_numeric", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_bool", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_bytes", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_date", mutation.insert.columns[col_index += 1]
+    assert_equal "col_array_timestamp", mutation.insert.columns[col_index += 1]
+
+    value_index = -1
+    assert_equal 1, mutation.insert.values.length
+    assert_equal "string", mutation.insert.values[0][value_index += 1]
+    assert_equal "100", mutation.insert.values[0][value_index += 1]
+    assert_equal 3.14, mutation.insert.values[0][value_index += 1]
+    assert_equal "6.626", mutation.insert.values[0][value_index += 1]
+    assert_equal true, mutation.insert.values[0][value_index += 1]
+    assert_equal Base64.urlsafe_encode64("bytes"), mutation.insert.values[0][value_index += 1]
+    assert_equal "2021-06-23", mutation.insert.values[0][value_index += 1]
+    assert_equal "2021-06-23T15:08:21.000000000Z", mutation.insert.values[0][value_index += 1]
+
+    assert_equal create_list_value(["string1", nil, "string2"]), mutation.insert.values[0][value_index += 1]
+    assert_equal create_list_value(["100", nil, "200"]), mutation.insert.values[0][value_index += 1]
+    assert_equal create_list_value([3.14, nil, 2.0/3.0]), mutation.insert.values[0][value_index += 1]
+    assert_equal create_list_value(["6.626", nil, "3.2"]), mutation.insert.values[0][value_index += 1]
+    assert_equal true, mutation.insert.values[0][value_index += 1]
+    assert_equal Base64.urlsafe_encode64("bytes"), mutation.insert.values[0][value_index += 1]
+    assert_equal "2021-06-23", mutation.insert.values[0][value_index += 1]
+    assert_equal "2021-06-23T15:08:21.000000000Z", mutation.insert.values[0][value_index += 1]
+  end
+
+  private
+
+  def create_list_value values
+    Google::Protobuf::ListValue.new values: (values.map do |value|
+      next Google::Protobuf::Value.new null_value: "NULL_VALUE" if value.nil?
+      next Google::Protobuf::Value.new string_value: value if value.is_a?(String)
+      next Google::Protobuf::Value.new number_value: value if value.is_a?(Float)
+      raise StandardError, "Unknown value: #{value}"
+    end.to_a)
+  end
 end
