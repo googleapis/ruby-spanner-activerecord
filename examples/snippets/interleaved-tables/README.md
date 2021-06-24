@@ -8,7 +8,7 @@ on interleaved tables if you are not familiar with this concept.
 ## Creating Interleaved Tables in ActiveRecord
 You can create interleaved tables using migrations in ActiveRecord by using the following Spanner ActiveRecord specific
 methods that are defined on `TableDefinition`:
-* `interleave_in`: Specifies the which parent table a child table should be interleaved in and optionally whether
+* `interleave_in`: Specifies which parent table a child table should be interleaved in and optionally whether
   deletes of a parent record should automatically cascade delete all child records. 
 * `parent_key`: Creates a column that is a reference to (a part of) the primary key of the parent table. Each child
   table must include all the primary key columns of the parent table as a `parent_key`.
@@ -85,8 +85,8 @@ include the custom column name in the `belongs_to` and `has_many` definitions.
 
 Instances of these models can be used in the same way as any other association in ActiveRecord, but with a couple of
 inherent limitations:
-* It is not possible to change the parent record of a child record. Changing the singer of an album in the above example
-  is for example not possible, as Cloud Spanner does not allow such an update.
+* It is not possible to change the parent record of a child record. For instance, changing the singer of an album in the
+  above example is impossible, as Cloud Spanner does not allow such an update.
 * It is not possible to de-reference a parent record by setting it to null.
 * It is only possible to delete a parent record with existing child records, if the child records are also deleted. This
   can be done by enabling ON DELETE CASCADE in Cloud Spanner, or by deleting the child records using ActiveRecord.
