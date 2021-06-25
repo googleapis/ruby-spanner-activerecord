@@ -4,6 +4,8 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class Album < ActiveRecord::Base
-  belongs_to :singer
+module MockServerTests
+  class Album < ActiveRecord::Base
+    belongs_to :singer
+  end
 end

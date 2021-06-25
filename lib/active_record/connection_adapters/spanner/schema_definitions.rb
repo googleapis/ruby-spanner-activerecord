@@ -8,12 +8,23 @@ module ActiveRecord
   module ConnectionAdapters #:nodoc:
     module Spanner
       class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
-        def interleave_in
-          @options[:interleave_in] if @options
+        attr_reader :interleave_in_parent
+
+        def interleave_in parent, on_delete = nil
+          @interleave_in_parent = parent
+          @on_delete = on_delete
+        end
+
+        def parent_key name
+          column name, :parent_key, null: false
+        end
+
+        def interleave_in?
+          @interleave_in_parent != nil
         end
 
         def on_delete
-          @options[:on_delete] if @options
+          "CASCADE" if @on_delete == :cascade
         end
 
         def references *args, **options

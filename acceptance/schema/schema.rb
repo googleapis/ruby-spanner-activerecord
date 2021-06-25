@@ -88,5 +88,31 @@ ActiveRecord::Schema.define do
     create_table :organizations do |t|
       t.string :name
     end
+
+    create_table :singers, id: false do |t|
+      t.primary_key :singerid
+      t.column :first_name, :string, limit: 200
+      t.string :last_name
+      t.integer :tracks_count
+    end
+
+    create_table :albums, id: false do |t|
+      t.interleave_in :singers
+      t.primary_key :albumid
+      # `singerid` is part of the primary key in the table definition, but it is not visible to ActiveRecord as part of
+      # the primary key, to prevent ActiveRecord from considering this to be an entity with a composite primary key.
+      t.parent_key :singerid
+      t.string :title
+    end
+
+    create_table :tracks, id: false do |t|
+      # `:cascade` causes all tracks that belong to an album to automatically be deleted when an album is deleted.
+      t.interleave_in :albums, :cascade
+      t.primary_key :trackid
+      t.parent_key :singerid
+      t.parent_key :albumid
+      t.string :title
+      t.numeric :duration
+    end
   end
 end

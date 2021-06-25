@@ -327,6 +327,14 @@ module ActiveRecord
           columns.map(&:name)
         end
 
+        def primary_and_parent_keys table_name
+          columns = information_schema do |i|
+            i.table_primary_keys table_name, true
+          end
+
+          columns.map(&:name)
+        end
+
         # Foreign Keys
 
         def foreign_keys table_name, column: nil

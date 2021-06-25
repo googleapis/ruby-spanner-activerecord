@@ -146,9 +146,16 @@ module ActiveRecord
       return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
 
       metadata = TableMetadata.new self.class, self.class.arel_table
-      type = metadata.type @primary_key
+      keys = self.class.primary_and_parent_key
+      serialized_values = []
+      keys.each do |key|
+        type = metadata.type key
+        serialized_values << type.serialize(attribute_in_database(key))
+      end
       list_value = Google::Protobuf::ListValue.new(
-        values: [Google::Cloud::Spanner::Convert.object_to_grpc_value(type.serialize(id_in_database))]
+        values: serialized_values.map do |value|
+          Google::Cloud::Spanner::Convert.object_to_grpc_value value
+        end
       )
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         delete: Google::Cloud::Spanner::V1::Mutation::Delete.new(

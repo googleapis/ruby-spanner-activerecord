@@ -98,7 +98,7 @@ module ActiveRecord
         end
       end
 
-      def test_fetch_associated_recoed_with_order
+      def test_fetch_associated_record_with_order
         accounts = customer.accounts.order(credit_limit: :desc)
         assert_equal [200, 100], accounts.pluck(:credit_limit)
 

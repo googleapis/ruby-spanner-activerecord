@@ -4,8 +4,8 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-module MockServerTests
-  class Singer < ActiveRecord::Base
-    has_many :albums
+module TestInterleavedTables
+  class Album < ActiveRecord::Base
+    belongs_to :singer, foreign_key: "singerid"
   end
 end
