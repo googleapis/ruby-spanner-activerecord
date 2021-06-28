@@ -407,7 +407,7 @@ module ActiveRecord
 
           sql_type = (native.is_a?(Hash) ? native[:name] : native).dup
 
-          sql_type = "#{sql_type}(#{limit || native[:limit]})" if [:string, :text, :binary].include?(type)
+          sql_type = "#{sql_type}(#{limit || native[:limit]})" if [:string, :text, :binary].include? type
           sql_type = "ARRAY<#{sql_type}>" if opts[:array]
 
           sql_type

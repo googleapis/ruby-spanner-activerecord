@@ -12,7 +12,7 @@ module ActiveRecord
       class SpannerActiveRecordConverter
         ##
         # Converts an ActiveModel::Type to a Spanner type code.
-        def self.convert_active_model_type_to_spanner type
+        def self.convert_active_model_type_to_spanner type # rubocop:disable Metrics/CyclomaticComplexity
           case type
           when NilClass then nil
           when ActiveModel::Type::Integer, ActiveModel::Type::BigInteger then :INT64
@@ -23,6 +23,7 @@ module ActiveRecord
           when ActiveModel::Type::Decimal then :NUMERIC
           when ActiveModel::Type::DateTime, ActiveModel::Type::Time, ActiveRecord::Type::Spanner::Time then :TIMESTAMP
           when ActiveModel::Type::Date then :DATE
+          when ActiveRecord::Type::Spanner::Array then [convert_active_model_type_to_spanner(type.element_type)]
           end
         end
       end
