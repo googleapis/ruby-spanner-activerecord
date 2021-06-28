@@ -95,7 +95,7 @@ module ActiveRecord
                           col_array_bool: [false, true, false],
                           col_array_bytes: [StringIO.new("new bytes 1"), StringIO.new("new bytes 2")],
                           col_array_date: [::Date.new(2021, 6, 28)],
-                          col_array_timestamp: [::Time.new(2020, 12, 31, 0, 0, 0, "utc")]
+                          col_array_timestamp: [::Time.utc(2020, 12, 31, 0, 0, 0)]
           end
 
           # Verify that the record was updated.
@@ -117,8 +117,7 @@ module ActiveRecord
           assert_equal [StringIO.new("new bytes 1"), StringIO.new("new bytes 2")].map(&:read),
                        record.col_array_bytes.map(&:read)
           assert_equal [::Date.new(2021, 6, 28)], record.col_array_date
-          assert_equal [::Time.new(2020, 12, 31, 0, 0, 0, "utc")].map(&:utc),
-                       record.col_array_timestamp.map(&:utc)
+          assert_equal [::Time.utc(2020, 12, 31, 0, 0, 0)], record.col_array_timestamp.map(&:utc)
         end
       end
 
