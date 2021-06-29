@@ -16,6 +16,10 @@ module Arel # :nodoc: all
 
       # rubocop:disable Naming/MethodName
       def visit_Arel_Nodes_BindParam o, collector
+        # return collector.add_bind(o.value) { "PENDING_COMMIT_TIMESTAMP()" } \
+        return collector << "PENDING_COMMIT_TIMESTAMP()" \
+          if o.value.type.is_a?(ActiveRecord::Type::Spanner::Time) && o.value.value == :commit_timestamp
+
         @index += 1
         collector.add_bind(o.value) { "@#{o.value.name}_#{@index}" }
       end

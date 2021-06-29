@@ -11,6 +11,7 @@ require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
 require_relative "models/singer"
 require_relative "models/album"
+require_relative "models/table_with_commit_timestamp"
 
 require "securerandom"
 
@@ -35,6 +36,9 @@ module MockServerTests
       MockServerTests::register_albums_columns_result @mock
       MockServerTests::register_albums_primary_key_columns_result @mock
       MockServerTests::register_albums_primary_and_parent_key_columns_result @mock
+      MockServerTests::register_table_with_commit_timestamps_columns_result @mock
+      MockServerTests::register_table_with_commit_timestamps_primary_key_columns_result @mock
+      MockServerTests::register_table_with_commit_timestamps_primary_and_parent_key_columns_result @mock
       # Connect ActiveRecord to the mock server
       ActiveRecord::Base.establish_connection(
         adapter: "spanner",
@@ -60,6 +64,16 @@ module MockServerTests
       session = connection.session.instance_variable_get(:@grpc)
       @mock.abort_transaction session["name"], transaction["id"]
       true
+    end
+
+    def run_in_transaction isolation
+      if isolation
+        ActiveRecord::Base.transaction isolation: isolation do
+          yield
+        end
+      else
+        yield
+      end
     end
 
   end

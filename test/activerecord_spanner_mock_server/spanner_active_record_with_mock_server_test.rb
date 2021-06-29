@@ -392,5 +392,45 @@ module MockServerTests
       mutations = commit_requests[0].mutations
       assert_equal 3, mutations.length
     end
+
+    def test_create_record_with_commit_timestamp_using_dml
+      insert_sql = "INSERT INTO `table_with_commit_timestamps` (`value`, `last_updated`, `id`) VALUES (@value_1, PENDING_COMMIT_TIMESTAMP(), @id_2)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+
+      TableWithCommitTimestamp.transaction do
+        TableWithCommitTimestamp.create value: "v1", last_updated: :commit_timestamp
+      end
+
+      request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert request
+
+      # The parameters should only contain the fields `value` and `id`. The `last_updated` field should be supplied
+      # using the SQL literal `PENDING_COMMIT_TIMESTAMP()`, which is not allowed as a parameter value.
+      assert_equal 2, request.params.fields.length
+      assert_equal "v1", request.params["value_1"]
+      assert_equal :STRING, request.param_types["value_1"].code
+      refute request.params["last_updated_2"]
+      refute request.param_types["last_updated_2"]
+
+    end
+
+    def test_create_record_with_commit_timestamp_using_mutation
+      TableWithCommitTimestamp.transaction isolation: :buffered_mutations do
+        TableWithCommitTimestamp.create value: "v1", last_updated: :commit_timestamp
+      end
+
+      request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
+      assert request
+      assert request.mutations
+      assert_equal 1, request.mutations.length
+      mutation = request.mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "table_with_commit_timestamps", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal "v1", mutation.insert.values[0][0]
+      assert_equal "spanner.commit_timestamp()", mutation.insert.values[0][1]
+    end
   end
 end

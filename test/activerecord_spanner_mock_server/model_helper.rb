@@ -100,6 +100,15 @@ module MockServerTests
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
     )
     result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: ""),
+      Google::Protobuf::Value.new(string_value: ""),
+      Google::Protobuf::Value.new(string_value: "table_with_commit_timestamps"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      )
+    result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
@@ -236,6 +245,60 @@ module MockServerTests
 
   def self.register_albums_primary_and_parent_key_columns_result spanner_mock_server
     sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_table_with_commit_timestamps_columns_result spanner_mock_server
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='table_with_commit_timestamps' ORDER BY ORDINAL_POSITION ASC"
+
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BYTES)
+    ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "id"),
+      Google::Protobuf::Value.new(string_value: "INT64"),
+      Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "1")
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "value"),
+      Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
+      Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "2")
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "last_updated"),
+      Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
+      Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "3")
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_table_with_commit_timestamps_primary_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'table_with_commit_timestamps' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_table_with_commit_timestamps_primary_and_parent_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'table_with_commit_timestamps' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
     register_key_columns_result spanner_mock_server, sql
   end
 
