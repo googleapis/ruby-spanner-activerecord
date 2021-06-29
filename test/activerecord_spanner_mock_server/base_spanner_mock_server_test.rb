@@ -66,15 +66,5 @@ module MockServerTests
       true
     end
 
-    def run_in_transaction isolation
-      if isolation
-        ActiveRecord::Base.transaction isolation: isolation do
-          yield
-        end
-      else
-        yield
-      end
-    end
-
   end
 end
