@@ -21,7 +21,7 @@ class Application
       col_array_bytes: [StringIO.new("value1"), StringIO.new("value2")],
       col_array_date: [::Date.new(2021, 6, 23), ::Date.new(2021, 6, 28)],
       # Timestamps can be specified in any timezone, but Cloud Spanner will always convert and store them in UTC.
-      col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), ::Time.new(2021, 6, 23, 17, 8, 21, "UTC")]
+      col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), ::Time.utc(2021, 6, 23, 17, 8, 21)]
 
     # Reload the record from Cloud Spanner and print out the values.
     record = record.reload
