@@ -14,7 +14,7 @@ require_relative "models/album"
 require "securerandom"
 
 module MockServerTests
-  def self.create_random_singers_result(row_count)
+  def self.create_random_singers_result(row_count, lock_version = false)
     first_names = %w[Pete Alice John Ethel Trudy Naomi Wendy]
     last_names = %w[Wendelson Allison Peterson Johnson Henderson Ericsson]
     col_id = Google::Cloud::Spanner::V1::StructType::Field.new name: "id", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
@@ -23,9 +23,11 @@ module MockServerTests
     col_last_performance = Google::Cloud::Spanner::V1::StructType::Field.new name: "last_performance", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::TIMESTAMP)
     col_picture = Google::Cloud::Spanner::V1::StructType::Field.new name: "picture", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BYTES)
     col_revenues = Google::Cloud::Spanner::V1::StructType::Field.new name: "revenues", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::NUMERIC)
+    col_lock_version = Google::Cloud::Spanner::V1::StructType::Field.new name: "lock_version", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
     metadata.row_type.fields.push col_id, col_first_name, col_last_name, col_last_performance, col_picture, col_revenues
+    metadata.row_type.fields.push col_lock_version if lock_version
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     (1..row_count).each { |_|
@@ -37,7 +39,8 @@ module MockServerTests
         Google::Protobuf::Value.new(string_value: StatementResult.random_timestamp_string),
         Google::Protobuf::Value.new(string_value: Base64.encode64(SecureRandom.alphanumeric(SecureRandom.random_number(10..200)))),
         Google::Protobuf::Value.new(string_value: SecureRandom.random_number(1000.0..1000000.0).to_s),
-        )
+      )
+      row.values.push Google::Protobuf::Value.new(string_value: lock_version.to_s) if lock_version
       result_set.rows.push row
     }
 
@@ -107,14 +110,31 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "all_types"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      )
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: ""),
+      Google::Protobuf::Value.new(string_value: ""),
+      Google::Protobuf::Value.new(string_value: "versioned_singers"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+    )
     result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
 
   def self.register_singers_columns_result spanner_mock_server
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' ORDER BY ORDINAL_POSITION ASC"
+    register_singers_columns_result_with_options spanner_mock_server, "singers", false
+  end
+
+  def self.register_versioned_singers_columns_result spanner_mock_server
+    register_singers_columns_result_with_options spanner_mock_server, "versioned_singers", true
+  end
+
+  def self.register_singers_columns_result_with_options spanner_mock_server, table_name, with_version_column
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='#{table_name}' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -180,6 +200,17 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "6")
     )
     result_set.rows.push row
+    if with_version_column
+      row = Google::Protobuf::ListValue.new
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: "lock_version"),
+        Google::Protobuf::Value.new(string_value: "INT64"),
+        Google::Protobuf::Value.new(string_value: "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+        Google::Protobuf::Value.new(string_value: "7")
+      )
+      result_set.rows.push row
+    end
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
@@ -191,6 +222,16 @@ module MockServerTests
 
   def self.register_singers_primary_and_parent_key_columns_result spanner_mock_server
     sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_versioned_singers_primary_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'versioned_singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_versioned_singers_primary_and_parent_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'versioned_singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
     register_key_columns_result spanner_mock_server, sql
   end
 
