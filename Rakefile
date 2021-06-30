@@ -31,7 +31,7 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   emulator_host = args[:emulator_host]
   emulator_host ||= ENV["SPANNER_EMULATOR_HOST"]
   keyfile = args[:keyfile]
-  keyfile ||= ENV["SPANNER_TEST_KEYFILE"] || ENV["GCLOUD_TEST_KEYFILE"]
+  keyfile ||= ENV["SPANNER_TEST_KEYFILE"] || ENV["GCLOUD_TEST_KEYFILE"] || ENV["GOOGLE_APPLICATION_CREDENTIALS"]
   if keyfile
     keyfile = File.read keyfile
   else

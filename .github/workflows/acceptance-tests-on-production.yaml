@@ -1,0 +1,32 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+name: acceptance tests on production
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      max-parallel: 4
+      matrix:
+        ruby: [3.0]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Ruby
+    # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby
+    # (see https://github.com/ruby/setup-ruby#versioning):
+      uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: ${{ matrix.ruby }}
+    - name: Install dependencies
+      run: bundle install
+    - name: Run acceptance tests on production
+      # TODO: Determine whether to run all acceptance tests on production, or only some.
+      # run: bundle exec rake acceptance\[,,,cases/transactions\]
+      run: bundle exec rake acceptance
+      env:
+        SPANNER_TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        SPANNER_TEST_INSTANCE: ruby-activerecord-test
