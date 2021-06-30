@@ -11,6 +11,7 @@ require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
 require_relative "models/singer"
 require_relative "models/album"
+require_relative "models/all_types"
 
 require "securerandom"
 
@@ -35,6 +36,9 @@ module MockServerTests
       MockServerTests::register_albums_columns_result @mock
       MockServerTests::register_albums_primary_key_columns_result @mock
       MockServerTests::register_albums_primary_and_parent_key_columns_result @mock
+      MockServerTests::register_all_types_columns_result @mock
+      MockServerTests::register_all_types_primary_key_columns_result @mock
+      MockServerTests::register_all_types_primary_and_parent_key_columns_result @mock
       # Connect ActiveRecord to the mock server
       ActiveRecord::Base.establish_connection(
         adapter: "spanner",

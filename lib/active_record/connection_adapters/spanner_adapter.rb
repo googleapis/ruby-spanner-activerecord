@@ -14,6 +14,7 @@ require "active_record/connection_adapters/spanner/schema_cache"
 require "active_record/connection_adapters/spanner/schema_definitions"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
+require "active_record/type/spanner/array"
 require "active_record/type/spanner/bytes"
 require "active_record/type/spanner/spanner_active_record_converter"
 require "active_record/type/spanner/time"
@@ -192,7 +193,18 @@ module ActiveRecord
         register_class_with_limit m, %r{^STRING}i, Type::String
         m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
 
-        # TODO: Array and Struct
+        register_array_types m
+      end
+
+      def register_array_types m
+        m.register_type %r{^ARRAY<BOOL>}i, Type::Spanner::Array.new(Type::Boolean.new)
+        m.register_type %r{^ARRAY<BYTES\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::Binary.new)
+        m.register_type %r{^ARRAY<DATE>}i, Type::Spanner::Array.new(Type::Date.new)
+        m.register_type %r{^ARRAY<FLOAT64>}i, Type::Spanner::Array.new(Type::Float.new)
+        m.register_type %r{^ARRAY<NUMERIC>}i, Type::Spanner::Array.new(Type::Decimal.new)
+        m.register_type %r{^ARRAY<INT64>}i, Type::Spanner::Array.new(Type::Integer.new(limit: 8))
+        m.register_type %r{^ARRAY<STRING\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::String.new)
+        m.register_type %r{^ARRAY<TIMESTAMP>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Time.new)
       end
 
       def extract_limit sql_type

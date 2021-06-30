@@ -21,6 +21,19 @@ class CreateAllNativeMigrationTypes < ActiveRecord::Migration[6.0]
       t.column :col_date, :date
       t.column :col_binary, :binary
       t.column :col_boolean, :boolean
+
+      t.column :col_array_string, :string, array: true
+      t.column :col_array_text, :text, array: true
+      t.column :col_array_integer, :integer, array: true
+      t.column :col_array_bigint, :bigint, array: true
+      t.column :col_array_float, :float, array: true
+      t.column :col_array_decimal, :decimal, array: true
+      t.column :col_array_numeric, :numeric, array: true
+      t.column :col_array_datetime, :datetime, array: true
+      t.column :col_array_time, :time, array: true
+      t.column :col_array_date, :date, array: true
+      t.column :col_array_binary, :binary, array: true
+      t.column :col_array_boolean, :boolean, array: true
     end
   end
 end
