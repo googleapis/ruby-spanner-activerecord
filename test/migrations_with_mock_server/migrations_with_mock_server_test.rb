@@ -225,6 +225,28 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
 
+    def test_create_table_with_generated_column
+      context = ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+        ActiveRecord::SchemaMigration
+      )
+
+      register_version_result "1", "6"
+
+      context.migrate 6
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 1, ddl_requests[2].statements.length
+
+      expectedDdl = "CREATE TABLE `singers` "
+      expectedDdl << "(`id` INT64 NOT NULL, `first_name` STRING(100), `last_name` STRING(200), "
+      expectedDdl << "`full_name` STRING(300) AS (COALESCE(first_name || ' ', '') || last_name) STORED) "
+      expectedDdl << "PRIMARY KEY (`id`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
+    end
+
     def register_schema_migrations_table_result
       sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='schema_migrations'"
       register_empty_select_tables_result sql
