@@ -203,6 +203,35 @@ module ActiveRecord
           end
         end
       end
+
+      def test_create_commit_timestamp
+        [nil, :serializable, :buffered_mutations].each do |isolation|
+          current_timestamp = Organization.connection.select_all("SELECT CURRENT_TIMESTAMP() AS t").to_a[0]["t"]
+          organization = nil
+          run_in_transaction isolation do
+            organization = Organization.create name: "Org with commit timestamp", last_updated: :commit_timestamp
+          end
+
+          organization.reload
+          assert organization.last_updated
+          assert organization.last_updated > current_timestamp
+        end
+      end
+
+      def test_update_commit_timestamp
+        [nil, :serializable, :buffered_mutations].each do |isolation|
+          organization = Organization.create name: "Org without commit timestamp"
+          current_timestamp = Organization.connection.select_all("SELECT CURRENT_TIMESTAMP() AS t").to_a[0]["t"]
+
+          run_in_transaction isolation do
+            organization.update last_updated: :commit_timestamp
+          end
+
+          organization.reload
+          assert organization.last_updated
+          assert organization.last_updated > current_timestamp
+        end
+      end
     end
   end
 end
