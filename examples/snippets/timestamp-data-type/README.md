@@ -1,11 +1,9 @@
-# Sample - Date Data Type
+# Sample - Timestamp Data Type
 
-This example shows how to use the `DATE` data type with the Spanner ActiveRecord adapter. A `DATE` is a
-timezone-independent date. It does not designate a specific point in time, such as for example UTC midnight of the date.
-If you create a timezone-specific date/time object in Ruby and assign it to a `DATE` attribute, all time and timezone
-information will be lost after saving and reloading the object.
-
-Use the `TIMESTAMP` data type for attributes that represent a specific point in time.
+This example shows how to use the `TIMESTAMP` data type with the Spanner ActiveRecord adapter. A `TIMESTAMP` represents
+a specific point in time. Cloud Spanner always stores the timestamp in UTC, and it is not possible to include a
+specific timezone in a timestamp value in Cloud Spanner. Instead, a separate column containing a timezone can be used
+if your application needs to store both a timestamp and a timezone. This sample shows how to do this.
 
 ## Running the Sample
 
