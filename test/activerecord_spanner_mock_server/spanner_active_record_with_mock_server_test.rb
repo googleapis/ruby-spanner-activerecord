@@ -432,5 +432,166 @@ module MockServerTests
       assert_equal "v1", mutation.insert.values[0][0]
       assert_equal "spanner.commit_timestamp()", mutation.insert.values[0][1]
     end
+
+    def test_create_all_types_using_mutation
+      AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
+                      col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
+                      col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+                      col_array_string: ["string1", nil, "string2"],
+                      col_array_int64: [100, nil, 200],
+                      col_array_float64: [3.14, nil, 2.0/3.0],
+                      col_array_numeric: [6.626, nil, 3.20],
+                      col_array_bool: [true, nil, false],
+                      col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
+                      col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
+                      col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
+                                            ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 1, mutations.length
+      mutation = mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "all_types", mutation.insert.table
+
+      col_index = -1
+      assert_equal "col_string", mutation.insert.columns[col_index += 1]
+      assert_equal "col_int64", mutation.insert.columns[col_index += 1]
+      assert_equal "col_float64", mutation.insert.columns[col_index += 1]
+      assert_equal "col_numeric", mutation.insert.columns[col_index += 1]
+      assert_equal "col_bool", mutation.insert.columns[col_index += 1]
+      assert_equal "col_bytes", mutation.insert.columns[col_index += 1]
+      assert_equal "col_date", mutation.insert.columns[col_index += 1]
+      assert_equal "col_timestamp", mutation.insert.columns[col_index += 1]
+
+      assert_equal "col_array_string", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_int64", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_float64", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_numeric", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_bool", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_bytes", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_date", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_timestamp", mutation.insert.columns[col_index += 1]
+
+      value_index = -1
+      assert_equal 1, mutation.insert.values.length
+      assert_equal "string", mutation.insert.values[0][value_index += 1]
+      assert_equal "100", mutation.insert.values[0][value_index += 1]
+      assert_equal 3.14, mutation.insert.values[0][value_index += 1]
+      assert_equal "6.626", mutation.insert.values[0][value_index += 1]
+      assert_equal true, mutation.insert.values[0][value_index += 1]
+      assert_equal Base64.urlsafe_encode64("bytes"), mutation.insert.values[0][value_index += 1]
+      assert_equal "2021-06-23", mutation.insert.values[0][value_index += 1]
+      assert_equal "2021-06-23T15:08:21.000000000Z", mutation.insert.values[0][value_index += 1]
+
+      assert_equal create_list_value(["string1", nil, "string2"]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value(["100", nil, "200"]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value([3.14, nil, 2.0/3.0]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value(["6.626", nil, "3.2"]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value([true, nil, false]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value([
+          Base64.urlsafe_encode64("bytes1"),
+          nil,
+          Base64.urlsafe_encode64("bytes2")
+        ]), mutation.insert.values[0][value_index += 1]
+      assert_equal \
+        create_list_value(["2021-06-23", nil, "2021-06-24"]),
+        mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value([
+          "2021-06-23T15:08:21.000000000Z",
+          nil,
+          "2021-06-24T15:08:21.000000000Z"
+        ]), mutation.insert.values[0][value_index += 1]
+    end
+
+    def test_create_all_types_using_dml
+      sql = "INSERT INTO `all_types` (`col_string`, `col_int64`, `col_float64`, `col_numeric`, `col_bool`, " \
+            "`col_bytes`, `col_date`, `col_timestamp`, `col_array_string`, `col_array_int64`, `col_array_float64`, "\
+            "`col_array_numeric`, `col_array_bool`, `col_array_bytes`, `col_array_date`, `col_array_timestamp`, `id`) "\
+            "VALUES (@col_string_1, @col_int64_2, @col_float64_3, @col_numeric_4, @col_bool_5, @col_bytes_6, " \
+            "@col_date_7, @col_timestamp_8, @col_array_string_9, @col_array_int64_10, @col_array_float64_11, " \
+            "@col_array_numeric_12, @col_array_bool_13, @col_array_bytes_14, @col_array_date_15, " \
+            "@col_array_timestamp_16, @id_17)"
+      @mock.put_statement_result sql, StatementResult.new(1)
+
+      AllTypes.transaction do
+        AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
+                        col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
+                        col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+                        col_array_string: ["string1", nil, "string2"],
+                        col_array_int64: [100, nil, 200],
+                        col_array_float64: [3.14, nil, 2.0/3.0],
+                        col_array_numeric: [6.626, nil, 3.20],
+                        col_array_bool: [true, nil, false],
+                        col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
+                        col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
+                        col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
+                                              ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+      end
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+      assert_equal 1, commit_requests.length
+      assert_empty commit_requests[0].mutations
+
+      request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }.first
+      assert request
+
+      assert_equal "string", request.params["col_string_1"]
+      assert_equal :STRING, request.param_types["col_string_1"].code
+      assert_equal "100", request.params["col_int64_2"]
+      assert_equal :INT64, request.param_types["col_int64_2"].code
+      assert_equal 3.14, request.params["col_float64_3"]
+      assert_equal :FLOAT64, request.param_types["col_float64_3"].code
+      assert_equal "6.626", request.params["col_numeric_4"]
+      assert_equal :NUMERIC, request.param_types["col_numeric_4"].code
+      assert_equal true, request.params["col_bool_5"]
+      assert_equal :BOOL, request.param_types["col_bool_5"].code
+      assert_equal Base64.urlsafe_encode64("bytes"), request.params["col_bytes_6"]
+      assert_equal :BYTES, request.param_types["col_bytes_6"].code
+      assert_equal "2021-06-23", request.params["col_date_7"]
+      assert_equal :DATE, request.param_types["col_date_7"].code
+      assert_equal "2021-06-23T15:08:21.000000000Z", request.params["col_timestamp_8"]
+      assert_equal :TIMESTAMP, request.param_types["col_timestamp_8"].code
+
+      assert_equal create_list_value(["string1", nil, "string2"]), request.params["col_array_string_9"]
+      assert_equal :ARRAY, request.param_types["col_array_string_9"].code
+      assert_equal :STRING, request.param_types["col_array_string_9"].array_element_type.code
+      assert_equal create_list_value(["100", nil, "200"]), request.params["col_array_int64_10"]
+      assert_equal :ARRAY, request.param_types["col_array_int64_10"].code
+      assert_equal :INT64, request.param_types["col_array_int64_10"].array_element_type.code
+      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["col_array_float64_11"]
+      assert_equal :ARRAY, request.param_types["col_array_float64_11"].code
+      assert_equal :FLOAT64, request.param_types["col_array_float64_11"].array_element_type.code
+      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["col_array_numeric_12"]
+      assert_equal :ARRAY, request.param_types["col_array_numeric_12"].code
+      assert_equal :NUMERIC, request.param_types["col_array_numeric_12"].array_element_type.code
+      assert_equal create_list_value([true, nil, false]), request.params["col_array_bool_13"]
+      assert_equal :ARRAY, request.param_types["col_array_bool_13"].code
+      assert_equal :BOOL, request.param_types["col_array_bool_13"].array_element_type.code
+      assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
+                   request.params["col_array_bytes_14"]
+      assert_equal :ARRAY, request.param_types["col_array_bytes_14"].code
+      assert_equal :BYTES, request.param_types["col_array_bytes_14"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["col_array_date_15"]
+      assert_equal :ARRAY, request.param_types["col_array_date_15"].code
+      assert_equal :DATE, request.param_types["col_array_date_15"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
+                   request.params["col_array_timestamp_16"]
+      assert_equal :ARRAY, request.param_types["col_array_timestamp_16"].code
+      assert_equal :TIMESTAMP, request.param_types["col_array_timestamp_16"].array_element_type.code
+    end
+
+    private
+
+    def create_list_value values
+      Google::Protobuf::ListValue.new values: (values.map do |value|
+        next Google::Protobuf::Value.new null_value: "NULL_VALUE" if value.nil?
+        next Google::Protobuf::Value.new string_value: value if value.is_a?(String)
+        next Google::Protobuf::Value.new number_value: value if value.is_a?(Float)
+        next Google::Protobuf::Value.new bool_value: value if [true, false].include?(value)
+        raise StandardError, "Unknown value: #{value}"
+      end.to_a)
+    end
   end
 end
