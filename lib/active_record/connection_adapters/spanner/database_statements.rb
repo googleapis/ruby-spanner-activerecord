@@ -30,16 +30,7 @@ module ActiveRecord
           materialize_transactions
 
           log sql, name do
-            types = binds.enum_for(:each_with_index).map do |bind, i|
-              [
-                "#{bind.name}_#{i + 1}",
-                ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                  .convert_active_model_type_to_spanner(bind.type)
-              ]
-            end.to_h
-            params = binds.enum_for(:each_with_index).map do |v, i|
-              ["#{v.name}_#{i + 1}", v.type.serialize(v.value)]
-            end.to_h
+            types, params = to_types_and_params binds
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               if transaction_required
                 transaction do
@@ -181,6 +172,22 @@ module ActiveRecord
         end
 
         private
+
+        # Translates binds to Spanner types and params.
+        def to_types_and_params binds
+          types = binds.enum_for(:each_with_index).map do |bind, i|
+            [
+              "#{bind.name}_#{i + 1}",
+              ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                .convert_active_model_type_to_spanner(bind.type)
+            ]
+          end.to_h
+          params = binds.enum_for(:each_with_index).map do |v, i|
+            value = v.type.method(:serialize).arity < 0 ? v.type.serialize(v.value, :dml) : v.type.serialize(v.value)
+            ["#{v.name}_#{i + 1}", value]
+          end.to_h
+          [types, params]
+        end
 
         # An insert/update/delete statement could use mutations in some specific circumstances.
         # This method returns an indication whether a specific operation should use mutations instead of DML
