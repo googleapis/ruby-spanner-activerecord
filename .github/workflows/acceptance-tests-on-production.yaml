@@ -30,9 +30,7 @@ jobs:
     - name: Install dependencies
       run: bundle install
     - name: Run acceptance tests on production
-      # TODO: Determine whether to run all acceptance tests on production, or only some.
-      # run: bundle exec rake acceptance\[,,,cases/transactions\]
-      run: bundle exec rake acceptance
+      run: bundle exec rake acceptance\[,,,"exclude cases/migration"\]
       env:
         SPANNER_TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
         SPANNER_TEST_INSTANCE: ruby-activerecord-test
