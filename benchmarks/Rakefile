@@ -9,10 +9,6 @@ require "sinatra/activerecord/rake"
 
 desc "Runs benchmarks against a Cloud Spanner database."
 task :run do |_t, _args|
-  ENV["BENCHMARK-PROJECT"] = "appdev-soda-spanner-staging"
-  ENV["BENCHMARK-INSTANCE"] = "test-instance"
-  ENV["BENCHMARK-DATABASE"] = "testdb_941233300_0000"
-
-  # sh "rake db:migrate"
+  sh "rake db:migrate"
   sh "ruby application.rb"
 end
