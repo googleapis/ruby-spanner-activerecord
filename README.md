@@ -74,7 +74,7 @@ Lack of sequential and auto-assigned IDs|Cloud Spanner doesn't autogenerate IDs 
 Table without Primary Key| Cloud Spanner support does not support tables without a primary key.| Always define a primary key for your table.
 Table names CANNOT have spaces within them whether back-ticked or not|Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`|Ensure that your table names don't contain spaces.
 Table names CANNOT have punctuation marks and MUST contain valid UTF-8|Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names|Ensure that your table names don't contain punctuation marks.
-Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not supports index with fields length | Ensure that your database definition does not include index definitions with field lengths.
+Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not support index with fields length | Ensure that your database definition does not include index definitions with field lengths.
 
 ## Contributing
 
