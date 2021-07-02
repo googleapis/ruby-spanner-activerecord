@@ -1,0 +1,36 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+name: acceptance tests on production
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      max-parallel: 4
+      matrix:
+        ruby: [3.0]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Ruby
+    # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby
+    # (see https://github.com/ruby/setup-ruby#versioning):
+      uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: ${{ matrix.ruby }}
+    - name: Setup GCloud
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Install dependencies
+      run: bundle install
+    - name: Run acceptance tests on production
+      run: bundle exec rake acceptance\[,,,"exclude cases/migration"\]
+      env:
+        SPANNER_TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        SPANNER_TEST_INSTANCE: ruby-activerecord-test
