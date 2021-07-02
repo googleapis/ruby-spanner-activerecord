@@ -7,8 +7,6 @@
 require "io/console"
 require_relative "../config/environment"
 require_relative "models/singer"
-require_relative "models/album"
-require_relative "models/track"
 
 class Application
   def self.run
