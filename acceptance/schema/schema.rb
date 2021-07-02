@@ -107,6 +107,7 @@ ActiveRecord::Schema.define do
 
     create_table :organizations do |t|
       t.string :name
+      t.datetime :last_updated, allow_commit_timestamp: true
     end
 
     create_table :singers, id: false do |t|

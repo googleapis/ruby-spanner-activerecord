@@ -91,7 +91,7 @@ module ActiveRecord
       columns = []
       values.each_pair do |k, v|
         type = metadata.type k
-        serialized_values << type.serialize(v)
+        serialized_values << (type.method(:serialize).arity < 0 ? type.serialize(v, :mutation) : type.serialize(v))
         columns << metadata.arel_attribute(k).name
       end
       [columns, Google::Protobuf::Value.new(list_value:
@@ -141,7 +141,8 @@ module ActiveRecord
       all_values.each do |h|
         h.each_pair do |k, v|
           type = metadata.type k
-          all_serialized_values << type.serialize(v)
+          has_serialize_options = type.method(:serialize).arity < 0
+          all_serialized_values << (has_serialize_options ? type.serialize(v, :mutation) : type.serialize(v))
           all_columns << metadata.arel_attribute(k).name
         end
       end
@@ -167,11 +168,7 @@ module ActiveRecord
 
       metadata = TableMetadata.new self.class, self.class.arel_table
       keys = self.class.primary_and_parent_key
-      serialized_values = []
-      keys.each do |key|
-        type = metadata.type key
-        serialized_values << type.serialize(attribute_in_database(key))
-      end
+      serialized_values = serialize_keys metadata, keys
       list_value = Google::Protobuf::ListValue.new(
         values: serialized_values.map do |value|
           Google::Cloud::Spanner::Convert.object_to_grpc_value value
@@ -185,6 +182,17 @@ module ActiveRecord
       )
       Base.connection.current_spanner_transaction.buffer mutation
       1 # Affected rows
+    end
+
+    def serialize_keys metadata, keys
+      serialized_values = []
+      keys.each do |key|
+        type = metadata.type key
+        has_serialize_options = type.method(:serialize).arity < 0
+        serialized_values << type.serialize(attribute_in_database(key), :mutation) if has_serialize_options
+        serialized_values << type.serialize(attribute_in_database(key)) unless has_serialize_options
+      end
+      serialized_values
     end
 
     def _execute_version_check attempted_action
