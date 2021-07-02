@@ -39,14 +39,15 @@ def spanner
 end
 
 def spanner_instance
-  if ENV["SPANNER_EMULATOR_HOST"]
-    unless spanner.instance ENV["SPANNER_TEST_INSTANCE"]
-      job = spanner.create_instance ENV["SPANNER_TEST_INSTANCE"],
-                                    name:   "Automatically Created Test Instance",
-                                    config: "emulator-config",
-                                    nodes:  1
-      job.wait_until_done!
-    end
+  unless spanner.instance ENV["SPANNER_TEST_INSTANCE"]
+    config = ENV["SPANNER_EMULATOR_HOST"] ? "emulator-config" : "regional-us-central1"
+    puts "Creating test instance #{ENV["SPANNER_TEST_INSTANCE"]} with config #{config}"
+    job = spanner.create_instance ENV["SPANNER_TEST_INSTANCE"],
+                                  name:   "ActiveRecord Test Instance",
+                                  config: config,
+                                  nodes:  1
+    job.wait_until_done!
+    $owned_test_instance = true
   end
   $spanner_instance ||= spanner.instance ENV["SPANNER_TEST_INSTANCE"]
 end
@@ -66,9 +67,12 @@ def create_test_database
 end
 
 def drop_test_database
-  spanner_instance.database($spanner_test_database)&.drop
+  ActiveRecord::Base.connection_pool.disconnect!
+  spanner_instance&.delete if $owned_test_instance
+  spanner_instance.database($spanner_test_database)&.drop unless $owned_test_instance
 
-  puts "#{$spanner_test_database} database deleted"
+  puts "Test instance #{spanner_instance} deleted" if $owned_test_instance
+  puts "#{$spanner_test_database} database deleted" unless $owned_test_instance
 end
 
 def current_adapter? *names
