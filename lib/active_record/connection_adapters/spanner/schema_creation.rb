@@ -119,6 +119,17 @@ module ActiveRecord
                    "#{options[:allow_commit_timestamp]})"
           end
 
+          if (as = options[:as])
+            sql << " AS (#{as})"
+
+            sql << " STORED" if options[:stored]
+            unless options[:stored]
+              raise ArgumentError, "" \
+                "Cloud Spanner currently does not support generated columns without the STORED option." \
+                "Specify 'stored: true' option for `#{options[:column].name}`"
+            end
+          end
+
           sql
         end
       end
