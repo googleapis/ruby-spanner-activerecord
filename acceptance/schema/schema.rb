@@ -115,6 +115,7 @@ ActiveRecord::Schema.define do
       t.column :first_name, :string, limit: 200
       t.string :last_name
       t.integer :tracks_count
+      t.string :full_name, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
     end
 
     create_table :albums, id: false do |t|
