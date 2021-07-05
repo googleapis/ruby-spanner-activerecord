@@ -115,6 +115,7 @@ ActiveRecord::Schema.define do
       t.column :first_name, :string, limit: 200
       t.string :last_name
       t.integer :tracks_count
+      t.integer :lock_version
       t.string :full_name, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
     end
 
@@ -125,6 +126,7 @@ ActiveRecord::Schema.define do
       # the primary key, to prevent ActiveRecord from considering this to be an entity with a composite primary key.
       t.parent_key :singerid
       t.string :title
+      t.integer :lock_version
     end
 
     create_table :tracks, id: false do |t|
@@ -135,6 +137,7 @@ ActiveRecord::Schema.define do
       t.parent_key :albumid
       t.string :title
       t.numeric :duration
+      t.integer :lock_version
     end
   end
 end
