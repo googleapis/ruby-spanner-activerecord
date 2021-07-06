@@ -102,15 +102,11 @@ module TestInterleavedTables
     end
 
     def test_update_album
-      sql_singer = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @singerid_1 LIMIT @LIMIT_2"
-      @mock.put_statement_result sql_singer, TestInterleavedTables::create_random_singers_result(1)
-      singer = Singer.find 1
-
       sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @albumid_1 LIMIT @LIMIT_2"
       @mock.put_statement_result sql_album, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find 1
 
-      album.update singer: singer, title: "New Title"
+      album.update title: "New Title"
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length
       mutation = commit_request.mutations[0]
@@ -120,13 +116,13 @@ module TestInterleavedTables
       assert_equal 1, mutation.update.values.length
 
       assert_equal 3, mutation.update.columns.length
-      assert_equal "albumid", mutation.update.columns[0]
-      assert_equal "singerid", mutation.update.columns[1]
+      assert_equal "singerid", mutation.update.columns[0]
+      assert_equal "albumid", mutation.update.columns[1]
       assert_equal "title", mutation.update.columns[2]
 
       assert_equal 3, mutation.update.values[0].length
-      assert_equal album.albumid, mutation.update.values[0][0].to_i
-      assert_equal singer.singerid, mutation.update.values[0][1].to_i
+      assert_equal album.singerid, mutation.update.values[0][0].to_i
+      assert_equal album.albumid, mutation.update.values[0][1].to_i
       assert_equal "New Title", mutation.update.values[0][2]
     end
 
@@ -218,15 +214,19 @@ module TestInterleavedTables
 
       assert_equal 1, mutation.update.values.length
 
-      assert_equal 3, mutation.update.columns.length
-      assert_equal "trackid", mutation.update.columns[0]
-      assert_equal "title", mutation.update.columns[1]
-      assert_equal "duration", mutation.update.columns[2]
+      assert_equal 5, mutation.update.columns.length
+      assert_equal "singerid", mutation.update.columns[0]
+      assert_equal "albumid", mutation.update.columns[1]
+      assert_equal "trackid", mutation.update.columns[2]
+      assert_equal "title", mutation.update.columns[3]
+      assert_equal "duration", mutation.update.columns[4]
 
-      assert_equal 3, mutation.update.values[0].length
-      assert_equal track.trackid, mutation.update.values[0][0].to_i
-      assert_equal "New Title", mutation.update.values[0][1]
-      assert_equal "3.14", mutation.update.values[0][2]
+      assert_equal 5, mutation.update.values[0].length
+      assert_equal track.singerid, mutation.update.values[0][2].to_i
+      assert_equal track.albumid, mutation.update.values[0][2].to_i
+      assert_equal track.trackid, mutation.update.values[0][2].to_i
+      assert_equal "New Title", mutation.update.values[0][3]
+      assert_equal "3.14", mutation.update.values[0][4]
     end
 
     def test_destroy_track

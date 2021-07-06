@@ -106,10 +106,15 @@ module ActiveRecord
     def _update_row attribute_names, attempted_action = "update"
       return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
 
+      if locking_enabled?
+        _execute_version_check attempted_action
+        attribute_names << self.class.locking_column
+        self[self.class.locking_column] += 1
+      end
+
       metadata = TableMetadata.new self.class, self.class.arel_table
       values = attributes_with_values attribute_names
-      constraints = { @primary_key => id_in_database }
-      columns, grpc_values = _create_grpc_values_for_update metadata, constraints, values
+      columns, grpc_values = _create_grpc_values_for_update metadata, values
 
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         update: Google::Cloud::Spanner::V1::Mutation::Write.new(
@@ -122,7 +127,13 @@ module ActiveRecord
       1 # Affected rows
     end
 
-    def _create_grpc_values_for_update metadata, constraints, values
+    def _create_grpc_values_for_update metadata, values
+      constraints = {}
+      keys = self.class.primary_and_parent_key
+      keys.each do |key|
+        constraints[key] = attribute_in_database key
+      end
+
       # Use both the where values + the values that are actually set.
       all_values = [constraints, values]
       all_serialized_values = []
@@ -143,8 +154,17 @@ module ActiveRecord
         ))]
     end
 
+    def destroy_row
+      return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+
+      _delete_row
+    end
+
     def _delete_row
       return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      if locking_enabled?
+        _execute_version_check "destroy"
+      end
 
       metadata = TableMetadata.new self.class, self.class.arel_table
       keys = self.class.primary_and_parent_key
@@ -173,6 +193,19 @@ module ActiveRecord
         serialized_values << type.serialize(attribute_in_database(key)) unless has_serialize_options
       end
       serialized_values
+    end
+
+    def _execute_version_check attempted_action
+      locking_column = self.class.locking_column
+      previous_lock_value = read_attribute_before_type_cast locking_column
+
+      # We need to check the version using a SELECT query, as a mutation cannot include a WHERE clause.
+      sql = "SELECT 1 FROM `#{self.class.arel_table.name}` " \
+              "WHERE `#{self.class.primary_key}` = @id AND `#{locking_column}` = @lock_version"
+      params = { "id" => id_in_database, "lock_version" => previous_lock_value }
+      param_types = { "id" => :INT64, "lock_version" => :INT64 }
+      locked_row = Base.connection.raw_connection.execute_query sql, params: params, types: param_types
+      raise ActiveRecord::StaleObjectError.new(self, attempted_action) unless locked_row.rows.any?
     end
   end
 end
