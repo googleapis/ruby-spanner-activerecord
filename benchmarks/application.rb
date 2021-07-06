@@ -130,7 +130,6 @@ class Application
     Singer.transaction isolation: :buffered_mutations do
       count.times do
         last_singer = Singer.create first_name: first_names.sample, last_name: last_names.sample,
-                                    full_name: "Pete Allison",
                                     birth_date: Date.new(rand(1920..2005), rand(1..12), rand(1..28)),
                                     picture: StringIO.new("some-picture-#{SecureRandom.uuid}")
       end
