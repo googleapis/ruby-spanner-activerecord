@@ -12,20 +12,25 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize
+  def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     config = ActiveRecord::Base.connection_config
     spanner = Google::Cloud::Spanner.new project: config[:project], credentials: config[:credentials]
     spanner_client = spanner.client config[:instance], config[:database], pool: { max: config[:pool], fail: false }
 
-    [nil, spanner_client].each do |client|
+    [nil, spanner_client].each do |client| # rubocop:disable Metrics/BlockLength
       puts ""
       puts ""
       puts "Benchmarks for #{client ? 'Spanner client' : 'ActiveRecord'}"
       Album.delete_all
       Singer.delete_all
 
-      # Seed the database with 100 random singers.
-      singer = create_singers 100, client
+      # Seed the database with 10,000 random singers.
+      # Having a relatively large number of records in the database prevents the parallel test cases from using the same
+      # records, which would cause many of the transactions to be aborted and retried all the time.
+      singer = nil
+      10.times do
+        singer = create_singers 1000, client
+      end
 
       execute_individual_benchmarks singer, client
 
@@ -36,9 +41,11 @@ class Application
             parallel_benchmarks.times do
               threads << Thread.new do
                 benchmark_select_one_singer singer, client
+                benchmark_select_and_update_using_mutation 1, client
+                benchmark_select_and_update_using_dml 1, client
                 benchmark_create_and_reload client
-                benchmark_create_albums_using_mutations client
-                benchmark_create_album_using_dml client
+                benchmark_create_albums_using_mutations 1, client
+                benchmark_create_albums_using_dml 1, client
                 benchmark_select_100_singers client
                 benchmark_select_100_singers_in_read_only_transaction client
                 benchmark_select_100_singers_in_read_write_transaction client
@@ -60,7 +67,7 @@ class Application
 
   def self.execute_individual_benchmarks singer, client
     puts ""
-    Benchmark.bm 75 do |bm|
+    Benchmark.bm 75 do |bm| # rubocop:disable Metrics/BlockLength
       bm.report "Select one row:" do
         benchmark_select_one_singer singer, client
       end
@@ -69,12 +76,28 @@ class Application
         benchmark_create_and_reload client
       end
 
-      bm.report "Create 100 albums using mutations:" do
-        benchmark_create_albums_using_mutations client
+      bm.report "Select and update 1 row in transaction using mutation:" do
+        benchmark_select_and_update_using_mutation 1, client
       end
 
-      bm.report "Create album using DML:" do
-        benchmark_create_album_using_dml client
+      bm.report "Select and update 1 row in transaction using DML:" do
+        benchmark_select_and_update_using_dml 1, client
+      end
+
+      bm.report "Select and update 25 rows in transaction using mutation:" do
+        benchmark_select_and_update_using_mutation 25, client
+      end
+
+      bm.report "Select and update 25 rows in transaction using DML:" do
+        benchmark_select_and_update_using_dml 25, client
+      end
+
+      bm.report "Create 100 albums using mutations:" do
+        benchmark_create_albums_using_mutations 100, client
+      end
+
+      bm.report "Create 100 albums using DML:" do
+        benchmark_create_albums_using_dml 100, client
       end
 
       bm.report "Select and iterate over 100 singers:" do
@@ -118,38 +141,79 @@ class Application
     end
   end
 
-  def self.benchmark_create_albums_using_mutations client
-    create_albums 100, :buffered_mutations, client
+  def self.benchmark_select_and_update_using_mutation count, client
+    benchmark_select_and_update count, :buffered_mutations, client
   end
 
-  def self.benchmark_create_album_using_dml client
-    create_albums 1, :serializable, client
+  def self.benchmark_select_and_update_using_dml count, client
+    benchmark_select_and_update count, :serializable, client
+  end
+
+  def self.benchmark_select_and_update count, isolation, client
+    # Select some random singers OUTSIDE of a transaction to prevent the random select to cause transactions to abort.
+    sql = "SELECT id FROM singers TABLESAMPLE RESERVOIR (#{count} ROWS)"
+    rows = Singer.connection.select_all(sql).to_a
+    if client
+      client.transaction do |transaction|
+        rows.each do |row|
+          singer = transaction.execute("SELECT * FROM singers WHERE id=@id",
+                                       params: { id: row["id"] },
+                                       types:  { id: :INT64 }).rows.first
+          if isolation == :buffered_mutations
+            transaction.update "singers", id: singer[:id], last_name: SecureRandom.uuid
+          else
+            params      = { id: singer[:id], last_name: SecureRandom.uuid }
+            param_types = { id: :INT64, last_name: :STRING }
+            transaction.execute_update "UPDATE singers SET last_name=@last_name WHERE id=@id",
+                                       params: params,
+                                       types: param_types
+          end
+        end
+      end
+    else
+      Singer.transaction isolation: isolation do
+        rows.each do |row|
+          singer = Singer.find row["id"]
+          singer.update last_name: SecureRandom.uuid
+        end
+      end
+    end
+  end
+
+  def self.benchmark_create_albums_using_mutations count, client
+    create_albums count, :buffered_mutations, client
+  end
+
+  def self.benchmark_create_albums_using_dml count, client
+    create_albums count, :serializable, client
   end
 
   def self.benchmark_select_100_singers client
+    sql = "SELECT * FROM singers TABLESAMPLE RESERVOIR (100 ROWS)"
     count = 0
     if client
-      client.execute("SELECT * FROM singers LIMIT 100").rows.each do |_row|
+      client.execute(sql).rows.each do |_row|
         count += 1
       end
     else
-      Singer.all.limit(100).each do
+      Singer.find_by_sql(sql).each do
         count += 1
       end
     end
   end
 
   def self.benchmark_select_100_singers_in_read_only_transaction client
+    sql = "SELECT * FROM singers TABLESAMPLE RESERVOIR (100 ROWS)"
     count = 0
     if client
       client.snapshot do |snapshot|
-        snapshot.execute("SELECT * FROM singers LIMIT 100").rows.each do |_row|
+        snapshot.execute(sql).rows.each do |_row|
           count += 1
         end
       end
     else
       Singer.transaction isolation: :read_only do
-        Singer.all.limit(100).each do
+        Singer.find_by_sql(sql).each do
           count += 1
         end
       end
@@ -157,16 +221,17 @@ class Application
   end
 
   def self.benchmark_select_100_singers_in_read_write_transaction client
+    sql = "SELECT * FROM singers TABLESAMPLE RESERVOIR (100 ROWS)"
     count = 0
     if client
       client.transaction do |transaction|
-        transaction.execute("SELECT * FROM singers LIMIT 100").rows.each do |_row|
+        transaction.execute(sql).rows.each do |_row|
           count += 1
         end
       end
     else
       Singer.transaction do
-        Singer.all.limit(100).each do
+        Singer.find_by_sql(sql).each do
           count += 1
         end
       end
@@ -185,7 +250,7 @@ class Application
           last_singer = { id: SecureRandom.uuid.gsub("-", "").hex & 0x7FFFFFFFFFFFFFFF,
                           first_name: first_names.sample, last_name: last_names.sample,
                           birth_date: Date.new(rand(1920..2005), rand(1..12), rand(1..28)),
-                          picture: StringIO.new("some-picture-#{SecureRandom.uuid}") }
+                          picture: StringIO.new(SecureRandom.uuid) }
           singers << last_singer
         end
         c.insert "singers", singers
@@ -203,7 +268,8 @@ class Application
   end
 
   def self.create_albums count, isolation, client
-    singer = Singer.all.sample
+    sql = "SELECT * FROM singers TABLESAMPLE RESERVOIR (1 ROWS)"
+    singer = Singer.find_by_sql(sql).first
     if client
       if isolation == :buffered_mutations
         client.commit do |c|
