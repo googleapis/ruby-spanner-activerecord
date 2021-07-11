@@ -1,0 +1,8 @@
+development:
+  adapter: spanner
+  project: <benchmark-project>
+  instance: <benchmark-instance>
+  database: <benchmark-database>
+  credentials: <benchmark-credentials>
+  pool: 400
+  checkout_timeout: 60000
