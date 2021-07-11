@@ -295,6 +295,30 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
 
+    def test_index_storing
+      context = ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+        ActiveRecord::SchemaMigration
+      )
+      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
+      register_single_select_tables_result select_table_sql, "singers"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_full_name' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_full_name' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+      register_version_result "1", "9"
+
+      context.migrate 9
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 1, ddl_requests[2].statements.length
+
+      expectedDdl = "CREATE INDEX `index_singers_on_full_name` ON `singers` (`full_name`) STORING (`first_name`, `last_name`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
+    end
+
     def register_schema_migrations_table_result
       sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='schema_migrations'"
       register_empty_select_tables_result sql
