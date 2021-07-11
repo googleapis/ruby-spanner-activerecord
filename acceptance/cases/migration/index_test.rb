@@ -188,6 +188,14 @@ module ActiveRecord
         connection.remove_index("testings", ["last_name", "first_name"])
       end
 
+      def test_add_interleaved_index
+        connection.add_index "albums", ["singerid", "title"], interleave_in: :singers
+        index = connection.indexes(:albums).first
+
+        assert index, "Could not find interleaved index"
+        assert_equal "singers", index.interleave_in
+      end
+
       private
       def good_index_name
         "x" * connection.allowed_index_name_length

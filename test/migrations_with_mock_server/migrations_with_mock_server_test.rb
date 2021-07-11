@@ -247,6 +247,31 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
 
+    def test_interleaved_index
+      context = ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+        ActiveRecord::SchemaMigration
+      )
+      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
+      register_single_select_tables_result select_table_sql, "albums", "singers", "NO_ACTION"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singerid_and_title' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singerid_and_title' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+      register_version_result "1", "7"
+
+      context.migrate 7
+
+      # The migration should create the migration tables and the singers, albums and tracks tables in one request.
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 1, ddl_requests[2].statements.length
+
+      expectedDdl = "CREATE INDEX `index_albums_on_singerid_and_title` ON `albums` (`singerid`, `title`), INTERLEAVE IN `singers`"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
+    end
+
     def register_schema_migrations_table_result
       sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='schema_migrations'"
       register_empty_select_tables_result sql
@@ -368,6 +393,66 @@ module TestMigrationsWithMockServer
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
       metadata.row_type.fields.push table_catalog, table_schema, table_name, parent_table_name, on_delete_action
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+    end
+
+    def register_single_select_tables_result sql, table_name, parent_table_name = nil, on_delete_action = nil
+      col_table_catalog = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_CATALOG", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_table_schema = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_SCHEMA", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_parent_table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "PARENT_TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_on_delete_action = Google::Cloud::Spanner::V1::StructType::Field.new name: "ON_DELETE_ACTION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push col_table_catalog, col_table_schema, col_table_name, col_parent_table_name, col_on_delete_action
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+      row = Google::Protobuf::ListValue.new
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: ""),
+        Google::Protobuf::Value.new(string_value: ""),
+        Google::Protobuf::Value.new(string_value: table_name)
+      )
+      if parent_table_name
+        row.values.push(
+          Google::Protobuf::Value.new(string_value: parent_table_name),
+          Google::Protobuf::Value.new(string_value: on_delete_action)
+        )
+      else
+        row.values.push(
+          Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+          Google::Protobuf::Value.new(null_value: "NULL_VALUE")
+        )
+      end
+      result_set.rows.push row
+
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+    end
+
+    def register_empty_select_indexes_result sql
+      col_index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_index_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_is_unique = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_UNIQUE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BOOL)
+      col_is_null_filtered = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULL_FILTERED", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BOOL)
+      col_parent_table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "PARENT_TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_index_state = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_STATE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push col_index_name, col_index_type, col_is_unique, col_is_null_filtered, col_parent_table_name, col_index_state
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+    end
+
+    def register_empty_select_index_columns_result sql
+      col_index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_column_ordering = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_ORDERING", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push col_index_name, col_column_name, col_column_ordering, col_ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
       @mock.put_statement_result sql, StatementResult.new(result_set)

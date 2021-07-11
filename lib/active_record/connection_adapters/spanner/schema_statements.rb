@@ -262,7 +262,7 @@ module ActiveRecord
               index.columns.map(&:name),
               unique: index.unique,
               null_filtered: index.null_filtered,
-              interleve_in: index.interleve_in,
+              interleave_in: index.interleave_in,
               storing: index.storing,
               orders: index.orders
             )
@@ -309,7 +309,7 @@ module ActiveRecord
             old_index.columns.map(&:name),
             unique: old_index.unique,
             null_filtered: old_index.null_filtered,
-            interleve_in: old_index.interleve_in,
+            interleave_in: old_index.interleave_in,
             storing: old_index.storing,
             orders: old_index.orders
 
@@ -465,7 +465,7 @@ module ActiveRecord
 
           options.assert_valid_keys(
             :unique, :order, :name, :where, :length, :internal, :using,
-            :algorithm, :type, :opclass, :interleve_in, :storing,
+            :algorithm, :type, :opclass, :interleave_in, :storing,
             :null_filtered
           )
 
@@ -480,7 +480,7 @@ module ActiveRecord
             column_names,
             unique: options[:unique],
             null_filtered: options[:null_filtered],
-            interleve_in: options[:interleve_in],
+            interleave_in: options[:interleave_in],
             storing: options[:storing],
             orders: options[:order]
         end
