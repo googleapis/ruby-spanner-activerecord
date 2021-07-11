@@ -4,14 +4,14 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "securerandom"
+
+require_relative "../test_helper"
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../mock_server/database_admin_mock_server"
-require_relative "../test_helper"
 require_relative "models/album"
 require_relative "models/singer"
 require_relative "models/track"
-
-require "securerandom"
 
 module TestMigrationsWithMockServer
   # Tests executing a simple migration on a mock Spanner server.
@@ -262,13 +262,36 @@ module TestMigrationsWithMockServer
 
       context.migrate 7
 
-      # The migration should create the migration tables and the singers, albums and tracks tables in one request.
       ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
       # The migration simulation also creates the two migration metadata tables.
       assert_equal 3, ddl_requests.length
       assert_equal 1, ddl_requests[2].statements.length
 
       expectedDdl = "CREATE INDEX `index_albums_on_singerid_and_title` ON `albums` (`singerid`, `title`), INTERLEAVE IN `singers`"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
+    end
+
+    def test_null_filtered_index
+      context = ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+        ActiveRecord::SchemaMigration
+      )
+      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
+      register_single_select_tables_result select_table_sql, "singers"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_picture' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_picture' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+      register_version_result "1", "8"
+
+      context.migrate 8
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 1, ddl_requests[2].statements.length
+
+      expectedDdl = "CREATE NULL_FILTERED INDEX `index_singers_on_picture` ON `singers` (`picture`)"
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
 
