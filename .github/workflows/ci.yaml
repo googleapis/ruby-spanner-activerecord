@@ -23,9 +23,11 @@ jobs:
         ruby-version: ${{ matrix.ruby }}
     - name: Install dependencies
       run: bundle install
-    - name: Check rake
-      run: rake --version
     - name: Check bundler
       run: bundle --version
+    - name: Check rake version
+      run: rake --version
+    - name: Check rake location
+      run: which rake
     - name: Run tests
       run: bundle exec rake test
