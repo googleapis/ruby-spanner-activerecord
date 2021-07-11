@@ -6,7 +6,7 @@ on:
 name: ci
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
       matrix:
@@ -18,7 +18,7 @@ jobs:
     # (see https://github.com/ruby/setup-ruby#versioning):
       uses: ruby/setup-ruby@v1
       with:
-        bundler-cache: true
+        # bundler-cache: true
         ruby-version: ${{ matrix.ruby }}
     - name: Install dependencies
       run: bundle install
