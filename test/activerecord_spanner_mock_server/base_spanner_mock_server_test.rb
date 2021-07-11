@@ -13,6 +13,7 @@ require_relative "models/singer"
 require_relative "models/album"
 require_relative "models/all_types"
 require_relative "models/table_with_commit_timestamp"
+require_relative "models/versioned_singer"
 
 require "securerandom"
 
@@ -34,6 +35,9 @@ module MockServerTests
       MockServerTests::register_singers_columns_result @mock
       MockServerTests::register_singers_primary_key_columns_result @mock
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
+      MockServerTests::register_versioned_singers_columns_result @mock
+      MockServerTests::register_versioned_singers_primary_key_columns_result @mock
+      MockServerTests::register_versioned_singers_primary_and_parent_key_columns_result @mock
       MockServerTests::register_albums_columns_result @mock
       MockServerTests::register_albums_primary_key_columns_result @mock
       MockServerTests::register_albums_primary_and_parent_key_columns_result @mock

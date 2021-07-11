@@ -9,6 +9,7 @@ AllCops:
     - "bin/*"
     - "test/**/*"
     - "acceptance/**/*"
+    - "benchmarks/db/schema.rb"
     - "examples/snippets/**/db/schema.rb"
     - "lib/activerecord-spanner-adapter.rb"
     - "vendor/**/*"
