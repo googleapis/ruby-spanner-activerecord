@@ -13,6 +13,7 @@ require_relative "models/album"
 
 class Application
   def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    ActiveRecord::Base.logger.level = Logger::WARN
     config = ActiveRecord::Base.connection_config
     spanner = Google::Cloud::Spanner.new project: config[:project], credentials: config[:credentials]
     spanner_client = spanner.client config[:instance], config[:database], pool: { max: config[:pool], fail: false }
