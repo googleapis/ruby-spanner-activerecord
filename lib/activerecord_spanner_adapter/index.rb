@@ -9,7 +9,7 @@ require "activerecord_spanner_adapter/index/column"
 module ActiveRecordSpannerAdapter
   class Index
     attr_accessor :table, :name, :columns, :type, :unique, :null_filtered,
-                  :interleve_in, :storing, :state
+                  :interleave_in, :storing, :state
 
     def initialize \
         table,
@@ -18,7 +18,7 @@ module ActiveRecordSpannerAdapter
         type: nil,
         unique: false,
         null_filtered: false,
-        interleve_in: nil,
+        interleave_in: nil,
         storing: nil,
         state: nil
       @table = table.to_s
@@ -27,7 +27,7 @@ module ActiveRecordSpannerAdapter
       @type = type
       @unique = unique
       @null_filtered = null_filtered
-      @interleve_in = interleve_in unless interleve_in.to_s.empty?
+      @interleave_in = interleave_in unless interleave_in.to_s.empty?
       @storing = storing || []
       @state = state
     end
@@ -57,7 +57,7 @@ module ActiveRecordSpannerAdapter
         name: name,
         order: orders,
         unique: unique,
-        interleve_in: interleve_in,
+        interleave_in: interleave_in,
         null_filtered: null_filtered,
         storing: storing
       }.delete_if { |_, v| v.nil? }
