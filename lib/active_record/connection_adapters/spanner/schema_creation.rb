@@ -86,7 +86,7 @@ module ActiveRecord
           sql = +"CREATE"
           sql << " UNIQUE" if o.unique
           sql << " NULL_FILTERED" if o.null_filtered
-          sql << " INDEX #{quote_column_name o.name} "
+          sql << " INDEX #{quote_table_name o.name} "
 
           columns_sql = o.columns_with_order.map do |c, order|
             order_sql = +quote_column_name(c)
@@ -100,8 +100,8 @@ module ActiveRecord
             storing = o.storing.map { |s| quote_column_name s }
             sql << " STORING (#{storing.join ', '})"
           end
-          if o.interleve_in
-            sql << ", INTERLEAVE IN #{quote_column_name o.interleve_in}"
+          if o.interleave_in
+            sql << ", INTERLEAVE IN #{quote_table_name o.interleave_in}"
           end
           sql
         end

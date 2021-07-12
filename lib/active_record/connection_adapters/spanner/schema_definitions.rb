@@ -81,7 +81,7 @@ module ActiveRecord
       end
 
       class IndexDefinition < ActiveRecord::ConnectionAdapters::IndexDefinition
-        attr_reader :null_filtered, :interleve_in, :storing, :orders
+        attr_reader :null_filtered, :interleave_in, :storing, :orders
 
         def initialize \
             table_name,
@@ -89,14 +89,14 @@ module ActiveRecord
             columns,
             unique: false,
             null_filtered: false,
-            interleve_in: nil,
+            interleave_in: nil,
             storing: nil,
             orders: nil
           @table = table_name
           @name = name
           @unique = unique
           @null_filtered = null_filtered
-          @interleve_in = interleve_in
+          @interleave_in = interleave_in
           @storing = Array(storing)
           columns = columns.split(/\W/) if columns.is_a? String
           @columns = Array(columns).map(&:to_s)

@@ -137,6 +137,8 @@ module ActiveRecordSpannerAdapter
       sql = +"SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE"
       sql << " FROM INFORMATION_SCHEMA.INDEXES"
       sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND TABLE_CATALOG = ''"
+      sql << " AND TABLE_SCHEMA = ''"
       sql << " AND INDEX_NAME=%<index_name>s" if index_name
       sql << " AND INDEX_TYPE=%<index_type>s" if index_type
       sql << " AND SPANNER_IS_MANAGED=FALSE"
@@ -165,7 +167,7 @@ module ActiveRecordSpannerAdapter
           type: row["INDEX_TYPE"],
           unique: row["IS_UNIQUE"],
           null_filtered: row["IS_NULL_FILTERED"],
-          interleve_in: row["PARENT_TABLE_NAME"],
+          interleave_in: row["PARENT_TABLE_NAME"],
           storing: storing,
           state: row["INDEX_STATE"]
       end
@@ -179,6 +181,8 @@ module ActiveRecordSpannerAdapter
       sql = +"SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION"
       sql << " FROM INFORMATION_SCHEMA.INDEX_COLUMNS"
       sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND TABLE_CATALOG = ''"
+      sql << " AND TABLE_SCHEMA = ''"
       sql << " AND INDEX_NAME=%<index_name>s" if index_name
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
