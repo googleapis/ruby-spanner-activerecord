@@ -75,8 +75,11 @@ module ActiveRecord
         def exec_update sql, name = "SQL", binds = []
           result = execute sql, name, binds
           # Make sure that we consume the entire result stream before trying to get the stats.
-          result.rows.each do |_row|
-          end
+          # This is required because the ExecuteStreamingSql RPC is also used for (Partitioned) DML,
+          # and this RPC can return multiple partial result sets for DML as well. Only the last partial
+          # result set will contain the statistics. Although there will never be any rows, this makes
+          # sure that the stream is fully consumed.
+          result.rows.each { |_| }
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
