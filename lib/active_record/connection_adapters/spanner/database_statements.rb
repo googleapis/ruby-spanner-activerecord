@@ -77,7 +77,7 @@ module ActiveRecord
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
-            "DML statement is invalid.", sql
+            "DML statement is invalid.", sql: sql
           )
         end
         alias exec_delete exec_update
