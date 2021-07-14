@@ -582,6 +582,40 @@ module MockServerTests
       assert_equal :TIMESTAMP, request.param_types["col_array_timestamp_16"].array_element_type.code
     end
 
+    def test_pdml
+      update_sql = "UPDATE `singers` SET `last_name` = @last_name_1 WHERE TRUE"
+      @mock.put_statement_result update_sql, StatementResult.new(1)
+
+      Singer.transaction isolation: :pdml do
+        Singer.update_all last_name: "NewName"
+      end
+
+      begin_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }.first
+      assert begin_request&.options&.partitioned_dml
+      update_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }.first
+      assert update_request&.transaction&.id
+      # PDML transactions should not be committed.
+      commit_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }.first
+      refute commit_request
+    end
+
+    def test_delete_all_pdml
+      delete_sql = "DELETE FROM `singers` WHERE TRUE"
+      @mock.put_statement_result delete_sql, StatementResult.new(100)
+
+      Singer.transaction isolation: :pdml do
+        Singer.delete_all
+      end
+
+      begin_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }.first
+      assert begin_request&.options&.partitioned_dml
+      delete_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
+      assert delete_request&.transaction&.id
+      # PDML transactions should not be committed.
+      commit_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }.first
+      refute commit_request
+    end
+
     private
 
     def create_list_value values
