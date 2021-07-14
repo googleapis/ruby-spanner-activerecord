@@ -74,10 +74,16 @@ module ActiveRecord
 
         def exec_update sql, name = "SQL", binds = []
           result = execute sql, name, binds
+          # Make sure that we consume the entire result stream before trying to get the stats.
+          # This is required because the ExecuteStreamingSql RPC is also used for (Partitioned) DML,
+          # and this RPC can return multiple partial result sets for DML as well. Only the last partial
+          # result set will contain the statistics. Although there will never be any rows, this makes
+          # sure that the stream is fully consumed.
+          result.rows.each { |_| }
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
-            "DML statement is invalid.", sql
+            "DML statement is invalid.", sql: sql
           )
         end
         alias exec_delete exec_update
@@ -146,13 +152,16 @@ module ActiveRecord
         # Begins a transaction on the database with the specified isolation level. Cloud Spanner only supports
         # isolation level :serializable, but also defines two additional 'isolation levels' that can be used
         # to start specific types of Spanner transactions:
-        # * :read_only: Starts a read-only snapshot transaction using a strong timestamp bound. TODO: Implement
+        # * :read_only: Starts a read-only snapshot transaction using a strong timestamp bound.
         # * :buffered_mutations: Starts a read/write transaction that will use mutations instead of DML for single-row
         #                        inserts/updates/deletes. Mutations are buffered locally until the transaction is
         #                        committed, and any changes during a transaction cannot be read by the application.
+        # * :pdml: Starts a Partitioned DML transaction. Executing multiple DML statements in one PDML transaction
+        #          block is NOT supported A PDML transaction is not guaranteed to be atomic.
+        #          See https://cloud.google.com/spanner/docs/dml-partitioned for more information.
         def begin_isolated_db_transaction isolation
           raise "Unsupported isolation level: #{isolation}" unless \
-              [:serializable, :read_only, :buffered_mutations].include? isolation
+              [:serializable, :read_only, :buffered_mutations, :pdml].include? isolation
 
           log "BEGIN #{isolation}" do
             @connection.begin_transaction isolation
