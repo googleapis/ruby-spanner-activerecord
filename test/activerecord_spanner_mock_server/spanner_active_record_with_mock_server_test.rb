@@ -607,7 +607,9 @@ module MockServerTests
         Singer.delete_all
       end
 
-      begin_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }.first
+      begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+      assert_equal 1, begin_requests.length
+      begin_request = begin_requests.first
       assert begin_request&.options&.partitioned_dml
       delete_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
       assert delete_request&.transaction&.id
