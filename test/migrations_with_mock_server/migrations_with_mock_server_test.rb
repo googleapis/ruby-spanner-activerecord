@@ -55,6 +55,10 @@ module TestMigrationsWithMockServer
       super
     end
 
+    def with_change_table table_name
+      yield ActiveRecord::Base.connection.update_table_definition table_name, ActiveRecord::Base.connection
+    end
+
     def test_execute_migrations
       context = ActiveRecord::MigrationContext.new(
         "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
@@ -170,6 +174,105 @@ module TestMigrationsWithMockServer
       expectedDdl << "PRIMARY KEY (`id`)"
 
       assert_equal expectedDdl, ddl_requests[2].statements[0]
+    end
+
+    def test_add_column
+      with_change_table :singers do |t|
+        t.column :age, :integer
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` ADD COLUMN `age` INT64", ddl_requests[0].statements[0]
+    end
+
+    def test_drop_column
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+
+      with_change_table :singers do |t|
+        t.remove :age
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` DROP COLUMN `age`", ddl_requests[0].statements[0]
+    end
+
+    def test_change_column
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      register_select_single_column_result select_column_sql, "age", "INT64"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+
+      with_change_table :singers do |t|
+        t.change :age, :decimal
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` ALTER COLUMN `age` NUMERIC", ddl_requests[0].statements[0]
+    end
+
+    def test_change_column_add_not_null
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      register_select_single_column_result select_column_sql, "age", "INT64"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+
+      with_change_table :singers do |t|
+        t.change :age, :integer, {null: false}
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` ALTER COLUMN `age` INT64 NOT NULL", ddl_requests[0].statements[0]
+    end
+
+    def test_change_column_remove_not_null
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      register_select_single_column_result select_column_sql, "age", "INT64"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+
+      with_change_table :singers do |t|
+        t.change :age, :integer, {null: true}
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` ALTER COLUMN `age` INT64", ddl_requests[0].statements[0]
+    end
+
+    def test_rename_column
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      register_select_single_column_result select_column_sql, "age", "INT64"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_indexes_sql
+
+      with_change_table :singers do |t|
+        t.rename :age, :age_at_insert
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 1, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal "ALTER TABLE `singers` ALTER COLUMN `age` INT64", ddl_requests[0].statements[0]
     end
 
     def test_interleaved_table
@@ -501,6 +604,30 @@ module TestMigrationsWithMockServer
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
       metadata.row_type.fields.push col_index_name, col_column_name, col_column_ordering, col_ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+    end
+
+    def register_select_single_column_result sql, column_name, spanner_type, is_nullable = true
+      # "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push col_column_name, col_spanner_type, col_is_nullable, col_column_default, col_ordinal_position
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+      row = Google::Protobuf::ListValue.new
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: column_name),
+        Google::Protobuf::Value.new(string_value: spanner_type),
+        Google::Protobuf::Value.new(string_value: is_nullable ? "YES" : "NO"),
+        Google::Protobuf::Value.new(string_value: ""),
+        Google::Protobuf::Value.new(string_value: "1")
+      )
+      result_set.rows.push row
 
       @mock.put_statement_result sql, StatementResult.new(result_set)
     end
