@@ -33,8 +33,11 @@ module ActiveRecordSpannerAdapter
       raise "Nested transactions are not allowed" if @state != :INITIALIZED
       begin
         @grpc_transaction =
-          if @isolation == :read_only
+          case @isolation
+          when :read_only
             @connection.session.create_snapshot strong: true
+          when :pdml
+            @connection.session.create_pdml
           else
             @connection.session.create_transaction
           end
@@ -60,7 +63,8 @@ module ActiveRecordSpannerAdapter
       raise "This transaction is not active" unless active?
 
       begin
-        @connection.session.commit_transaction @grpc_transaction, @mutations unless @isolation == :read_only
+        @connection.session.commit_transaction @grpc_transaction, @mutations \
+            unless [:read_only, :pdml].include? @isolation
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
         if @connection.session_not_found? e
