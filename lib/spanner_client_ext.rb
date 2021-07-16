@@ -50,6 +50,12 @@ module Google
           Snapshot.from_grpc snp_grpc, self
         end
 
+        def create_pdml
+          ensure_service!
+          pdml_grpc = service.create_pdml path
+          Transaction.from_grpc pdml_grpc, self
+        end
+
         private
 
         ##

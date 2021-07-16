@@ -232,6 +232,17 @@ module ActiveRecord
           assert organization.last_updated > current_timestamp
         end
       end
+
+      def test_pdml
+        create_test_records
+        assert Comment.count > 0
+
+        Comment.transaction isolation: :pdml do
+          Comment.delete_all
+        end
+
+        assert_equal 0, Comment.count
+      end
     end
   end
 end
