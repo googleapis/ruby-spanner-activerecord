@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 2.5"
 
   spec.add_dependency "google-cloud-spanner", "~> 2.4"
-  spec.add_runtime_dependency "activerecord", "~> 6.1.4"
+  spec.add_runtime_dependency "activerecord", "~> 6.1.0"
 
   spec.add_development_dependency "autotest-suffix", "~> 1.1"
   spec.add_development_dependency "bundler", "~> 2.0"

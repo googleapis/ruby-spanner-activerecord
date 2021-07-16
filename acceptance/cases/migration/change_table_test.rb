@@ -105,13 +105,6 @@ module ActiveRecord
         end
       end
 
-      def test_remove_index_removes_index_with_options
-        with_change_table do |t|
-          @connection.expect :remove_index, nil, [:delete_me, :bar, **{}]
-          t.remove_index :bar
-        end
-      end
-
       def test_table_name_set
         with_change_table do |t|
           assert_equal :delete_me, t.name

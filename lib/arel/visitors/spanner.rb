@@ -17,7 +17,9 @@ module Arel # :nodoc: all
       BIND_BLOCK = proc { |i| "@p#{i}" }
       private_constant :BIND_BLOCK
 
-      def bind_block; BIND_BLOCK; end
+      def bind_block
+        BIND_BLOCK
+      end
 
       # rubocop:disable Naming/MethodName
       def visit_Arel_Nodes_BindParam o, collector

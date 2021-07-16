@@ -15,7 +15,7 @@ module ActiveRecord
         def execute sql, name = nil, binds = []
           statement_type = sql_statement_type sql
 
-          if preventing_writes? && (statement_type == :dml || statement_type == :ddl)
+          if preventing_writes? && [:dml, :ddl].include?(statement_type)
             raise ActiveRecord::ReadOnlyError(
               "Write query attempted while in readonly mode: #{sql}"
             )
@@ -185,22 +185,19 @@ module ActiveRecord
         def to_types_and_params binds
           types = binds.enum_for(:each_with_index).map do |bind, i|
             type = :INT64
-            if bind.respond_to?(:type)
+            if bind.respond_to? :type
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                       .convert_active_model_type_to_spanner(bind.type)
+                     .convert_active_model_type_to_spanner(bind.type)
             end
             [
-              # "#{bind.name}_#{i + 1}",
               "p#{i + 1}", type
             ]
           end.to_h
           params = binds.enum_for(:each_with_index).map do |bind, i|
             type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
-            if type.respond_to?(:serialize)
-              value = type.method(:serialize).arity < 0 ? type.serialize(bind.value, :dml) : type.serialize(bind.value)
-            else
-              value = bind
-            end
+            value = bind
+            value = type.serialize bind.value, :dml if type.respond_to?(:serialize) && type.method(:serialize).arity < 0
+            value = type.serialize bind.value if type.respond_to?(:serialize) && type.method(:serialize).arity >= 0
 
             # ["#{v.name}_#{i + 1}", value]
             ["p#{i + 1}", value]
@@ -230,8 +227,8 @@ module ActiveRecord
           unless arel.ast.wheres.empty?
             raise "A delete mutation can only be created without a WHERE clause"
           end
-          table_name = arel.ast.relation.name if arel.ast.relation.is_a?(Arel::Table)
-          table_name = arel.ast.relation.left.name if arel.ast.relation.is_a?(Arel::Nodes::JoinSource)
+          table_name = arel.ast.relation.name if arel.ast.relation.is_a? Arel::Table
+          table_name = arel.ast.relation.left.name if arel.ast.relation.is_a? Arel::Nodes::JoinSource
           unless table_name
             raise "Could not find table for delete mutation"
           end
@@ -244,13 +241,11 @@ module ActiveRecord
           )
         end
 
-        if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
-          COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
-        else
-          COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m
-        end
+        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m.freeze
+        COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX \
+            if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
 
-        def self.build_sql_statement_regexp(*parts) # :nodoc:
+        private_class_method def self.build_sql_statement_regexp *parts # :nodoc:
           parts = parts.map { |part| /#{part}/i }
           /\A(?:[\(\s]|#{COMMENT_REGEX})*#{Regexp.union(*parts)}/
         end

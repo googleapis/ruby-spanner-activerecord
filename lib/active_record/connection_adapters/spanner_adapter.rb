@@ -189,7 +189,7 @@ module ActiveRecord
         m.register_type "DATE", Type::Date.new
         m.register_type "FLOAT64", Type::Float.new
         m.register_type "NUMERIC", Type::Decimal.new
-        m.register_type "INT64", Type::Integer.new({ limit: 8 })
+        m.register_type "INT64", Type::Integer.new(limit: 8)
         register_class_with_limit m, %r{^STRING}i, Type::String
         m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
 

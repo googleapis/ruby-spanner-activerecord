@@ -20,7 +20,7 @@ module ActiveRecord
       # [Schema Doc](https://cloud.google.com/spanner/docs/information-schema)
       #
       module SchemaStatements
-        VERSION_6_1_0 = Gem::Version.create('6.1.0')
+        VERSION_6_1_0 = Gem::Version.create "6.1.0"
 
         def current_database
           @connection.database_id
@@ -147,7 +147,18 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        def remove_columns table_name, *column_names
+        if ActiveRecord.gem_version < VERSION_6_1_0
+          def remove_columns table_name, *column_names
+            _remove_columns table_name, *column_names
+          end
+        else
+          def remove_columns table_name, *column_names, _type: nil, **_options
+            _remove_columns table_name, *column_names
+          end
+        end
+
+        def _remove_columns table_name, *column_names
+          # def remove_columns table_name, *column_names
           if column_names.empty?
             raise ArgumentError, "You must specify at least one column name. "\
               "Example: remove_columns(:people, :first_name)"
@@ -162,7 +173,7 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        if ActiveRecord::gem_version < VERSION_6_1_0
+        if ActiveRecord.gem_version < VERSION_6_1_0
           def change_column table_name, column_name, type, options = {}
             _change_column table_name, column_name, type, **options
           end
@@ -245,7 +256,7 @@ module ActiveRecord
           execute_schema_statements schema_creation.accept(id)
         end
 
-        if ActiveRecord::gem_version < VERSION_6_1_0
+        if ActiveRecord.gem_version < VERSION_6_1_0
           def remove_index table_name, options = {}
             index_name = index_name_for_remove table_name, options
             execute "DROP INDEX #{quote_table_name index_name}"
@@ -392,7 +403,7 @@ module ActiveRecord
           [ActiveRecord::InternalMetadata.table_name, ActiveRecord::SchemaMigration.table_name].exclude? table_name.to_s
         end
 
-        def _change_column table_name, column_name, type, **options
+        def _change_column table_name, column_name, type, **options # rubocop:disable Metrics/AbcSize
           column = information_schema do |i|
             i.table_column table_name, column_name
           end
@@ -420,8 +431,7 @@ module ActiveRecord
           end
 
           # Only timestamp type can set commit timestamp
-          if type == "TIMESTAMP" &&
-            options.key?(:allow_commit_timestamp) == false
+          if type == "TIMESTAMP" && options.key?(:allow_commit_timestamp) == false
             options[:allow_commit_timestamp] = column.allow_commit_timestamp
           end
 
