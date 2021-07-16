@@ -600,7 +600,7 @@ module MockServerTests
     end
 
     def test_pdml
-      update_sql = "UPDATE `singers` SET `last_name` = @last_name_1 WHERE TRUE"
+      update_sql = "UPDATE `singers` SET `last_name` = @p1 WHERE TRUE"
       @mock.put_statement_result update_sql, StatementResult.new(1)
 
       Singer.transaction isolation: :pdml do
