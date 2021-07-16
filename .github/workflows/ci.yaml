@@ -23,7 +23,7 @@ jobs:
     # (see https://github.com/ruby/setup-ruby#versioning):
       uses: ruby/setup-ruby@v1
       with:
-        bundler-cache: true
+        bundler-cache: false
         ruby-version: ${{ matrix.ruby }}
     - name: Set ActiveRecord version
       run: sed -i "s/\"activerecord\", \"~> 6.1.4\"/\"activerecord\", \"${{ matrix.ar }}\"/" activerecord-spanner-adapter.gemspec
