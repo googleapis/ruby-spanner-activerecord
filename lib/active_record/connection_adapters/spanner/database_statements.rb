@@ -15,29 +15,28 @@ module ActiveRecord
         def execute sql, name = nil, binds = []
           statement_type = sql_statement_type sql
 
-          if preventing_writes? && statement_type == :dml
+          if preventing_writes? && (statement_type == :dml || statement_type == :ddl)
             raise ActiveRecord::ReadOnlyError(
               "Write query attempted while in readonly mode: #{sql}"
             )
           end
 
           if statement_type == :ddl
-            @connection.ddl_statements << sql
-            return
-          end
+            execute_ddl sql
+          else
+            transaction_required = statement_type == :dml
+            materialize_transactions
 
-          transaction_required = statement_type == :dml
-          materialize_transactions
-
-          log sql, name do
-            types, params = to_types_and_params binds
-            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              if transaction_required
-                transaction do
+            log sql, name do
+              types, params = to_types_and_params binds
+              ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                if transaction_required
+                  transaction do
+                    @connection.execute_query sql, params: params, types: types
+                  end
+                else
                   @connection.execute_query sql, params: params, types: types
                 end
-              else
-                @connection.execute_query sql, params: params, types: types
               end
             end
           end
@@ -176,15 +175,26 @@ module ActiveRecord
         # Translates binds to Spanner types and params.
         def to_types_and_params binds
           types = binds.enum_for(:each_with_index).map do |bind, i|
+            type = :INT64
+            if bind.respond_to?(:type)
+              type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                       .convert_active_model_type_to_spanner(bind.type)
+            end
             [
-              "#{bind.name}_#{i + 1}",
-              ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                .convert_active_model_type_to_spanner(bind.type)
+              # "#{bind.name}_#{i + 1}",
+              "p#{i + 1}", type
             ]
           end.to_h
-          params = binds.enum_for(:each_with_index).map do |v, i|
-            value = v.type.method(:serialize).arity < 0 ? v.type.serialize(v.value, :dml) : v.type.serialize(v.value)
-            ["#{v.name}_#{i + 1}", value]
+          params = binds.enum_for(:each_with_index).map do |bind, i|
+            type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
+            if type.respond_to?(:serialize)
+              value = type.method(:serialize).arity < 0 ? type.serialize(bind.value, :dml) : type.serialize(bind.value)
+            else
+              value = bind
+            end
+
+            # ["#{v.name}_#{i + 1}", value]
+            ["p#{i + 1}", value]
           end.to_h
           [types, params]
         end
@@ -211,20 +221,34 @@ module ActiveRecord
           unless arel.ast.wheres.empty?
             raise "A delete mutation can only be created without a WHERE clause"
           end
+          table_name = arel.ast.relation.name if arel.ast.relation.is_a?(Arel::Table)
+          table_name = arel.ast.relation.left.name if arel.ast.relation.is_a?(Arel::Nodes::JoinSource)
+          unless table_name
+            raise "Could not find table for delete mutation"
+          end
 
           Google::Cloud::Spanner::V1::Mutation.new(
             delete: Google::Cloud::Spanner::V1::Mutation::Delete.new(
-              table: arel.ast.relation.name,
+              table: table_name,
               key_set: { all: true }
             )
           )
         end
 
-        DDL_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
-                   .build_read_query_regexp(:create, :alter, :drop).freeze
+        if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
+          COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
+        else
+          COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m
+        end
 
-        DML_REGX = ActiveRecord::ConnectionAdapters::AbstractAdapter
-                   .build_read_query_regexp(:insert, :delete, :update).freeze
+        def self.build_sql_statement_regexp(*parts) # :nodoc:
+          parts = parts.map { |part| /#{part}/i }
+          /\A(?:[\(\s]|#{COMMENT_REGEX})*#{Regexp.union(*parts)}/
+        end
+
+        DDL_REGX = build_sql_statement_regexp(:create, :alter, :drop).freeze
+
+        DML_REGX = build_sql_statement_regexp(:insert, :delete, :update).freeze
 
         def sql_statement_type sql
           case sql

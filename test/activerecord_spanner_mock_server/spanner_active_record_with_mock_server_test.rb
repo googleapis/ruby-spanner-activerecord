@@ -30,7 +30,7 @@ module MockServerTests
     end
 
     def test_selects_one_singer_without_transaction
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
       singer = Singer.find_by id: 1
 
@@ -49,10 +49,10 @@ module MockServerTests
       # Check the encoded parameters.
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
       select_requests.each do |request|
-        assert_equal "1", request.params["LIMIT_2"]
-        assert_equal "1", request.params["id_1"]
-        assert_equal :INT64, request.param_types["LIMIT_2"].code
-        assert_equal :INT64, request.param_types["id_1"].code
+        assert_equal "1", request.params["p2"]
+        assert_equal "1", request.params["p1"]
+        assert_equal :INT64, request.param_types["p2"].code
+        assert_equal :INT64, request.param_types["p1"].code
       end
     end
 
@@ -81,12 +81,12 @@ module MockServerTests
       # using DML are a lot slower than using mutations. Mutations can however not be
       # read back during a transaction (no read-your-writes), but that is not needed in
       # this case as the application is not managing the transaction itself.
-      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(1)
 
       singer = Singer.find_by id: 1
 
-      update_sql = "UPDATE `singers` SET `first_name` = @first_name_1 WHERE `singers`.`id` = @id_2"
+      update_sql = "UPDATE `singers` SET `first_name` = @p1 WHERE `singers`.`id` = @p2"
       @mock.put_statement_result update_sql, StatementResult.new(1)
 
       singer.first_name = 'Dave'
@@ -97,18 +97,18 @@ module MockServerTests
       # Check the encoded parameters.
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
       select_requests.each do |request|
-        assert_equal "Dave", request.params["first_name_1"]
-        assert_equal singer.id.to_s, request.params["id_2"]
-        assert_equal :STRING, request.param_types["first_name_1"].code
-        assert_equal :INT64, request.param_types["id_2"].code
+        assert_equal "Dave", request.params["p1"]
+        assert_equal singer.id.to_s, request.params["p2"]
+        assert_equal :STRING, request.param_types["p1"].code
+        assert_equal :INT64, request.param_types["p2"].code
       end
     end
 
     def test_update_two_singers_should_use_transaction
-      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` BETWEEN @id_1 AND @id_2"
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` BETWEEN @p1 AND @p2"
       @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(2)
 
-      update_sql = "UPDATE `singers` SET `first_name` = @first_name_1 WHERE `singers`.`id` = @id_2"
+      update_sql = "UPDATE `singers` SET `first_name` = @p1 WHERE `singers`.`id` = @p2"
       ActiveRecord::Base.transaction do
         singers = Singer.where id: 1..2
         @mock.put_statement_result update_sql, StatementResult.new(1)
@@ -120,7 +120,7 @@ module MockServerTests
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       assert_equal 1, begin_transaction_requests.length
       # All of the SQL requests should use a transaction.
-      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql.starts_with?("SELECT `singers`.*") || req.sql.starts_with?("UPDATE")) }
+      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql.start_with?("SELECT `singers`.*") || req.sql.start_with?("UPDATE")) }
       sql_requests.each do |request|
         refute_nil request.transaction
         @id ||= request.transaction.id
@@ -132,15 +132,15 @@ module MockServerTests
 
       singers = Singer.where id: 1..2
       update_requests.each_with_index do |request, index|
-        assert_equal "Name#{index+1}", request.params["first_name_1"]
-        assert_equal "#{singers[index].id}", request.params["id_2"]
-        assert_equal :STRING, request.param_types["first_name_1"].code
-        assert_equal :INT64, request.param_types["id_2"].code
+        assert_equal "Name#{index+1}", request.params["p1"]
+        assert_equal "#{singers[index].id}", request.params["p2"]
+        assert_equal :STRING, request.param_types["p1"].code
+        assert_equal :INT64, request.param_types["p2"].code
       end
     end
 
     def test_create_singer_with_last_performance_as_time
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@first_name_1, @last_name_2, @last_performance_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
       Singer.transaction do
@@ -148,12 +148,12 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :TIMESTAMP, request.param_types["last_performance_3"].code
-      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["last_performance_3"]
+      assert_equal :TIMESTAMP, request.param_types["p3"].code
+      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p3"]
     end
 
     def test_create_singer_with_last_performance_as_non_iso_string
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@first_name_1, @last_name_2, @last_performance_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
       # This timestamp string is ambiguous without knowing the locale that it should be parsed in, as it
@@ -167,12 +167,12 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :TIMESTAMP, request.param_types["last_performance_3"].code
-      assert_equal timestamp.utc.rfc3339(9), request.params["last_performance_3"]
+      assert_equal :TIMESTAMP, request.param_types["p3"].code
+      assert_equal timestamp.utc.rfc3339(9), request.params["p3"]
     end
 
     def test_find_singer_by_last_performance_as_non_iso_string
-      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`last_performance` = @last_performance_1 LIMIT @LIMIT_2"
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`last_performance` = @p1 LIMIT @p2"
       @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(1)
 
       # This timestamp string is ambiguous without knowing the locale that should be used for parsing, as it
@@ -183,12 +183,12 @@ module MockServerTests
       Singer.find_by(last_performance: timestamp_string)
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
-      assert_equal :TIMESTAMP, request.param_types["last_performance_1"].code
-      assert_equal timestamp.utc.rfc3339(9), request.params["last_performance_1"]
+      assert_equal :TIMESTAMP, request.param_types["p1"].code
+      assert_equal timestamp.utc.rfc3339(9), request.params["p1"]
     end
 
     def test_create_singer_with_picture
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
       data = StringIO.new "hello"
 
@@ -197,12 +197,12 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :BYTES, request.param_types["picture_3"].code
-      assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["picture_3"]
+      assert_equal :BYTES, request.param_types["p3"].code
+      assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["p3"]
     end
 
     def test_create_singer_with_picture_as_string
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
       data = StringIO.new "hello"
 
@@ -211,12 +211,12 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :BYTES, request.param_types["picture_3"].code
-      assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["picture_3"]
+      assert_equal :BYTES, request.param_types["p3"].code
+      assert_equal Base64.strict_encode64("hello".dup.force_encoding("ASCII-8BIT")), request.params["p3"]
     end
 
     def test_create_singer_with_picture_as_binary
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@first_name_1, @last_name_2, @picture_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
       data = IO.read("#{Dir.pwd}/test/activerecord_spanner_mock_server/cloudspannerlogo.png", mode: "rb")
@@ -225,12 +225,12 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :BYTES, request.param_types["picture_3"].code
-      assert_equal Base64.strict_encode64(data.force_encoding("ASCII-8BIT")), request.params["picture_3"]
+      assert_equal :BYTES, request.param_types["p3"].code
+      assert_equal Base64.strict_encode64(data.force_encoding("ASCII-8BIT")), request.params["p3"]
     end
 
     def test_create_singer_with_revenues
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `revenues`, `id`) VALUES (@first_name_1, @last_name_2, @revenues_3, @id_4)"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `revenues`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
       Singer.transaction do
@@ -238,8 +238,8 @@ module MockServerTests
       end
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert_equal :NUMERIC, request.param_types["revenues_3"].code
-      assert_equal "42952.13", request.params["revenues_3"]
+      assert_equal :NUMERIC, request.param_types["p3"].code
+      assert_equal "42952.13", request.params["p3"]
     end
 
     def test_delete_all
@@ -260,8 +260,8 @@ module MockServerTests
     end
 
     def test_destroy_singer
-      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@first_name_1, @last_name_2, @id_3)"
-      delete_sql = "DELETE FROM `singers` WHERE `singers`.`id` = @id_1"
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
+      delete_sql = "DELETE FROM `singers` WHERE `singers`.`id` = @p1"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
       @mock.put_statement_result delete_sql, StatementResult.new(1)
 
@@ -273,12 +273,12 @@ module MockServerTests
 
       assert_equal 2, @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.count
       delete_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
-      assert_equal singer.id.to_s, delete_request.params["id_1"]
+      assert_equal singer.id.to_s, delete_request.params["p1"]
     end
 
     def test_singer_albums_uses_prepared_statement
-      select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
-      select_albums_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singer_id` = @singer_id_1"
+      select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
+      select_albums_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singer_id` = @p1"
 
       @mock.put_statement_result select_singer_sql, MockServerTests::create_random_singers_result(1)
       @mock.put_statement_result select_albums_sql, MockServerTests::create_random_albums_result(2)
@@ -288,8 +288,8 @@ module MockServerTests
 
       assert_equal 2, albums.length
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_albums_sql }.first
-      assert_equal singer.id.to_s, request.params["singer_id_1"]
-      assert_equal :INT64, request.param_types["singer_id_1"].code
+      assert_equal singer.id.to_s, request.params["p1"]
+      assert_equal :INT64, request.param_types["p1"].code
     end
 
     def test_create_singer_using_mutation
@@ -318,7 +318,7 @@ module MockServerTests
     end
 
     def test_update_singer_using_mutation
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
       singer = Singer.find_by id: 1
 
@@ -358,7 +358,7 @@ module MockServerTests
     end
 
     def test_destroy_singer_using_mutation
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
       singer = Singer.find_by id: 1
 
@@ -394,10 +394,10 @@ module MockServerTests
     end
 
     def test_create_record_with_commit_timestamp_using_dml
-      insert_sql = "INSERT INTO `table_with_commit_timestamps` (`value`, `last_updated`, `id`) VALUES (@value_1, PENDING_COMMIT_TIMESTAMP(), @id_2)"
+      insert_sql = "INSERT INTO `table_with_commit_timestamps` (`value`, `last_updated`, `id`) VALUES (@p1, PENDING_COMMIT_TIMESTAMP(), @p2)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
-      TableWithCommitTimestamp.transaction do
+      row = TableWithCommitTimestamp.transaction do
         TableWithCommitTimestamp.create value: "v1", last_updated: :commit_timestamp
       end
 
@@ -407,10 +407,10 @@ module MockServerTests
       # The parameters should only contain the fields `value` and `id`. The `last_updated` field should be supplied
       # using the SQL literal `PENDING_COMMIT_TIMESTAMP()`, which is not allowed as a parameter value.
       assert_equal 2, request.params.fields.length
-      assert_equal "v1", request.params["value_1"]
-      assert_equal :STRING, request.param_types["value_1"].code
-      refute request.params["last_updated_2"]
-      refute request.param_types["last_updated_2"]
+      assert_equal "v1", request.params["p1"]
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal row.id.to_s, request.params["p2"]
+      assert_equal :INT64, request.param_types["p2"].code
 
     end
 
@@ -509,10 +509,10 @@ module MockServerTests
       sql = "INSERT INTO `all_types` (`col_string`, `col_int64`, `col_float64`, `col_numeric`, `col_bool`, " \
             "`col_bytes`, `col_date`, `col_timestamp`, `col_array_string`, `col_array_int64`, `col_array_float64`, "\
             "`col_array_numeric`, `col_array_bool`, `col_array_bytes`, `col_array_date`, `col_array_timestamp`, `id`) "\
-            "VALUES (@col_string_1, @col_int64_2, @col_float64_3, @col_numeric_4, @col_bool_5, @col_bytes_6, " \
-            "@col_date_7, @col_timestamp_8, @col_array_string_9, @col_array_int64_10, @col_array_float64_11, " \
-            "@col_array_numeric_12, @col_array_bool_13, @col_array_bytes_14, @col_array_date_15, " \
-            "@col_array_timestamp_16, @id_17)"
+            "VALUES (@p1, @p2, @p3, @p4, @p5, @p6, " \
+            "@p7, @p8, @p9, @p10, @p11, " \
+            "@p12, @p13, @p14, @p15, " \
+            "@p16, @p17)"
       @mock.put_statement_result sql, StatementResult.new(1)
 
       AllTypes.transaction do
@@ -537,49 +537,66 @@ module MockServerTests
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }.first
       assert request
 
-      assert_equal "string", request.params["col_string_1"]
-      assert_equal :STRING, request.param_types["col_string_1"].code
-      assert_equal "100", request.params["col_int64_2"]
-      assert_equal :INT64, request.param_types["col_int64_2"].code
-      assert_equal 3.14, request.params["col_float64_3"]
-      assert_equal :FLOAT64, request.param_types["col_float64_3"].code
-      assert_equal "6.626", request.params["col_numeric_4"]
-      assert_equal :NUMERIC, request.param_types["col_numeric_4"].code
-      assert_equal true, request.params["col_bool_5"]
-      assert_equal :BOOL, request.param_types["col_bool_5"].code
-      assert_equal Base64.urlsafe_encode64("bytes"), request.params["col_bytes_6"]
-      assert_equal :BYTES, request.param_types["col_bytes_6"].code
-      assert_equal "2021-06-23", request.params["col_date_7"]
-      assert_equal :DATE, request.param_types["col_date_7"].code
-      assert_equal "2021-06-23T15:08:21.000000000Z", request.params["col_timestamp_8"]
-      assert_equal :TIMESTAMP, request.param_types["col_timestamp_8"].code
+      assert_equal "string", request.params["p1"]
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal "100", request.params["p2"]
+      assert_equal :INT64, request.param_types["p2"].code
+      assert_equal 3.14, request.params["p3"]
+      assert_equal :FLOAT64, request.param_types["p3"].code
+      assert_equal "6.626", request.params["p4"]
+      assert_equal :NUMERIC, request.param_types["p4"].code
+      assert_equal true, request.params["p5"]
+      assert_equal :BOOL, request.param_types["p5"].code
+      assert_equal Base64.urlsafe_encode64("bytes"), request.params["p6"]
+      assert_equal :BYTES, request.param_types["p6"].code
+      assert_equal "2021-06-23", request.params["p7"]
+      assert_equal :DATE, request.param_types["p7"].code
+      assert_equal "2021-06-23T15:08:21.000000000Z", request.params["p8"]
+      assert_equal :TIMESTAMP, request.param_types["p8"].code
 
-      assert_equal create_list_value(["string1", nil, "string2"]), request.params["col_array_string_9"]
-      assert_equal :ARRAY, request.param_types["col_array_string_9"].code
-      assert_equal :STRING, request.param_types["col_array_string_9"].array_element_type.code
-      assert_equal create_list_value(["100", nil, "200"]), request.params["col_array_int64_10"]
-      assert_equal :ARRAY, request.param_types["col_array_int64_10"].code
-      assert_equal :INT64, request.param_types["col_array_int64_10"].array_element_type.code
-      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["col_array_float64_11"]
-      assert_equal :ARRAY, request.param_types["col_array_float64_11"].code
-      assert_equal :FLOAT64, request.param_types["col_array_float64_11"].array_element_type.code
-      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["col_array_numeric_12"]
-      assert_equal :ARRAY, request.param_types["col_array_numeric_12"].code
-      assert_equal :NUMERIC, request.param_types["col_array_numeric_12"].array_element_type.code
-      assert_equal create_list_value([true, nil, false]), request.params["col_array_bool_13"]
-      assert_equal :ARRAY, request.param_types["col_array_bool_13"].code
-      assert_equal :BOOL, request.param_types["col_array_bool_13"].array_element_type.code
+      assert_equal create_list_value(["string1", nil, "string2"]), request.params["p9"]
+      assert_equal :ARRAY, request.param_types["p9"].code
+      assert_equal :STRING, request.param_types["p9"].array_element_type.code
+      assert_equal create_list_value(["100", nil, "200"]), request.params["p10"]
+      assert_equal :ARRAY, request.param_types["p10"].code
+      assert_equal :INT64, request.param_types["p10"].array_element_type.code
+      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["p11"]
+      assert_equal :ARRAY, request.param_types["p11"].code
+      assert_equal :FLOAT64, request.param_types["p11"].array_element_type.code
+      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["p12"]
+      assert_equal :ARRAY, request.param_types["p12"].code
+      assert_equal :NUMERIC, request.param_types["p12"].array_element_type.code
+      assert_equal create_list_value([true, nil, false]), request.params["p13"]
+      assert_equal :ARRAY, request.param_types["p13"].code
+      assert_equal :BOOL, request.param_types["p13"].array_element_type.code
       assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
-                   request.params["col_array_bytes_14"]
-      assert_equal :ARRAY, request.param_types["col_array_bytes_14"].code
-      assert_equal :BYTES, request.param_types["col_array_bytes_14"].array_element_type.code
-      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["col_array_date_15"]
-      assert_equal :ARRAY, request.param_types["col_array_date_15"].code
-      assert_equal :DATE, request.param_types["col_array_date_15"].array_element_type.code
+                   request.params["p14"]
+      assert_equal :ARRAY, request.param_types["p14"].code
+      assert_equal :BYTES, request.param_types["p14"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["p15"]
+      assert_equal :ARRAY, request.param_types["p15"].code
+      assert_equal :DATE, request.param_types["p15"].array_element_type.code
       assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
-                   request.params["col_array_timestamp_16"]
-      assert_equal :ARRAY, request.param_types["col_array_timestamp_16"].code
-      assert_equal :TIMESTAMP, request.param_types["col_array_timestamp_16"].array_element_type.code
+                   request.params["p16"]
+      assert_equal :ARRAY, request.param_types["p16"].code
+      assert_equal :TIMESTAMP, request.param_types["p16"].array_element_type.code
+    end
+
+    def test_delete_associated_records
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+      albums_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singer_id` = @p1"
+      @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
+      singer = Singer.find_by id: 1
+
+      update_albums_sql = "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+      @mock.put_statement_result update_albums_sql, StatementResult.new(2)
+
+      singer.albums = []
+      singer.reload
+
+      request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_albums_sql }.first
+      assert request
     end
 
     private

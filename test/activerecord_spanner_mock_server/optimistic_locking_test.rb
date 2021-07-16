@@ -23,8 +23,8 @@ module MockServerTests
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }.first
       assert request
       # Ensure that the update statement sets the new lock version to 3 and verifies that the current value is 2.
-      assert_equal "3", request.params["lock_version_2"]
-      assert_equal "2", request.params["lock_version_4"]
+      assert_equal "3", request.params["p2"]
+      assert_equal "2", request.params["p4"]
     end
 
     def test_versioned_update_using_dml_stale_object
@@ -42,8 +42,8 @@ module MockServerTests
 
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }.first
       assert request
-      assert_equal "4", request.params["lock_version_2"]
-      assert_equal "3", request.params["lock_version_4"]
+      assert_equal "4", request.params["p2"]
+      assert_equal "3", request.params["p4"]
     end
 
     def test_versioned_delete_using_dml
@@ -58,7 +58,7 @@ module MockServerTests
 
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
       assert request
-      assert_equal "2", request.params["lock_version_2"]
+      assert_equal "2", request.params["p2"]
     end
 
     def test_versioned_delete_using_dml_stale_object
@@ -75,7 +75,7 @@ module MockServerTests
 
       request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }.first
       assert request
-      assert_equal "3", request.params["lock_version_2"]
+      assert_equal "3", request.params["p2"]
     end
 
     def test_versioned_update_using_implicit_transaction
@@ -276,27 +276,27 @@ module MockServerTests
 
     def register_insert_versioned_singer_result
       sql = "INSERT INTO `versioned_singers` (`first_name`, `last_name`, `lock_version`, `id`) " \
-            "VALUES (@first_name_1, @last_name_2, @lock_version_3, @id_4)"
+            "VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result sql, StatementResult.new(1)
       sql
     end
 
     def register_update_versioned_singer_result update_count
-      sql = "UPDATE `versioned_singers` SET `last_name` = @last_name_1, `lock_version` = @lock_version_2 " \
-            "WHERE `versioned_singers`.`id` = @id_3 AND `versioned_singers`.`lock_version` = @lock_version_4"
+      sql = "UPDATE `versioned_singers` SET `last_name` = @p1, `lock_version` = @p2 " \
+            "WHERE `versioned_singers`.`id` = @p3 AND `versioned_singers`.`lock_version` = @p4"
       @mock.put_statement_result sql, StatementResult.new(update_count)
       sql
     end
 
     def register_delete_versioned_singer_result update_count
       sql = "DELETE FROM `versioned_singers` " \
-            "WHERE `versioned_singers`.`id` = @id_1 AND `versioned_singers`.`lock_version` = @lock_version_2"
+            "WHERE `versioned_singers`.`id` = @p1 AND `versioned_singers`.`lock_version` = @p2"
       @mock.put_statement_result sql, StatementResult.new(update_count)
       sql
     end
 
     def register_versioned_singer_find_by_id_result lock_version
-      sql = "SELECT `versioned_singers`.* FROM `versioned_singers` WHERE `versioned_singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      sql = "SELECT `versioned_singers`.* FROM `versioned_singers` WHERE `versioned_singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1, lock_version)
       sql
     end

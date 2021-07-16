@@ -68,7 +68,7 @@ module TestInterleavedTables
     def test_find_album
       # Selecting a single album should only use the albumid column, and not the singerid column that is technically also
       # part of the primary key.
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @albumid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find 1
       refute_nil album.albumid, "albumid should not be nil"
@@ -76,7 +76,7 @@ module TestInterleavedTables
     end
 
     def test_create_album
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @singerid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_singers_result(1)
       singer = Singer.find 1
 
@@ -102,7 +102,7 @@ module TestInterleavedTables
     end
 
     def test_update_album
-      sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @albumid_1 LIMIT @LIMIT_2"
+      sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql_album, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find 1
 
@@ -127,7 +127,7 @@ module TestInterleavedTables
     end
 
     def test_destroy_album
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @albumid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find 1
       album.destroy
@@ -160,7 +160,7 @@ module TestInterleavedTables
     def test_find_track
       # Selecting a single album should only use the trackid column, and not the singerid and albumid columns that are
       # technically also part of the primary key.
-      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @trackid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(1)
       track = Track.find 1
       refute_nil track.trackid, "trackid should not be nil"
@@ -169,9 +169,9 @@ module TestInterleavedTables
     end
 
     def test_create_track
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @singerid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_singers_result(1, 1)
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @albumid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1, 1, 1)
       album = Album.find 1
 
@@ -201,7 +201,7 @@ module TestInterleavedTables
     end
 
     def test_update_track
-      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @trackid_1 LIMIT @LIMIT_2"
+      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql_track, TestInterleavedTables::create_random_tracks_result(1, 1, 1, 1)
       track = Track.find 1
 
@@ -230,7 +230,7 @@ module TestInterleavedTables
     end
 
     def test_destroy_track
-      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @trackid_1 LIMIT @LIMIT_2"
+      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(1, 1, 2, 3)
       track = Track.find 1
       track.destroy

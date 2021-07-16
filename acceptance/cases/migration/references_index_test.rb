@@ -65,7 +65,11 @@ module ActiveRecord
           t.references :foo, polymorphic: true, index: true
         end
 
-        assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo_type_and_foo_id)
+        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
+          assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo_type_and_foo_id)
+        else
+          assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo)
+        end
       end
 
       def test_creates_index_for_existing_table
@@ -91,8 +95,7 @@ module ActiveRecord
         connection.change_table table_name do |t|
           t.references :foo, index: false
         end
-
-        assert_not connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
+        assert_not connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo)
       end
 
       def test_creates_polymorphic_index_for_existing_table
@@ -101,7 +104,11 @@ module ActiveRecord
           t.references :foo, polymorphic: true, index: true
         end
 
-        assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo_type_and_foo_id)
+        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
+          assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo_type_and_foo_id)
+        else
+          assert connection.index_exists?(table_name, [:foo_type, :foo_id], name: :index_testings_on_foo)
+        end
       end
     end
   end

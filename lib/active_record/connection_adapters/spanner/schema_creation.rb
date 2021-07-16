@@ -7,7 +7,7 @@
 module ActiveRecord
   module ConnectionAdapters
     module Spanner
-      class SchemaCreation < AbstractAdapter::SchemaCreation
+      class SchemaCreation < SchemaCreation
         private
 
         # rubocop:disable Naming/MethodName, Metrics/AbcSize
@@ -79,7 +79,7 @@ module ActiveRecord
         end
 
         def visit_DropIndexDefinition o
-          "DROP INDEX #{quote_column_name o.name}"
+          "DROP INDEX #{quote_table_name o.name}"
         end
 
         def visit_IndexDefinition o

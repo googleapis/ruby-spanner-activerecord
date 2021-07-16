@@ -20,6 +20,8 @@ module ActiveRecord
       # [Schema Doc](https://cloud.google.com/spanner/docs/information-schema)
       #
       module SchemaStatements
+        VERSION_6_1_0 = Gem::Version.create('6.1.0')
+
         def current_database
           @connection.database_id
         end
@@ -119,7 +121,7 @@ module ActiveRecord
 
         def add_column table_name, column_name, type, **options
           # Add column with NOT NULL not supported by spanner.
-          # It is currenlty un-implemented state in spanner service.
+          # It is currently un-implemented state in spanner service.
           nullable = options.delete(:null) == false
 
           at = create_alter_table table_name
@@ -160,56 +162,14 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        def change_column table_name, column_name, type, options = {} # rubocop:disable Metrics/AbcSize
-          column = information_schema do |i|
-            i.table_column table_name, column_name
+        if ActiveRecord::gem_version < VERSION_6_1_0
+          def change_column table_name, column_name, type, options = {}
+            _change_column table_name, column_name, type, **options
           end
-
-          unless column
-            raise ArgumentError,
-                  "Column '#{column_name}' not exist for table '#{table_name}'"
+        else
+          def change_column table_name, column_name, type, **options
+            _change_column table_name, column_name, type, **options
           end
-
-          indexes = information_schema do |i|
-            i.indexes_by_columns table_name, column_name
-          end
-
-          statements = indexes.map do |index|
-            schema_creation.accept DropIndexDefinition.new(index.name)
-          end
-
-          column = new_column_from_field table_name, column
-
-          type ||= column.type
-          options[:null] = column.null unless options.key? :null
-
-          if ["STRING", "BYTES"].include? type
-            options[:limit] = column.limit unless options.key? :limit
-          end
-
-          # Only timestamp type can set commit timestamp
-          if type == "TIMESTAMP" &&
-             options.key?(:allow_commit_timestamp) == false
-            options[:allow_commit_timestamp] = column.allow_commit_timestamp
-          end
-
-          td = create_table_definition table_name
-          cd = td.new_column_definition column.name, type, **options
-
-          ccd = Spanner::ChangeColumnDefinition.new table_name, cd, column.name
-          statements << schema_creation.accept(ccd)
-
-          # Recreate indexes
-          indexes.each do |index|
-            id = create_index_definition(
-              table_name,
-              index.column_names,
-              **index.options
-            )
-            statements << schema_creation.accept(id)
-          end
-
-          execute_schema_statements statements
         end
 
         def change_column_null table_name, column_name, null, _default = nil
@@ -285,12 +245,16 @@ module ActiveRecord
           execute_schema_statements schema_creation.accept(id)
         end
 
-        def remove_index table_name, options = {}
-          index_name = index_name_for_remove table_name, options
-          statement = schema_creation.accept(
-            DropIndexDefinition.new(index_name)
-          )
-          execute_schema_statements statement
+        if ActiveRecord::gem_version < VERSION_6_1_0
+          def remove_index table_name, options = {}
+            index_name = index_name_for_remove table_name, options
+            execute "DROP INDEX #{quote_table_name index_name}"
+          end
+        else
+          def remove_index table_name, column_name = nil, **options
+            index_name = index_name_for_remove table_name, column_name, options
+            execute "DROP INDEX #{quote_table_name index_name}"
+          end
         end
 
         def rename_index table_name, old_name, new_name
@@ -428,6 +392,58 @@ module ActiveRecord
           [ActiveRecord::InternalMetadata.table_name, ActiveRecord::SchemaMigration.table_name].exclude? table_name.to_s
         end
 
+        def _change_column table_name, column_name, type, **options
+          column = information_schema do |i|
+            i.table_column table_name, column_name
+          end
+
+          unless column
+            raise ArgumentError,
+                  "Column '#{column_name}' not exist for table '#{table_name}'"
+          end
+
+          indexes = information_schema do |i|
+            i.indexes_by_columns table_name, column_name
+          end
+
+          statements = indexes.map do |index|
+            schema_creation.accept DropIndexDefinition.new(index.name)
+          end
+
+          column = new_column_from_field table_name, column
+
+          type ||= column.type
+          options[:null] = column.null unless options.key? :null
+
+          if ["STRING", "BYTES"].include? type
+            options[:limit] = column.limit unless options.key? :limit
+          end
+
+          # Only timestamp type can set commit timestamp
+          if type == "TIMESTAMP" &&
+            options.key?(:allow_commit_timestamp) == false
+            options[:allow_commit_timestamp] = column.allow_commit_timestamp
+          end
+
+          td = create_table_definition table_name
+          cd = td.new_column_definition column.name, type, **options
+
+          ccd = Spanner::ChangeColumnDefinition.new table_name, cd, column.name
+          statements << schema_creation.accept(ccd)
+
+          # Recreate indexes
+          indexes.each do |index|
+            id = create_index_definition(
+              table_name,
+              index.column_names,
+              **index.options
+            )
+            statements << schema_creation.accept(id)
+          end
+
+          execute_schema_statements statements
+        end
+
         def copy_data table_name, src_column_name, dest_column_name
           sql = "UPDATE %<table>s SET %<dest_column_name>s = %<src_column_name>s WHERE true"
           values = {
@@ -446,7 +462,7 @@ module ActiveRecord
             options[:options][:name] = options[:options][:name].to_s.gsub(
               column_name.to_s, new_column_name.to_s
             )
-            add_index table_name, options[:columns], options[:options]
+            add_index table_name, options[:columns], **options[:options]
           end
         end
 

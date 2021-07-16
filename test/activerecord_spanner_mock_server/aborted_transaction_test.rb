@@ -115,13 +115,13 @@ module MockServerTests
     end
 
     def register_insert_singer_result
-      sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@first_name_1, @last_name_2, @id_3)"
+      sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result sql, StatementResult.new(1)
       sql
     end
 
     def register_singer_find_by_id_result
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @id_1 LIMIT @LIMIT_2"
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
       sql
     end

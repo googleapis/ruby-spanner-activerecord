@@ -11,6 +11,11 @@ jobs:
       max-parallel: 4
       matrix:
         ruby: [2.5, 2.6, 2.7]
+        ar: [6.0.4, 6.1.0, 6.1.4]
+        # Exclude Ruby 3.0 and ActiveRecord 6.0.x as the latter does not support Ruby 3.0.
+        exclude:
+          - ruby: 3.0
+            ar: 6.0.4
     steps:
     - uses: actions/checkout@v2
     - name: Set up Ruby
@@ -20,6 +25,8 @@ jobs:
       with:
         bundler-cache: true
         ruby-version: ${{ matrix.ruby }}
+    - name: Set ActiveRecord version
+      run: sed -i "s/\"activerecord\", \"~> 6.1.4\"/\"activerecord\", \"${{ matrix.ar }}\"/" activerecord-spanner-adapter.gemspec
     - name: Install dependencies
       run: bundle install
     - name: Run tests
