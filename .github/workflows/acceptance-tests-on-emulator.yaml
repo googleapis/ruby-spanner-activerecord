@@ -19,9 +19,17 @@ jobs:
       max-parallel: 4
       matrix:
         ruby: [2.5, 2.6, 2.7, 3.0]
-        ar: [6.0.4, 6.1.0, 6.1.4]
+        ar: [6.0.0, 6.0.1, 6.0.2.2, 6.0.3.7, 6.0.4, 6.1.0, 6.1.1, 6.1.2.1, 6.1.3.2, 6.1.4]
         # Exclude Ruby 3.0 and ActiveRecord 6.0.x as that combination is not supported.
         exclude:
+          - ruby: 3.0
+            ar: 6.0.0
+          - ruby: 3.0
+            ar: 6.0.1
+          - ruby: 3.0
+            ar: 6.0.2.2
+          - ruby: 3.0
+            ar: 6.0.3.7
           - ruby: 3.0
             ar: 6.0.4
     steps:
