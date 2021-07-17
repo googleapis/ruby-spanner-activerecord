@@ -158,7 +158,6 @@ module ActiveRecord
         end
 
         def _remove_columns table_name, *column_names
-          # def remove_columns table_name, *column_names
           if column_names.empty?
             raise ArgumentError, "You must specify at least one column name. "\
               "Example: remove_columns(:people, :first_name)"

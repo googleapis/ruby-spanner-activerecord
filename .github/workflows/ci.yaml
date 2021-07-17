@@ -10,9 +10,9 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        ruby: [2.5, 2.6, 2.7]
+        ruby: [2.5, 2.6, 2.7, 3.0]
         ar: [6.0.4, 6.1.0, 6.1.4]
-        # Exclude Ruby 3.0 and ActiveRecord 6.0.x as the latter does not support Ruby 3.0.
+        # Exclude Ruby 3.0 and ActiveRecord 6.0.x as that combination is not supported.
         exclude:
           - ruby: 3.0
             ar: 6.0.4
