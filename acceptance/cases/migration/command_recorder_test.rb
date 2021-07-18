@@ -314,11 +314,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people]
-        if ActiveRecord::gem_version < VERSION_6_1_0
-          assert_equal [:remove_foreign_key, [:dogs, :people]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
       end
 
       def test_invert_remove_foreign_key
@@ -328,11 +324,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id"]
-        if ActiveRecord::gem_version < VERSION_6_1_0
-          assert_equal [:remove_foreign_key, [:dogs, column: "owner_id"]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
       end
 
       def test_invert_remove_foreign_key_with_column
@@ -342,11 +334,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column_and_name
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id", name: "fk"]
-        if ActiveRecord::gem_version < VERSION_6_1_0
-          assert_equal [:remove_foreign_key, [:dogs, { name: "fk" }]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
       end
 
       def test_invert_remove_foreign_key_with_column_and_name

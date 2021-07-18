@@ -190,6 +190,7 @@ module ActiveRecord
                      .convert_active_model_type_to_spanner(bind.type)
             end
             [
+              # Generates binds for named parameters in the format `@p1, @p2, ...`
               "p#{i + 1}", type
             ]
           end.to_h
@@ -199,7 +200,6 @@ module ActiveRecord
             value = type.serialize bind.value, :dml if type.respond_to?(:serialize) && type.method(:serialize).arity < 0
             value = type.serialize bind.value if type.respond_to?(:serialize) && type.method(:serialize).arity >= 0
 
-            # ["#{v.name}_#{i + 1}", value]
             ["p#{i + 1}", value]
           end.to_h
           [types, params]
@@ -241,7 +241,8 @@ module ActiveRecord
           )
         end
 
-        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m.freeze
+        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m.freeze \
+            unless defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
         COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX \
             if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
 

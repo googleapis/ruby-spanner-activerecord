@@ -73,8 +73,6 @@ module ActiveRecord
       include Spanner::SchemaStatements
 
       def initialize connection, logger, connection_options, config
-        # Use prepared statements by default if the user has not specified anything else.
-        # config[:prepared_statements] = config[:prepared_statements].nil? ? true : config[:prepared_statements]
         super connection, logger, config
         @connection_options = connection_options
       end

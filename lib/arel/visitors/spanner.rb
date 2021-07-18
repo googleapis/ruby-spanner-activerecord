@@ -28,9 +28,6 @@ module Arel # :nodoc: all
         return collector << "PENDING_COMMIT_TIMESTAMP()" \
           if o.value.type.is_a?(ActiveRecord::Type::Spanner::Time) && o.value.value == :commit_timestamp
         collector.add_bind(o.value, &bind_block)
-
-        # @index += 1
-        # collector.add_bind(o.value) { "@#{o.value.name}_#{@index}" }
       end
       # rubocop:enable Naming/MethodName
     end
