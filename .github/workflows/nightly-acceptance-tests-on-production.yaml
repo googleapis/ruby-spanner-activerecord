@@ -1,7 +1,7 @@
 on:
   schedule:
-    # 06:00 UTC
-    - cron:  '0 6 * * *'
+    # 02:00 UTC
+    - cron:  '0 2 * * *'
 name: nightly acceptance tests on production
 jobs:
   test:
