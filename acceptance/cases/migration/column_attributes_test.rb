@@ -7,6 +7,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "bigdecimal"
 
 module ActiveRecord
   class Migration
@@ -74,20 +75,23 @@ module ActiveRecord
       end
 
       def test_native_types
-        add_column "test_models", "first_name", :string
-        add_column "test_models", "last_name", :string
-        add_column "test_models", "bio", :text
-        add_column "test_models", "age", :integer
-        add_column "test_models", "height", :float
-        add_column "test_models", "birthday", :datetime
-        add_column "test_models", "favorite_day", :date
-        add_column "test_models", "moment_of_truth", :datetime
-        add_column "test_models", "male", :boolean
+        connection.ddl_batch do
+          add_column "test_models", "first_name", :string
+          add_column "test_models", "last_name", :string
+          add_column "test_models", "bio", :text
+          add_column "test_models", "age", :integer
+          add_column "test_models", "height", :float
+          add_column "test_models", "birthday", :datetime
+          add_column "test_models", "favorite_day", :date
+          add_column "test_models", "moment_of_truth", :datetime
+          add_column "test_models", "male", :boolean
+          add_column "test_models", "weight", :decimal
+        end
 
         TestModel.create first_name: "bob", last_name: "bobsen",
           bio: "I was born ....", age: 18, height: 1.78,
           birthday: 18.years.ago, favorite_day: 10.days.ago,
-          moment_of_truth: "1782-10-10 21:40:18", male: true
+          moment_of_truth: "1782-10-10 21:40:18", male: true, weight: BigDecimal("75.6", 1)
 
         bob = TestModel.first
         assert_equal "bob", bob.first_name
@@ -96,6 +100,7 @@ module ActiveRecord
         assert_equal 18, bob.age
         assert_equal 1.78, bob.height
         assert_equal true, bob.male?
+        assert_equal BigDecimal("75.6", 1), bob.weight
 
         assert_equal String, bob.first_name.class
         assert_equal String, bob.last_name.class
@@ -105,6 +110,7 @@ module ActiveRecord
         assert_equal Time, bob.birthday.class
         assert_equal Date, bob.favorite_day.class
         assert_instance_of TrueClass, bob.male?
+        assert_equal BigDecimal, bob.weight.class
       end
 
       def test_add_column_and_ignore_limit

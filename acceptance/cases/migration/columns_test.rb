@@ -14,7 +14,9 @@ module ActiveRecord
       include SpannerAdapter::Migration::TestHelper
 
       def test_rename_column
-        add_column "test_models", :hat_name, :string
+        connection.ddl_batch do
+          add_column "test_models", :hat_name, :string
+        end
         assert_column TestModel, :hat_name
 
         rename_column "test_models", :hat_name, :cap_name
@@ -30,58 +32,80 @@ module ActiveRecord
       end
 
       def test_remove_column_with_index
-        add_column "test_models", :hat_name, :string
-        add_index :test_models, :hat_name
+        connection.ddl_batch do
+          add_column "test_models", :hat_name, :string
+          add_index :test_models, :hat_name
+        end
 
         assert_equal 1, connection.indexes("test_models").size
-        remove_column "test_models", "hat_name"
+        connection.ddl_batch do
+          remove_column "test_models", "hat_name"
+        end
         assert_equal 0, connection.indexes("test_models").size
       end
 
       def test_remove_column_with_multi_column_index
-        add_column "test_models", :hat_size, :integer
-        add_column "test_models", :hat_style, :string, limit: 100
-        add_index "test_models", ["hat_style", "hat_size"], unique: true
+        connection.ddl_batch do
+          add_column "test_models", :hat_size, :integer
+          add_column "test_models", :hat_style, :string, limit: 100
+          add_index "test_models", ["hat_style", "hat_size"], unique: true
+        end
 
         assert_equal 1, connection.indexes("test_models").size
-        remove_column "test_models", "hat_size"
+        connection.ddl_batch do
+          remove_column "test_models", "hat_size"
+        end
 
         assert_equal [], connection.indexes("test_models").map(&:name)
       end
 
       def test_change_type_of_not_null_column
-        change_column "test_models", "updated_at", :datetime, null: false
-        change_column "test_models", "updated_at", :datetime, null: false
+        connection.ddl_batch do
+          change_column "test_models", "updated_at", :datetime, null: false
+          change_column "test_models", "updated_at", :datetime, null: false
+        end
 
         TestModel.reset_column_information
         assert_equal false, TestModel.columns_hash["updated_at"].null
       ensure
-        change_column "test_models", "updated_at", :datetime, null: true
+        connection.ddl_batch do
+          change_column "test_models", "updated_at", :datetime, null: true
+        end
       end
 
       def test_change_column_nullability
-        add_column "test_models", "funny", :boolean
+        connection.ddl_batch do
+          add_column "test_models", "funny", :boolean
+        end
         assert TestModel.columns_hash["funny"].null, "Column 'funny' must initially allow nulls"
 
-        change_column "test_models", "funny", :boolean, null: false
+        connection.ddl_batch do
+          change_column "test_models", "funny", :boolean, null: false
+        end
 
         TestModel.reset_column_information
         assert_not TestModel.columns_hash["funny"].null, "Column 'funny' must *not* allow nulls at this point"
 
-        change_column "test_models", "funny", :boolean, null: true
+        connection.ddl_batch do
+          change_column "test_models", "funny", :boolean, null: true
+        end
         TestModel.reset_column_information
         assert TestModel.columns_hash["funny"].null, "Column 'funny' must allow nulls again at this point"
       end
 
       def test_change_column
         # Only string and binary allows to change types
-        add_column "test_models", "name", :string
+        connection.ddl_batch do
+          add_column "test_models", "name", :string
+        end
 
         old_columns = connection.columns TestModel.table_name
 
         assert old_columns.find { |c| c.name == "name" && c.type == :string }
 
-        change_column "test_models", "name", :binary
+        connection.ddl_batch do
+          change_column "test_models", "name", :binary
+        end
 
         new_columns = connection.columns TestModel.table_name
 
@@ -90,11 +114,15 @@ module ActiveRecord
       end
 
       def test_change_column_with_custom_index_name
-        add_column :test_models, :category, :string
-        add_index :test_models, :category, name: "test_models_categories_idx", order: { category: :desc}
+        connection.ddl_batch do
+          add_column :test_models, :category, :string
+          add_index :test_models, :category, name: "test_models_categories_idx", order: { category: :desc}
+        end
 
         assert_equal ["test_models_categories_idx"], connection.indexes("test_models").map(&:name)
-        change_column "test_models", "category", :string, null: false
+        connection.ddl_batch do
+          change_column "test_models", "category", :string, null: false
+        end
 
         assert column_exists?(:test_models, :category, :string, null: false)
         indexes = connection.indexes("test_models")
@@ -105,10 +133,14 @@ module ActiveRecord
       def test_change_column_with_long_index_name
         table_name_prefix = "test_models_"
         long_index_name = table_name_prefix + ("x" * (connection.index_name_length - table_name_prefix.length))
-        add_column "test_models", "category", :string
-        add_index :test_models, :category, name: long_index_name
+        connection.ddl_batch do
+          add_column "test_models", "category", :string
+          add_index :test_models, :category, name: long_index_name
+        end
 
-        change_column "test_models", "category", :string, null: false
+        connection.ddl_batch do
+          change_column "test_models", "category", :string, null: false
+        end
 
         assert_equal [long_index_name], connection.indexes("test_models").map(&:name)
       end
@@ -118,12 +150,16 @@ module ActiveRecord
       end
 
       def test_removing_column_preserves_custom_primary_key
-        connection.create_table "my_table", primary_key: "my_table_id", force: true do |t|
-          t.integer "col_one"
-          t.string "col_two", limit: 128, null: false
+        connection.ddl_batch do
+          connection.create_table "my_table", primary_key: "my_table_id", force: true do |t|
+            t.integer "col_one"
+            t.string "col_two", limit: 128, null: false
+          end
         end
 
-        remove_column "my_table", "col_two"
+        connection.ddl_batch do
+          remove_column "my_table", "col_two"
+        end
 
         assert_equal "my_table_id", connection.primary_key("my_table")
 
@@ -131,17 +167,23 @@ module ActiveRecord
         my_table_id = columns.detect { |c| c.name == "my_table_id" }
         assert_equal "INT64", my_table_id.sql_type
       ensure
-        connection.drop_table :my_table rescue nil
+        connection.ddl_batch do
+          connection.drop_table :my_table rescue nil
+        end
       end
 
       def test_column_with_index
-        connection.create_table "my_table", force: true do |t|
-          t.string :item_number, index: true
+        connection.ddl_batch do
+          connection.create_table "my_table", force: true do |t|
+            t.string :item_number, index: true
+          end
         end
 
         assert connection.index_exists?("my_table", :item_number, name: :index_my_table_on_item_number)
       ensure
-        connection.drop_table :my_table rescue nil
+        connection.ddl_batch do
+          connection.drop_table :my_table rescue nil
+        end
       end
 
       def test_add_column_without_column_name

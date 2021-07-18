@@ -370,17 +370,17 @@ module TestMigrationsWithMockServer
       update_data_sql = "UPDATE singers SET `age_at_insert` = `age` WHERE true"
       @mock.put_statement_result update_data_sql, StatementResult.new(100)
 
-      ActiveRecord::Base.connection.ddl_batch do
-        with_change_table :singers do |t|
-          t.rename :age, :age_at_insert
-        end
+      # Note: Renaming a column in a DDL batch is not supported, as it involves copying data from one column to another.
+      with_change_table :singers do |t|
+        t.rename :age, :age_at_insert
       end
 
       ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
-      assert_equal 1, ddl_requests.length
-      assert_equal 2, ddl_requests[0].statements.length
+      assert_equal 2, ddl_requests.length
+      assert_equal 1, ddl_requests[0].statements.length
+      assert_equal 1, ddl_requests[1].statements.length
       assert_equal "ALTER TABLE `singers` ADD COLUMN `age_at_insert` INT64", ddl_requests[0].statements[0]
-      assert_equal "ALTER TABLE `singers` DROP COLUMN `age`", ddl_requests[0].statements[1]
+      assert_equal "ALTER TABLE `singers` DROP COLUMN `age`", ddl_requests[1].statements[0]
       update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_data_sql }
       assert_equal 1, update_requests.length
     end

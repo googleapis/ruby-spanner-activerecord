@@ -21,25 +21,31 @@ module ActiveRecord
 
         @table_name = :testings
 
-        connection.create_table table_name do |t|
-          t.column :foo, :string, limit: 100
-          t.column :bar, :string, limit: 100
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.column :foo, :string, limit: 100
+            t.column :bar, :string, limit: 100
 
-          t.string :first_name
-          t.string :last_name, limit: 100
-          t.string :key,       limit: 100
-          t.boolean :administrator
+            t.string :first_name
+            t.string :last_name, limit: 100
+            t.string :key,       limit: 100
+            t.boolean :administrator
+          end
         end
       end
 
       def teardown
-        connection.drop_table :testings rescue nil
+        connection.ddl_batch do
+          connection.drop_table :testings
+        end rescue nil
         ActiveRecord::Base.primary_key_prefix_type = nil
       end
 
       def test_rename_index
         connection.add_index(table_name, [:foo], name: "old_idx")
-        connection.rename_index(table_name, "old_idx", "new_idx")
+        connection.ddl_batch do
+          connection.rename_index(table_name, "old_idx", "new_idx")
+        end
 
         assert_not connection.index_name_exists?(table_name, "old_idx")
         assert connection.index_name_exists?(table_name, "new_idx")

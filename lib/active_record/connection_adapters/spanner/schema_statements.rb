@@ -192,6 +192,10 @@ module ActiveRecord
         end
 
         def rename_column table_name, column_name, new_column_name
+          if ActiveRecord::Base.connection.ddl_batch?
+            raise ActiveRecordSpannerAdapter::NotSupportedError, \
+                  "rename_column in a DDL Batch is not supported."
+          end
           column = information_schema do |i|
             i.table_column table_name, column_name
           end
@@ -214,7 +218,7 @@ module ActiveRecord
           # Recreate Foreign keys
           recreate_foreign_keys table_name, column_name, new_column_name
 
-          # Drop Indexes, Drop Foreign keys and colums
+          # Drop Indexes, Drop Foreign keys and columns
           remove_column table_name, column_name
         end
 
@@ -460,7 +464,9 @@ module ActiveRecord
             dest_column_name: quote_column_name(dest_column_name),
             src_column_name: quote_column_name(src_column_name)
           }
-          execute sql % values
+          ActiveRecord::Base.connection.transaction isolation: :pdml do
+            execute sql % values
+          end
         end
 
         def recreate_indexes table_name, column_name, new_column_name

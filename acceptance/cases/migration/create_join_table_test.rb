@@ -27,70 +27,92 @@ module ActiveRecord
       end
 
       def test_create_join_table
-        connection.create_join_table :artists, :musics
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics
+        end
 
         assert_equal %w(artist_id music_id), connection.columns(:artists_musics).map(&:name).sort
       end
 
       def test_create_join_table_set_not_null_by_default
-        connection.create_join_table :artists, :musics
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics
+        end
 
         assert_equal [false, false], connection.columns(:artists_musics).map(&:null)
       end
 
       def test_create_join_table_with_strings
-        connection.create_join_table "artists", "musics"
+        connection.ddl_batch do
+          connection.create_join_table "artists", "musics"
+        end
 
         assert_equal %w(artist_id music_id), connection.columns(:artists_musics).map(&:name).sort
       end
 
       def test_create_join_table_with_symbol_and_string
-        connection.create_join_table :artists, "musics"
+        connection.ddl_batch do
+          connection.create_join_table :artists, "musics"
+        end
 
         assert_equal %w(artist_id music_id), connection.columns(:artists_musics).map(&:name).sort
       end
 
       def test_create_join_table_with_the_proper_order
-        connection.create_join_table :videos, :musics
+        connection.ddl_batch do
+          connection.create_join_table :videos, :musics
+        end
 
         assert_equal %w(music_id video_id), connection.columns(:musics_videos).map(&:name).sort
       end
 
       def test_create_join_table_with_the_table_name
-        connection.create_join_table :artists, :musics, table_name: :catalog
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, table_name: :catalog
+        end
 
         assert_equal %w(artist_id music_id), connection.columns(:catalog).map(&:name).sort
       end
 
       def test_create_join_table_with_the_table_name_as_string
-        connection.create_join_table :artists, :musics, table_name: "catalog"
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, table_name: "catalog"
+        end
 
         assert_equal %w(artist_id music_id), connection.columns(:catalog).map(&:name).sort
       end
 
       def test_create_join_table_with_column_options
-        connection.create_join_table :artists, :musics, column_options: { null: true }
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, column_options: { null: true }
+        end
 
         assert_equal [true, true], connection.columns(:artists_musics).map(&:null)
       end
 
       def test_create_join_table_without_indexes
-        connection.create_join_table :artists, :musics
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics
+        end
 
         assert_predicate connection.indexes(:artists_musics), :blank?
       end
 
       def test_create_join_table_with_index
-        connection.create_join_table :artists, :musics do |t|
-          t.index [:artist_id, :music_id]
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics do |t|
+            t.index [:artist_id, :music_id]
+          end
         end
 
         assert_equal [%w(artist_id music_id)], connection.indexes(:artists_musics).map(&:columns)
       end
 
       def test_create_join_table_respects_reference_key_type
-        connection.create_join_table :artists, :musics do |t|
-          t.references :video
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics do |t|
+            t.references :video
+          end
         end
 
         artist_id, music_id, video_id = connection.columns(:artists_musics).sort_by(&:name)
@@ -100,43 +122,67 @@ module ActiveRecord
       end
 
       def test_drop_join_table
-        connection.create_join_table :artists, :musics
-        connection.drop_join_table :artists, :musics
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics
+        end
+        connection.ddl_batch do
+          connection.drop_join_table :artists, :musics
+        end
 
         assert_not connection.table_exists?("artists_musics")
       end
 
       def test_drop_join_table_with_strings
-        connection.create_join_table :artists, :musics
-        connection.drop_join_table "artists", "musics"
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics
+        end
+        connection.ddl_batch do
+          connection.drop_join_table "artists", "musics"
+        end
 
         assert_not connection.table_exists?("artists_musics")
       end
 
       def test_drop_join_table_with_the_proper_order
-        connection.create_join_table :videos, :musics
-        connection.drop_join_table :videos, :musics
+        connection.ddl_batch do
+          connection.create_join_table :videos, :musics
+        end
+        connection.ddl_batch do
+          connection.drop_join_table :videos, :musics
+        end
 
         assert_not connection.table_exists?("musics_videos")
       end
 
       def test_drop_join_table_with_the_table_name
-        connection.create_join_table :artists, :musics, table_name: :catalog
-        connection.drop_join_table :artists, :musics, table_name: :catalog
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, table_name: :catalog
+        end
+        connection.ddl_batch do
+          connection.drop_join_table :artists, :musics, table_name: :catalog
+        end
 
         assert_not connection.table_exists?("catalog")
       end
 
       def test_drop_join_table_with_the_table_name_as_string
-        connection.create_join_table :artists, :musics, table_name: "catalog"
-        connection.drop_join_table :artists, :musics, table_name: "catalog"
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, table_name: "catalog"
+        end
+        connection.ddl_batch do
+          connection.drop_join_table :artists, :musics, table_name: "catalog"
+        end
 
         assert_not connection.table_exists?("catalog")
       end
 
       def test_drop_join_table_with_column_options
-        connection.create_join_table :artists, :musics, column_options: { null: true }
-        connection.drop_join_table :artists, :musics, column_options: { null: true }
+        connection.ddl_batch do
+          connection.create_join_table :artists, :musics, column_options: { null: true }
+        end
+        connection.ddl_batch do
+          connection.drop_join_table :artists, :musics, column_options: { null: true }
+        end
 
         assert_not connection.table_exists?("artists_musics")
       end
@@ -159,8 +205,10 @@ module ActiveRecord
       ensure
         tables_after = connection.data_sources - tables_before
 
-        tables_after.each do |table|
-          connection.drop_table table
+        connection.ddl_batch do
+          tables_after.each do |table|
+            connection.drop_table table
+          end
         end
       end
     end

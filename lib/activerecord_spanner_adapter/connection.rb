@@ -135,7 +135,16 @@ module ActiveRecordSpannerAdapter
       rescue StandardError
         abort_batch
         raise
+      ensure
+        @ddl_batch = nil
       end
+    end
+
+    ##
+    # Returns true if this connection is currently executing a DDL batch, and otherwise false.
+    def ddl_batch?
+      return true if @ddl_batch
+      false
     end
 
     ##

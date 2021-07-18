@@ -113,7 +113,7 @@ module ActiveRecord
       alias reconnect! reset!
 
       # Spanner Connection API
-      delegate :ddl_batch, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
+      delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
 
       def current_spanner_transaction
         @connection.current_transaction

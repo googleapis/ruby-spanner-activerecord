@@ -23,37 +23,47 @@ module ActiveRecord
       end
 
       def teardown
-        connection.drop_table :testings rescue nil
+        connection.ddl_batch do
+          connection.drop_table :testings
+        end rescue nil
       end
 
       def test_creates_index
-        connection.create_table table_name do |t|
-          t.references :foo, index: true
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.references :foo, index: true
+          end
         end
 
         assert connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
       end
 
       def test_creates_index_by_default_even_if_index_option_is_not_passed
-        connection.create_table table_name do |t|
-          t.references :foo
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.references :foo
+          end
         end
 
         assert connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
       end
 
       def test_does_not_create_index_explicit
-        connection.create_table table_name do |t|
-          t.references :foo, index: false
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.references :foo, index: false
+          end
         end
 
         assert_not connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
       end
 
       def test_creates_index_with_options
-        connection.create_table table_name do |t|
-          t.references :foo, index: { name: :index_testings_on_yo_momma }
-          t.references :bar, index: { unique: true }
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.references :foo, index: { name: :index_testings_on_yo_momma }
+            t.references :bar, index: { unique: true }
+          end
         end
 
         assert connection.index_exists?(table_name, :foo_id, name: :index_testings_on_yo_momma)
@@ -61,8 +71,10 @@ module ActiveRecord
       end
 
       def test_creates_polymorphic_index
-        connection.create_table table_name do |t|
-          t.references :foo, polymorphic: true, index: true
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.references :foo, polymorphic: true, index: true
+          end
         end
 
         if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
@@ -73,35 +85,43 @@ module ActiveRecord
       end
 
       def test_creates_index_for_existing_table
-        connection.create_table table_name
-        connection.change_table table_name do |t|
-          t.references :foo, index: true
+        connection.ddl_batch do
+          connection.create_table table_name
+          connection.change_table table_name do |t|
+            t.references :foo, index: true
+          end
         end
 
         assert connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
       end
 
       def test_creates_index_for_existing_table_even_if_index_option_is_not_passed
-        connection.create_table table_name
-        connection.change_table table_name do |t|
-          t.references :foo
+        connection.ddl_batch do
+          connection.create_table table_name
+          connection.change_table table_name do |t|
+            t.references :foo
+          end
         end
 
         assert connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo_id)
       end
 
       def test_does_not_create_index_for_existing_table_explicit
-        connection.create_table table_name
-        connection.change_table table_name do |t|
-          t.references :foo, index: false
+        connection.ddl_batch do
+          connection.create_table table_name
+          connection.change_table table_name do |t|
+            t.references :foo, index: false
+          end
         end
         assert_not connection.index_exists?(table_name, :foo_id, name: :index_testings_on_foo)
       end
 
       def test_creates_polymorphic_index_for_existing_table
-        connection.create_table table_name
-        connection.change_table table_name do |t|
-          t.references :foo, polymorphic: true, index: true
+        connection.ddl_batch do
+          connection.create_table table_name
+          connection.change_table table_name do |t|
+            t.references :foo, polymorphic: true, index: true
+          end
         end
 
         if ActiveRecord::gem_version < Gem::Version.create('6.1.0')

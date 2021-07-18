@@ -16,7 +16,9 @@ module ActiveRecord
       def setup
         skip_test_table_create!
         super
-        @connection.create_table(:testing_parents, force: true)
+        connection.ddl_batch do
+          @connection.create_table(:testing_parents, force: true)
+        end
       end
 
       def teardown
@@ -27,8 +29,10 @@ module ActiveRecord
       end
 
       def test_create_foreign_key_with_table_create
-        connection.create_table :testings do |t|
-          t.references :testing_parent, foreign_key: true
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.references :testing_parent, foreign_key: true
+          end
         end
 
         fk = connection.foreign_keys("testings").first
@@ -37,8 +41,10 @@ module ActiveRecord
       end
 
       def test_create_foreign_key_created_by_default
-        connection.create_table :testings do |t|
-          t.references :testing_parent
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.references :testing_parent
+          end
         end
 
         assert_equal [], @connection.foreign_keys("testings")
@@ -59,8 +65,10 @@ module ActiveRecord
       end
 
       def test_to_table_options_can_be_passed
-        @connection.create_table :testings do |t|
-          t.references :parent, foreign_key: { to_table: :testing_parents }
+        connection.ddl_batch do
+          @connection.create_table :testings do |t|
+            t.references :parent, foreign_key: { to_table: :testing_parents }
+          end
         end
         fks = @connection.foreign_keys("testings")
         assert_equal([["testings", "testing_parents", "parent_id"]],
@@ -80,7 +88,9 @@ module ActiveRecord
         skip_test_table_create!
         super
         connection = ActiveRecord::Base.connection
-        connection.create_table(:testing_parents, force: true)
+        connection.ddl_batch do
+          connection.create_table(:testing_parents, force: true)
+        end
       end
 
       def teardown
@@ -113,10 +123,12 @@ module ActiveRecord
       end
 
       def test_foreign_key_accept_option_on_table_change
-        connection.change_table :testing_parents do |t|
-          t.references :other, index: { unique: true }
+        connection.ddl_batch do
+          connection.change_table :testing_parents do |t|
+            t.references :other, index: { unique: true }
+          end
+          connection.create_table :testings
         end
-        connection.create_table :testings
         connection.change_table :testings do |t|
           t.references :testing_parent, foreign_key: { primary_key: :other_id }
         end
@@ -126,8 +138,10 @@ module ActiveRecord
       end
 
       def test_foreign_key_column_can_be_removed
-        connection.create_table :testings do |t|
-          t.references :testing_parent, index: true, foreign_key: true
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.references :testing_parent, index: true, foreign_key: true
+          end
         end
 
         connection.remove_reference :testings, :testing_parent, foreign_key: true
@@ -135,11 +149,15 @@ module ActiveRecord
       end
 
       def test_remove_column_removes_foreign_key
-        connection.create_table :testings do |t|
-          t.references :testing_parent, index: true, foreign_key: true
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.references :testing_parent, index: true, foreign_key: true
+          end
         end
 
-        connection.remove_column :testings, :testing_parent_id
+        connection.ddl_batch do
+          connection.remove_column :testings, :testing_parent_id
+        end
         assert_equal 0, connection.foreign_keys('testings').size
       end
 
@@ -147,8 +165,10 @@ module ActiveRecord
         original_pluralize_table_names = ActiveRecord::Base.pluralize_table_names
         ActiveRecord::Base.pluralize_table_names = false
         connection.create_table :testing
-        connection.change_table :testing_parents do |t|
-          t.references :testing, foreign_key: true
+        connection.ddl_batch do
+          connection.change_table :testing_parents do |t|
+            t.references :testing, foreign_key: true
+          end
         end
 
         fk = connection.foreign_keys("testing_parents").first
@@ -160,21 +180,27 @@ module ActiveRecord
         end
       ensure
         ActiveRecord::Base.pluralize_table_names = original_pluralize_table_names
-        connection.drop_table "testing", if_exists: true
+        connection.ddl_batch do
+          connection.drop_table "testing", if_exists: true
+        end
       end
 
       class CreateDogsMigration < ActiveRecord::Migration::Current
         def up
-          create_table :dog_owners
+          connection.ddl_batch do
+            create_table :dog_owners
 
-          create_table :dogs do |t|
-            t.references :dog_owner, foreign_key: true
+            create_table :dogs do |t|
+              t.references :dog_owner, foreign_key: true
+            end
           end
         end
 
         def down
-          drop_table :dogs, if_exists: true
-          drop_table :dog_owners, if_exists: true
+          connection.ddl_batch do
+            drop_table :dogs, if_exists: true
+            drop_table :dog_owners, if_exists: true
+          end
         end
       end
 
@@ -199,9 +225,11 @@ module ActiveRecord
       end
 
       def test_multiple_foreign_keys_can_added_to_same_table
-        connection.create_table :testings do |t|
-          t.references :parent1, foreign_key: { to_table: :testing_parents }
-          t.references :parent2, foreign_key: { to_table: :testing_parents }
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.references :parent1, foreign_key: { to_table: :testing_parents }
+            t.references :parent2, foreign_key: { to_table: :testing_parents }
+          end
         end
 
         fks = connection.foreign_keys("testings").sort_by(&:column)
