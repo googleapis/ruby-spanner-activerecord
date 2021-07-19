@@ -14,15 +14,20 @@ module Arel # :nodoc: all
 
       private
 
+      BIND_BLOCK = proc { |i| "@p#{i}" }
+      private_constant :BIND_BLOCK
+
+      def bind_block
+        BIND_BLOCK
+      end
+
       # rubocop:disable Naming/MethodName
       def visit_Arel_Nodes_BindParam o, collector
         # Do not generate a query parameter if the value should be set to the PENDING_COMMIT_TIMESTAMP(), as that is
         # not supported as a parameter value by Cloud Spanner.
         return collector << "PENDING_COMMIT_TIMESTAMP()" \
           if o.value.type.is_a?(ActiveRecord::Type::Spanner::Time) && o.value.value == :commit_timestamp
-
-        @index += 1
-        collector.add_bind(o.value) { "@#{o.value.name}_#{@index}" }
+        collector.add_bind(o.value, &bind_block)
       end
       # rubocop:enable Naming/MethodName
     end

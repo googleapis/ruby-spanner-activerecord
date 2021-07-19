@@ -33,7 +33,11 @@ module ActiveRecord
 
         connection.create_table(:rename_column_comments) do |t|
           t.string :comment
-          t.references :rename_column_post, index: true, foreign_key: true
+          # The Spanner ActiveRecord adapter does not support creating an index on a column that also has a foreign key,
+          # as Cloud Spanner automatically creates a managed index for the foreign key. The index is therefore created
+          # separately.
+          t.references :rename_column_post, foreign_key: true
+          t.index :rename_column_post_id
         end
 
         RenameColumnPost.reset_column_information

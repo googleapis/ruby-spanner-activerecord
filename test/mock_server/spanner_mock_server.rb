@@ -161,7 +161,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   def get_statement_result sql
     unless @statement_results.has_key? sql
       @statement_results.each do |key,value|
-        if key.ends_with?("%") && sql.starts_with?(key.chop)
+        if key.end_with?("%") && sql.start_with?(key.chop)
           return value
         end
       end

@@ -19,76 +19,104 @@ module ActiveRecord
         super
         @table_name = :test_models
 
-        add_column table_name, :supplier_id, :integer, index: true
+        connection.ddl_batch do
+          add_column table_name, :supplier_id, :integer, index: true
+        end
       end
 
       def test_creates_reference_id_column
-        add_reference table_name, :user
+        connection.ddl_batch do
+          add_reference table_name, :user
+        end
         assert column_exists?(table_name, :user_id, :integer)
       end
 
       def test_does_not_create_reference_type_column
-        add_reference table_name, :taggable
+        connection.ddl_batch do
+          add_reference table_name, :taggable
+        end
         assert_not column_exists?(table_name, :taggable_type, :string)
       end
 
       def test_creates_reference_type_column
-        add_reference table_name, :taggable, polymorphic: true
+        connection.ddl_batch do
+          add_reference table_name, :taggable, polymorphic: true
+        end
         assert column_exists?(table_name, :taggable_id, :integer)
         assert column_exists?(table_name, :taggable_type, :string)
       end
 
       def test_does_not_create_reference_id_index_if_index_is_false
-        add_reference table_name, :user, index: false
+        connection.ddl_batch do
+          add_reference table_name, :user, index: false
+        end
         assert_not index_exists?(table_name, :user_id)
       end
 
       def test_create_reference_id_index_even_if_index_option_is_not_passed
-        add_reference table_name, :user
+        connection.ddl_batch do
+          add_reference table_name, :user
+        end
         assert index_exists?(table_name, :user_id)
       end
 
       def test_creates_polymorphic_index
-        add_reference table_name, :taggable, polymorphic: true, index: true
+        connection.ddl_batch do
+          add_reference table_name, :taggable, polymorphic: true, index: true
+        end
         assert index_exists?(table_name, [:taggable_type, :taggable_id])
       end
 
       def test_creates_reference_type_column_with_not_null
-        connection.create_table table_name, force: true do |t|
-          t.references :taggable, null: false, polymorphic: true
+        connection.ddl_batch do
+          connection.create_table table_name, force: true do |t|
+            t.references :taggable, null: false, polymorphic: true
+          end
         end
         assert column_exists?(table_name, :taggable_id, :integer, null: false)
         assert column_exists?(table_name, :taggable_type, :string, null: false)
       end
 
       def test_creates_named_index
-        add_reference table_name, :tag, index: { name: "index_taggings_on_tag_id" }
+        connection.ddl_batch do
+          add_reference table_name, :tag, index: { name: "index_taggings_on_tag_id" }
+        end
         assert index_exists?(table_name, :tag_id, name: "index_taggings_on_tag_id")
       end
 
       def test_creates_named_unique_index
-        add_reference table_name, :tag, index: { name: "index_taggings_on_tag_id", unique: true }
+        connection.ddl_batch do
+          add_reference table_name, :tag, index: { name: "index_taggings_on_tag_id", unique: true }
+        end
         assert index_exists?(table_name, :tag_id, name: "index_taggings_on_tag_id", unique: true)
       end
 
       def test_creates_reference_id_with_specified_type
-        add_reference table_name, :user, type: :string
+        connection.ddl_batch do
+          add_reference table_name, :user, type: :string
+        end
         assert column_exists?(table_name, :user_id, :string)
       end
 
       def test_deletes_reference_id_column
-        remove_reference table_name, :supplier
+        connection.ddl_batch do
+          remove_reference table_name, :supplier
+        end
         assert_not column_exists?(table_name, :supplier_id, :string)
       end
 
       def test_deletes_reference_id_index
-        remove_reference table_name, :supplier
+        connection.ddl_batch do
+          remove_reference table_name, :supplier
+        end
         assert_not index_exists?(table_name, :supplier_id)
       end
 
       def test_does_not_delete_reference_type_column
         with_polymorphic_column do
-          remove_reference table_name, :supplier
+          connection.ddl_batch do
+            remove_reference table_name, :supplier
+          end
 
           assert_not column_exists?(table_name, :supplier_id, :string)
           assert column_exists?(table_name, :supplier_type, :string)
@@ -110,20 +138,26 @@ module ActiveRecord
       end
 
       def test_add_belongs_to_alias
-        add_belongs_to table_name, :user
+        connection.ddl_batch do
+          add_belongs_to table_name, :user
+        end
         assert column_exists?(table_name, :user_id, :integer)
       end
 
       def test_remove_belongs_to_alias
-        remove_belongs_to table_name, :supplier
+        connection.ddl_batch do
+          remove_belongs_to table_name, :supplier
+        end
         assert_not column_exists?(table_name, :supplier_id, :integer)
       end
 
       private
 
       def with_polymorphic_column
-        add_column table_name, :supplier_type, :string
-        add_index table_name, [:supplier_id, :supplier_type]
+        connection.ddl_batch do
+          add_column table_name, :supplier_type, :string
+          add_index table_name, [:supplier_id, :supplier_type]
+        end
 
         yield
       end

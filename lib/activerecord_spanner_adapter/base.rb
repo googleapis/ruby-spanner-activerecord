@@ -5,6 +5,12 @@
 # https://opensource.org/licenses/MIT.
 
 module ActiveRecord
+  class TableMetadata # :nodoc:
+    # This attr_reader is private in ActiveRecord 6.0.x and public in 6.1.x. This makes sure it is always available in
+    # the Spanner adapter.
+    attr_reader :arel_table
+  end
+
   class Base
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
@@ -92,7 +98,7 @@ module ActiveRecord
       values.each_pair do |k, v|
         type = metadata.type k
         serialized_values << (type.method(:serialize).arity < 0 ? type.serialize(v, :mutation) : type.serialize(v))
-        columns << metadata.arel_attribute(k).name
+        columns << metadata.arel_table[k].name
       end
       [columns, Google::Protobuf::Value.new(list_value:
         Google::Protobuf::ListValue.new(
@@ -143,7 +149,7 @@ module ActiveRecord
           type = metadata.type k
           has_serialize_options = type.method(:serialize).arity < 0
           all_serialized_values << (has_serialize_options ? type.serialize(v, :mutation) : type.serialize(v))
-          all_columns << metadata.arel_attribute(k).name
+          all_columns << metadata.arel_table[k].name
         end
       end
       [all_columns, Google::Protobuf::Value.new(list_value:

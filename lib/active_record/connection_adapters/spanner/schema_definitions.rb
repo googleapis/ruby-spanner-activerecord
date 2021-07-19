@@ -58,8 +58,10 @@ module ActiveRecord
             **options
           @name = name
           @polymorphic = polymorphic
-          @index = index
           @foreign_key = foreign_key
+          # Only add an index if there is no foreign key, as Cloud Spanner will automatically add a managed index when
+          # a foreign key is added.
+          @index = index unless foreign_key
           @type = type
           @options = options
 

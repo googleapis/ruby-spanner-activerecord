@@ -73,8 +73,6 @@ module ActiveRecord
       include Spanner::SchemaStatements
 
       def initialize connection, logger, connection_options, config
-        # Use prepared statements by default if the user has not specified anything else.
-        config[:prepared_statements] = config[:prepared_statements].nil? ? true : config[:prepared_statements]
         super connection, logger, config
         @connection_options = connection_options
       end
@@ -115,7 +113,7 @@ module ActiveRecord
       alias reconnect! reset!
 
       # Spanner Connection API
-      delegate :ddl_batch, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
+      delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
 
       def current_spanner_transaction
         @connection.current_transaction

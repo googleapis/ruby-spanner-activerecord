@@ -24,13 +24,15 @@ module ActiveRecord
         skip_test_table_create!
         super
 
-        connection.create_table "rockets", force: true do |t|
-          t.string :name
-        end
+        connection.ddl_batch do
+          connection.create_table "rockets", force: true do |t|
+            t.string :name
+          end
 
-        connection.create_table "astronauts", force: true do |t|
-          t.string :name
-          t.references :rocket
+          connection.create_table "astronauts", force: true do |t|
+            t.string :name
+            t.references :rocket
+          end
         end
       end
 
@@ -44,12 +46,14 @@ module ActiveRecord
       end
 
       def test_foreign_keys
-        connection.create_table :fk_test_has_pk, primary_key: "pk_id", force: :cascade do |t|
-        end
+        connection.ddl_batch do
+          connection.create_table :fk_test_has_pk, primary_key: "pk_id", force: :cascade do |t|
+          end
 
-        connection.create_table :fk_test_has_fk, force: true do |t|
-          t.references :fk, null: false
-          t.foreign_key :fk_test_has_pk, column: "fk_id", name: "fk_name", primary_key: "pk_id"
+          connection.create_table :fk_test_has_fk, force: true do |t|
+            t.references :fk, null: false
+            t.foreign_key :fk_test_has_pk, column: "fk_id", name: "fk_name", primary_key: "pk_id"
+          end
         end
 
         foreign_keys = connection.foreign_keys("fk_test_has_fk")
@@ -63,7 +67,9 @@ module ActiveRecord
       end
 
       def test_add_foreign_key_inferes_column
-        connection.add_foreign_key :astronauts, :rockets
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets
+        end
 
         foreign_keys = connection.foreign_keys("astronauts")
         assert_equal 1, foreign_keys.size
@@ -76,7 +82,9 @@ module ActiveRecord
       end
 
       def test_add_foreign_key_with_column
-        connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        end
 
         foreign_keys = connection.foreign_keys("astronauts")
         assert_equal 1, foreign_keys.size
@@ -89,12 +97,14 @@ module ActiveRecord
       end
 
       def test_add_foreign_key_with_non_standard_primary_key
-        connection.create_table :space_shuttles, id: false, force: true do |t|
-          t.integer :pk, primary_key: true
-        end
+        connection.ddl_batch do
+          connection.create_table :space_shuttles, id: false, force: true do |t|
+            t.integer :pk, primary_key: true
+          end
 
-        connection.add_foreign_key(:astronauts, :space_shuttles,
-          column: "rocket_id", primary_key: "pk", name: "custom_pk")
+          connection.add_foreign_key(:astronauts, :space_shuttles,
+            column: "rocket_id", primary_key: "pk", name: "custom_pk")
+        end
 
         foreign_keys = connection.foreign_keys("astronauts")
         assert_equal 1, foreign_keys.size
@@ -104,26 +114,34 @@ module ActiveRecord
         assert_equal "space_shuttles", fk.to_table
         assert_equal "pk", fk.primary_key
       ensure
-        connection.remove_foreign_key :astronauts, name: "custom_pk", to_table: "space_shuttles"
-        connection.drop_table :space_shuttles
+        connection.ddl_batch do
+          connection.remove_foreign_key :astronauts, name: "custom_pk", to_table: "space_shuttles"
+          connection.drop_table :space_shuttles
+        end
       end
 
       def test_foreign_key_exists
-        connection.add_foreign_key :astronauts, :rockets
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets
+        end
 
         assert connection.foreign_key_exists?(:astronauts, :rockets)
         assert_not connection.foreign_key_exists?(:astronauts, :stars)
       end
 
       def test_foreign_key_exists_by_column
-        connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        end
 
         assert connection.foreign_key_exists?(:astronauts, column: "rocket_id")
         assert_not connection.foreign_key_exists?(:astronauts, column: "star_id")
       end
 
       def test_foreign_key_exists_by_name
-        connection.add_foreign_key :astronauts, :rockets, column: "rocket_id", name: "fancy_named_fk"
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: "rocket_id", name: "fancy_named_fk"
+        end
 
         assert connection.foreign_key_exists?(:astronauts, name: "fancy_named_fk")
         assert_not connection.foreign_key_exists?(:astronauts, name: "other_fancy_named_fk")
@@ -139,34 +157,50 @@ module ActiveRecord
       end
 
       def test_remove_foreign_key_inferes_column
-        connection.add_foreign_key :astronauts, :rockets
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets
+        end
 
         assert_equal 1, connection.foreign_keys("astronauts").size
-        @connection.remove_foreign_key :astronauts, :rockets
+        connection.ddl_batch do
+          @connection.remove_foreign_key :astronauts, :rockets
+        end
         assert_equal [], connection.foreign_keys("astronauts")
       end
 
       def test_remove_foreign_key_by_column
-        connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: "rocket_id"
+        end
 
         assert_equal 1, connection.foreign_keys("astronauts").size
-        @connection.remove_foreign_key :astronauts, column: "rocket_id"
+        connection.ddl_batch do
+          @connection.remove_foreign_key :astronauts, column: "rocket_id"
+        end
         assert_equal [], connection.foreign_keys("astronauts")
       end
 
       def test_remove_foreign_key_by_symbol_column
-        connection.add_foreign_key :astronauts, :rockets, column: :rocket_id
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: :rocket_id
+        end
 
         assert_equal 1, connection.foreign_keys("astronauts").size
-        connection.remove_foreign_key :astronauts, column: :rocket_id
+        connection.ddl_batch do
+          connection.remove_foreign_key :astronauts, column: :rocket_id
+        end
         assert_equal [], connection.foreign_keys("astronauts")
       end
 
       def test_remove_foreign_key_by_name
-        connection.add_foreign_key :astronauts, :rockets, column: "rocket_id", name: "fancy_named_fk"
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets, column: "rocket_id", name: "fancy_named_fk"
+        end
 
         assert_equal 1, connection.foreign_keys("astronauts").size
-        connection.remove_foreign_key :astronauts, name: "fancy_named_fk"
+        connection.ddl_batch do
+          connection.remove_foreign_key :astronauts, name: "fancy_named_fk"
+        end
         assert_equal [], connection.foreign_keys("astronauts")
       end
 
@@ -178,12 +212,16 @@ module ActiveRecord
       end
 
       def test_remove_foreign_key_by_the_select_one_on_the_same_table
-        connection.add_foreign_key :astronauts, :rockets
-        connection.add_reference :astronauts, :myrocket, foreign_key: { to_table: :rockets }
+        connection.ddl_batch do
+          connection.add_foreign_key :astronauts, :rockets
+          connection.add_reference :astronauts, :myrocket, foreign_key: { to_table: :rockets }
+        end
 
         assert_equal 2, connection.foreign_keys("astronauts").size
 
-        connection.remove_foreign_key :astronauts, :rockets, column: "myrocket_id"
+        connection.ddl_batch do
+          connection.remove_foreign_key :astronauts, :rockets, column: "myrocket_id"
+        end
 
         assert_equal [["astronauts", "rockets", "rocket_id"]],
           connection.foreign_keys("astronauts").map { |fk| [fk.from_table, fk.to_table, fk.column] }
@@ -191,12 +229,14 @@ module ActiveRecord
 
       class CreateCitiesAndHousesMigration < ActiveRecord::Migration::Current
         def change
-          create_table("cities") { |t| }
+          connection.ddl_batch do
+            create_table("cities") { |t| }
 
-          create_table("houses") do |t|
-            t.references :city
+            create_table("houses") do |t|
+              t.references :city
+            end
+            add_foreign_key :houses, :cities, column: "city_id"
           end
-          add_foreign_key :houses, :cities, column: "city_id"
 
           # remove and re-add to test that schema is updated and not accidentally cached
           remove_foreign_key :houses, :cities
@@ -214,17 +254,21 @@ module ActiveRecord
 
       class CreateSchoolsAndClassesMigration < ActiveRecord::Migration::Current
         def up
-          create_table(:schools)
+          connection.ddl_batch do
+            create_table(:schools)
 
-          create_table(:classes) do |t|
-            t.references :school
+            create_table(:classes) do |t|
+              t.references :school
+            end
+            add_foreign_key :classes, :schools
           end
-          add_foreign_key :classes, :schools
         end
 
         def down
-          drop_table :classes, if_exists: true
-          drop_table :schools, if_exists: true
+          connection.ddl_batch do
+            drop_table :classes, if_exists: true
+            drop_table :schools, if_exists: true
+          end
         end
       end
 

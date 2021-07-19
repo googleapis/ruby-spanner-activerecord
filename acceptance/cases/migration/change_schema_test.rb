@@ -22,7 +22,9 @@ module ActiveRecord
       end
 
       def teardown
-        connection.drop_table :testings rescue nil
+        connection.ddl_batch do
+          connection.drop_table :testings rescue nil
+        end
         ActiveRecord::Base.primary_key_prefix_type = nil
         ActiveRecord::Base.clear_cache!
       end
@@ -36,8 +38,10 @@ module ActiveRecord
       end
 
       def test_create_table_adds_id
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
         end
 
         assert_equal %w[id foo].sort, connection.columns(:testings).map(&:name).sort
@@ -50,26 +54,32 @@ module ActiveRecord
       end
 
       def test_create_table_with_custom_primary_key
-        connection.create_table :testings, force: true, primary_key: :email do |t|
-          t.string :name
+        connection.ddl_batch do
+          connection.create_table :testings, force: true, primary_key: :email do |t|
+            t.string :name
+          end
         end
 
         assert_equal "email", connection.primary_key(:testings)
       end
 
       def test_create_table_with_custom_primary_key_using_options
-        connection.create_table :testings, force: true, id: false do |t|
-          t.string :phone, primary_key: true
-          t.string :name
+        connection.ddl_batch do
+          connection.create_table :testings, force: true, id: false do |t|
+            t.string :phone, primary_key: true
+            t.string :name
+          end
         end
 
         assert_equal "phone", connection.primary_key(:testings)
       end
 
       def test_create_table_with_custom_primary_key_using_type
-        connection.create_table :testings, force: true, id: false do |t|
-          t.primary_key :username, limit: 255
-          t.string :name
+        connection.ddl_batch do
+          connection.create_table :testings, force: true, id: false do |t|
+            t.primary_key :username, limit: 255
+            t.string :name
+          end
         end
 
         assert_equal "username", connection.primary_key(:testings)
@@ -81,9 +91,11 @@ module ActiveRecord
       end
 
       def test_create_table_with_custom_primary_key_type
-        connection.create_table :testings, force: true, id: false do |t|
-          t.primary_key :user_id, :integer
-          t.string :name
+        connection.ddl_batch do
+          connection.create_table :testings, force: true, id: false do |t|
+            t.primary_key :user_id, :integer
+            t.string :name
+          end
         end
 
         assert_equal "user_id", connection.primary_key(:testings)
@@ -95,8 +107,10 @@ module ActiveRecord
       end
 
       def test_create_table_with_not_null_column
-        connection.create_table :testings do |t|
-          t.column :foo, :string, null: false
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string, null: false
+          end
         end
 
         assert_raises ActiveRecord::StatementInvalid do
@@ -107,9 +121,11 @@ module ActiveRecord
       end
 
       def test_create_table_with_limits
-        connection.create_table :testings do |t|
-          t.column :foo, :string, limit: 255
-          t.column :default_int, :integer
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string, limit: 255
+            t.column :default_int, :integer
+          end
         end
 
         columns = connection.columns :testings
@@ -124,8 +140,10 @@ module ActiveRecord
       def test_create_table_with_primary_key_prefix_as_table_name_with_underscore
         ActiveRecord::Base.primary_key_prefix_type = :table_name_with_underscore
 
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
         end
 
         assert_equal "testing_id", connection.primary_key(:testings)
@@ -137,8 +155,10 @@ module ActiveRecord
       def test_create_table_with_primary_key_prefix_as_table_name
         ActiveRecord::Base.primary_key_prefix_type = :table_name
 
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
         end
 
         assert_equal "testingid", connection.primary_key(:testings)
@@ -149,8 +169,10 @@ module ActiveRecord
 
       def test_create_table_raises_when_redefining_primary_key_column
         error = assert_raise ArgumentError do
-          connection.create_table :testings do |t|
-            t.column :id, :string
+          connection.ddl_batch do
+            connection.create_table :testings do |t|
+              t.column :id, :string
+            end
           end
         end
 
@@ -159,8 +181,10 @@ module ActiveRecord
 
       def test_create_table_raises_when_redefining_custom_primary_key_column
         error = assert_raise ArgumentError do
-          connection.create_table :testings, primary_key: :testing_id do |t|
-            t.column :testing_id, :string
+          connection.ddl_batch do
+            connection.create_table :testings, primary_key: :testing_id do |t|
+              t.column :testing_id, :string
+            end
           end
         end
 
@@ -169,9 +193,11 @@ module ActiveRecord
 
       def test_create_table_raises_when_defining_existing_column
         error = assert_raise ArgumentError do
-          connection.create_table :testings do |t|
-            t.column :testing_column, :string
-            t.column :testing_column, :integer
+          connection.ddl_batch do
+            connection.create_table :testings do |t|
+              t.column :testing_column, :string
+              t.column :testing_column, :integer
+            end
           end
         end
 
@@ -179,8 +205,10 @@ module ActiveRecord
       end
 
       def test_create_table_with_timestamps_should_create_datetime_columns
-        connection.create_table table_name do |t|
-          t.timestamps
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.timestamps
+          end
         end
         created_columns = connection.columns table_name
 
@@ -192,8 +220,10 @@ module ActiveRecord
       end
 
       def test_create_table_with_timestamps_should_create_datetime_columns_with_options
-        connection.create_table table_name do |t|
-          t.timestamps null: true
+        connection.ddl_batch do
+          connection.create_table table_name do |t|
+            t.timestamps null: true
+          end
         end
         created_columns = connection.columns table_name
 
@@ -210,10 +240,12 @@ module ActiveRecord
 
       def test_add_column_not_null_without_default
         skip "Unimplemented error: Cannot add NOT NULL column to existing table"
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
+          connection.add_column :testings, :bar, :string, null: false
         end
-        connection.add_column :testings, :bar, :string, null: false
 
         assert_raise ActiveRecord::NotNullViolation do
           connection.transaction {
@@ -223,8 +255,10 @@ module ActiveRecord
       end
 
       def test_add_column_with_timestamp_type
-        connection.create_table :testings do |t|
-          t.column :foo, :timestamp
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :timestamp
+          end
         end
 
         column = connection.columns(:testings).find { |c| c.name == "foo" }
@@ -234,11 +268,17 @@ module ActiveRecord
       end
 
       def test_change_column_quotes_column_names
-        connection.create_table :testings do |t|
-          t.column :select, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :select, :string
+          end
+        end
+        # These two changes cannot be in one batch, as the change_column operation will check whether the column
+        # actually exists before executing any DDL statements.
+        connection.ddl_batch do
+          connection.change_column :testings, :select, :string, limit: 10
         end
 
-        connection.change_column :testings, :select, :string, limit: 10
         connection.transaction {
           connection.execute "insert into testings (#{connection.quote_column_name 'id'},"\
             "#{connection.quote_column_name 'select'}) values (#{generate_id}, '7 chars')"
@@ -246,13 +286,15 @@ module ActiveRecord
       end
 
       def test_keeping_notnull_constraints_on_change
-        connection.create_table :testings do |t|
-          t.column :title, :string
-        end
         person_klass = Class.new ActiveRecord::Base
-        person_klass.table_name = "testings"
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :title, :string
+          end
+          person_klass.table_name = "testings"
+          person_klass.connection.add_column "testings", "wealth", :integer, null: false
+        end
 
-        person_klass.connection.add_column "testings", "wealth", :integer, null: false
         person_klass.reset_column_information
         assert_equal false, person_klass.columns_hash["wealth"].null
 
@@ -263,7 +305,9 @@ module ActiveRecord
         }
 
         # change column, make it nullable
-        person_klass.connection.change_column "testings", "wealth", :integer, null: true
+        connection.ddl_batch do
+          person_klass.connection.change_column "testings", "wealth", :integer, null: true
+        end
         person_klass.reset_column_information
         assert_nil person_klass.columns_hash["wealth"].default
         assert_equal true, person_klass.columns_hash["wealth"].null
@@ -286,8 +330,10 @@ module ActiveRecord
       end
 
       def test_column_exists
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
         end
 
         assert connection.column_exists?(:testings, :foo)
@@ -295,9 +341,11 @@ module ActiveRecord
       end
 
       def test_column_exists_with_type
-        connection.create_table :testings do |t|
-          t.column :foo, :string
-          t.column :bar, :float
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+            t.column :bar, :float
+          end
         end
 
         assert connection.column_exists?(:testings, :foo, :string)
@@ -308,11 +356,13 @@ module ActiveRecord
       end
 
       def test_column_exists_with_definition
-        connection.create_table :testings do |t|
-          t.column :foo, :string, limit: 100
-          t.column :bar, :float
-          t.column :taggable_id, :integer, null: false
-          t.column :taggable_type, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string, limit: 100
+            t.column :bar, :float
+            t.column :taggable_id, :integer, null: false
+            t.column :taggable_type, :string
+          end
         end
 
         assert connection.column_exists?(:testings, :foo, :string, limit: 100)
@@ -324,8 +374,10 @@ module ActiveRecord
       end
 
       def test_column_exists_on_table_with_no_options_parameter_supplied
-        connection.create_table :testings do |t|
-          t.string :foo
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.string :foo
+          end
         end
         connection.change_table :testings do |t|
           assert t.column_exists?(:foo)
@@ -334,9 +386,13 @@ module ActiveRecord
       end
 
       def test_drop_table_if_exists
-        connection.create_table(:testings)
+        connection.ddl_batch do
+          connection.create_table(:testings)
+        end
         assert connection.table_exists?(:testings)
-        connection.drop_table(:testings, if_exists: true)
+        connection.ddl_batch do
+          connection.drop_table(:testings, if_exists: true)
+        end
         assert_not connection.table_exists?(:testings)
       end
 
@@ -345,8 +401,10 @@ module ActiveRecord
       end
 
       def test_drop_and_create_table_with_indexes
-        connection.create_table :testings, force: true do |t|
-          t.string :name, index: true
+        connection.ddl_batch do
+          connection.create_table :testings, force: true do |t|
+            t.string :name, index: true
+          end
         end
 
         assert_nothing_raised {
@@ -362,8 +420,10 @@ module ActiveRecord
       private
 
       def testing_table_with_only_foo_attribute
-        connection.create_table :testings do |t|
-          t.column :foo, :string
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.column :foo, :string
+          end
         end
 
         yield
