@@ -21,6 +21,7 @@ module ActiveRecord
       #
       module SchemaStatements
         VERSION_6_1_0 = Gem::Version.create "6.1.0"
+        VERSION_6_0_3 = Gem::Version.create "6.0.3"
 
         def current_database
           @connection.database_id
@@ -337,7 +338,17 @@ module ActiveRecord
           end
         end
 
-        def add_foreign_key from_table, to_table, options = {}
+        if ActiveRecord.gem_version < VERSION_6_0_3
+          def add_foreign_key from_table, to_table, options = {}
+            _add_foreign_key from_table, to_table, **options
+          end
+        else
+          def add_foreign_key from_table, to_table, **options
+            _add_foreign_key from_table, to_table, **options
+          end
+        end
+
+        def _add_foreign_key from_table, to_table, **options
           options = foreign_key_options from_table, to_table, options
           at = create_alter_table from_table
           at.add_foreign_key to_table, options
@@ -487,7 +498,7 @@ module ActiveRecord
             remove_foreign_key table_name, name: fk.name
             options = fk.options.except :column, :name
             options[:column] = new_column_name
-            add_foreign_key table_name, fk.to_table, options
+            add_foreign_key table_name, fk.to_table, **options
           end
         end
 
