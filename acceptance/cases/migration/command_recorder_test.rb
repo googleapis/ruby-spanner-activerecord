@@ -14,6 +14,7 @@ module ActiveRecord
       include SpannerAdapter::Migration::TestHelper
 
       VERSION_6_1_0 = Gem::Version.create('6.1.0')
+      VERSION_6_0_3 = Gem::Version.create "6.0.3"
 
       def setup
         skip_test_table_create!
@@ -314,7 +315,11 @@ module ActiveRecord
 
       def test_invert_add_foreign_key
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people]
-        assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
+        if ActiveRecord.gem_version < VERSION_6_0_3
+          assert_equal [:remove_foreign_key, [:dogs, :people]], enable
+        else
+          assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
+        end
       end
 
       def test_invert_remove_foreign_key
@@ -324,7 +329,11 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id"]
-        assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
+        if ActiveRecord.gem_version < VERSION_6_0_3
+          assert_equal [:remove_foreign_key, [:dogs, column: "owner_id"]], enable
+        else
+          assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
+        end
       end
 
       def test_invert_remove_foreign_key_with_column
@@ -334,7 +343,11 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column_and_name
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id", name: "fk"]
-        assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
+        if ActiveRecord.gem_version < VERSION_6_0_3
+          assert_equal [:remove_foreign_key, [:dogs, { name: "fk" }]], enable
+        else
+          assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
+        end
       end
 
       def test_invert_remove_foreign_key_with_column_and_name
