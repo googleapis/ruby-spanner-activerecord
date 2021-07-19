@@ -13,7 +13,7 @@ module ActiveRecord
     class CommandRecorderTest < SpannerAdapter::TestCase
       include SpannerAdapter::Migration::TestHelper
 
-      VERSION_6_1_0 = Gem::Version.create('6.1.0')
+      VERSION_6_1_0 = Gem::Version.create "6.1.0"
       VERSION_6_0_3 = Gem::Version.create "6.0.3"
 
       def setup
