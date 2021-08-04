@@ -84,7 +84,7 @@ If you are not familiar with Active Record, you can read more about it on [Ruby 
     --member="serviceAccount:activerecord-spanner@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/spanner.databaseAdmin"
     ```
-    Here we grant `roles/spanner.databaseAdmin` to the service account. If you want to restrict the permissions further, you can choose to create a custom role with proper permissions.
+    Here the role `roles/spanner.databaseAdmin` is granted to the service account. If you want to restrict the permissions further, you can choose to create a custom role with proper permissions.
 1. Create a key file and download it:
     ```shell
     gcloud iam service-accounts keys create activerecord-spanner-key.json \
@@ -108,7 +108,7 @@ If you are not familiar with Active Record, you can read more about it on [Ruby 
     ```
 
 ### Update database.yml to use Cloud Spanner.
-After we have a Cloud Spanner instance running, we'll need a few variables:
+After the Cloud Spanner instance is running, you'll need a few variables:
 * Cloud project id
 * Cloud Spanner instance id, such as `test-instance`
 * Database name, such as `blog_dev`
@@ -122,7 +122,7 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
   project: [PROJECT_ID]
   instance: test-instance
-  credentials: ../activerecord-spanner-key.json
+  credentials: activerecord-spanner-key.json
 
 development:
   <<: *default
