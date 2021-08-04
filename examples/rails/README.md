@@ -227,10 +227,10 @@ You now can run the following command to create the database:
     ```shell
     ./bin/rails s
     ```
-1. In your browser, naviate to the URL [http://localhost:3000/articles/index](http://localhost:3000/articles/index). And you will see the `Hello Rails` record you entered previously.
+1. In your browser, navigate to the URL [http://localhost:3000/articles/index](http://localhost:3000/articles/index). And you will see the `Hello Rails` record you entered previously.
 1. [Optional] you can follow the rest of the steps in the [Getting Started with Rails](https://guides.rubyonrails.org/getting_started.html) guide.
 
-### Cleaning up
+### Clean up
 
 To avoid incurring charges to your Google Cloud account for the resources used in this tutorial, you can delete the resources you created. You can either 
 delete the entire project or delete individual resources.

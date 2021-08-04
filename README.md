@@ -4,7 +4,10 @@
 
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
 
-This project provides a Cloud Spanner adapter for ActiveRecord. It has the __Preview__ release status and supports ActiveRecord 6.0.x/6.1.x with Ruby 2.6 or higher.
+This project provides a Cloud Spanner adapter for ActiveRecord. It has the __Preview__ release status and supports the following versions:
+
+- ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
+- ActiveRecord 6.1.x with Ruby 2.6 and higher.
 
 Known limitations are listed in the [Limitations](#limitations) section.
 Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
