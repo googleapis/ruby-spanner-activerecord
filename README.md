@@ -1,10 +1,16 @@
 # ActiveRecord Cloud Spanner Adapter
 
-# 🚨THIS CODE IS STILL UNDER DEVELOPMENT🚨
-
 [Google Cloud Spanner](https://cloud.google.com/spanner) adapter for ActiveRecord.
 
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
+
+This project provides a Cloud Spanner adapter for ActiveRecord. It has the __Preview__ release status and supports the following versions:
+
+- ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
+- ActiveRecord 6.1.x with Ruby 2.6 and higher.
+
+Known limitations are listed in the [Limitations](#limitations) section.
+Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
 
 ## Installation
 
@@ -17,7 +23,7 @@ gem 'activerecord-spanner-adapter'
 If you would like to use latest adapter version from github then specify
 
 ```ruby
-gem 'activerecord-spanner-adapter', :git => 'git@github.com:orijtech/activerecord-spanner-adapter.git'
+gem 'activerecord-spanner-adapter', :git => 'git@github.com:googleapis/ruby-spanner-activerecord.git'
 ```
 
 And then execute:
@@ -27,7 +33,7 @@ And then execute:
 ## Usage
 
 ### Database Connection
-In Rails application config/database.yml
+In Rails application `config/database.yml`, make the change as the following:
 
 ```
 development:
@@ -39,9 +45,10 @@ development:
 ```
 
 ## Examples
+To get started with Rails, read the tutorial under [examples/rails/README.md](examples/rails/README.md).
 
-See the [examples/snippets](examples/snippets) directory for a list of short self-contained code examples that show how
-to use ActiveRecord with Cloud Spanner. Each example is directly runnable without the need to setup a Cloud Spanner
+You can also find a list of short self-contained code examples that show how
+to use ActiveRecord with Cloud Spanner under the directory [examples/snippets](examples/snippets). Each example is directly runnable without the need to setup a Cloud Spanner
 database, as all samples will automatically start a Cloud Spanner emulator in a Docker container and execute the sample
 code against that emulator. All samples can be executed by navigating to the sample directory on your local machine and
 then executing the command `bundle exec rake run`. Example:
@@ -87,5 +94,3 @@ The gem is available as open source under the terms of the [MIT License](https:/
 ## Code of Conduct
 
 Everyone interacting in the Activerecord::Spanner project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/googleapis/ruby-spanner-activerecord/blob/master/CODE_OF_CONDUCT.md).
-
-# 🚨THIS CODE IS STILL UNDER DEVELOPMENT🚨
