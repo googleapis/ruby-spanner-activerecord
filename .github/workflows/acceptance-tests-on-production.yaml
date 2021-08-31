@@ -7,7 +7,7 @@ name: acceptance tests on production
 jobs:
   check-env:
     outputs:
-      my-key: ${{ steps.project-id.outputs.defined }}
+      has-key: ${{ steps.project-id.outputs.defined }}
     runs-on: ubuntu-latest
     steps:
     - id: project-id
@@ -18,7 +18,7 @@ jobs:
 
   test:
     needs: [check-env]
-    if: needs.check-env.outputs.defined == 'true'
+    if: needs.check-env.outputs.has-key == 'true'
     runs-on: ubuntu-latest
 
     strategy:
