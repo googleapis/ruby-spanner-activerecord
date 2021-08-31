@@ -437,6 +437,7 @@ module MockServerTests
       AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
                       col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
                       col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+                      col_json: { kind: "user_renamed", change: %w[jack john]},
                       col_array_string: ["string1", nil, "string2"],
                       col_array_int64: [100, nil, 200],
                       col_array_float64: [3.14, nil, 2.0/3.0],
@@ -445,7 +446,9 @@ module MockServerTests
                       col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
                       col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
                       col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
-                                            ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+                                            ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
+                      col_array_json: [{ kind: "user_renamed", change: %w[jack john]}, nil, \
+                                       { kind: "user_renamed", change: %w[alice meredith]}]
 
       commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
       assert_equal 1, commit_requests.length
@@ -464,6 +467,7 @@ module MockServerTests
       assert_equal "col_bytes", mutation.insert.columns[col_index += 1]
       assert_equal "col_date", mutation.insert.columns[col_index += 1]
       assert_equal "col_timestamp", mutation.insert.columns[col_index += 1]
+      assert_equal "col_json", mutation.insert.columns[col_index += 1]
 
       assert_equal "col_array_string", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_int64", mutation.insert.columns[col_index += 1]
@@ -473,6 +477,7 @@ module MockServerTests
       assert_equal "col_array_bytes", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_date", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_timestamp", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_json", mutation.insert.columns[col_index += 1]
 
       value_index = -1
       assert_equal 1, mutation.insert.values.length
@@ -484,6 +489,7 @@ module MockServerTests
       assert_equal Base64.urlsafe_encode64("bytes"), mutation.insert.values[0][value_index += 1]
       assert_equal "2021-06-23", mutation.insert.values[0][value_index += 1]
       assert_equal "2021-06-23T15:08:21.000000000Z", mutation.insert.values[0][value_index += 1]
+      assert_equal "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", mutation.insert.values[0][value_index += 1]
 
       assert_equal create_list_value(["string1", nil, "string2"]), mutation.insert.values[0][value_index += 1]
       assert_equal create_list_value(["100", nil, "200"]), mutation.insert.values[0][value_index += 1]
@@ -503,22 +509,29 @@ module MockServerTests
           nil,
           "2021-06-24T15:08:21.000000000Z"
         ]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value([
+          "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}",
+          nil,
+          "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"
+        ]), mutation.insert.values[0][value_index += 1]
     end
 
     def test_create_all_types_using_dml
       sql = "INSERT INTO `all_types` (`col_string`, `col_int64`, `col_float64`, `col_numeric`, `col_bool`, " \
-            "`col_bytes`, `col_date`, `col_timestamp`, `col_array_string`, `col_array_int64`, `col_array_float64`, "\
-            "`col_array_numeric`, `col_array_bool`, `col_array_bytes`, `col_array_date`, `col_array_timestamp`, `id`) "\
+            "`col_bytes`, `col_date`, `col_timestamp`, `col_json`, `col_array_string`, `col_array_int64`, " \
+            "`col_array_float64`, `col_array_numeric`, `col_array_bool`, `col_array_bytes`, `col_array_date`, "\
+            "`col_array_timestamp`, `col_array_json`, `id`) "\
             "VALUES (@p1, @p2, @p3, @p4, @p5, @p6, " \
             "@p7, @p8, @p9, @p10, @p11, " \
             "@p12, @p13, @p14, @p15, " \
-            "@p16, @p17)"
+            "@p16, @p17, @p18, @p19)"
       @mock.put_statement_result sql, StatementResult.new(1)
 
       AllTypes.transaction do
         AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
                         col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
                         col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+                        col_json: { kind: "user_renamed", change: %w[jack john]},
                         col_array_string: ["string1", nil, "string2"],
                         col_array_int64: [100, nil, 200],
                         col_array_float64: [3.14, nil, 2.0/3.0],
@@ -527,7 +540,9 @@ module MockServerTests
                         col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
                         col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
                         col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
-                                              ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+                                              ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
+                        col_array_json: [{ kind: "user_renamed", change: %w[jack john]}, nil, \
+                                         { kind: "user_renamed", change: %w[alice meredith]}]
       end
 
       commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
@@ -553,33 +568,42 @@ module MockServerTests
       assert_equal :DATE, request.param_types["p7"].code
       assert_equal "2021-06-23T15:08:21.000000000Z", request.params["p8"]
       assert_equal :TIMESTAMP, request.param_types["p8"].code
+      assert_equal "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", request.params["p9"]
+      assert_equal :JSON, request.param_types["p9"].code
 
-      assert_equal create_list_value(["string1", nil, "string2"]), request.params["p9"]
-      assert_equal :ARRAY, request.param_types["p9"].code
-      assert_equal :STRING, request.param_types["p9"].array_element_type.code
-      assert_equal create_list_value(["100", nil, "200"]), request.params["p10"]
+      assert_equal create_list_value(["string1", nil, "string2"]), request.params["p10"]
       assert_equal :ARRAY, request.param_types["p10"].code
-      assert_equal :INT64, request.param_types["p10"].array_element_type.code
-      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["p11"]
+      assert_equal :STRING, request.param_types["p10"].array_element_type.code
+      assert_equal create_list_value(["100", nil, "200"]), request.params["p11"]
       assert_equal :ARRAY, request.param_types["p11"].code
-      assert_equal :FLOAT64, request.param_types["p11"].array_element_type.code
-      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["p12"]
+      assert_equal :INT64, request.param_types["p11"].array_element_type.code
+      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["p12"]
       assert_equal :ARRAY, request.param_types["p12"].code
-      assert_equal :NUMERIC, request.param_types["p12"].array_element_type.code
-      assert_equal create_list_value([true, nil, false]), request.params["p13"]
+      assert_equal :FLOAT64, request.param_types["p12"].array_element_type.code
+      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["p13"]
       assert_equal :ARRAY, request.param_types["p13"].code
-      assert_equal :BOOL, request.param_types["p13"].array_element_type.code
-      assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
-                   request.params["p14"]
+      assert_equal :NUMERIC, request.param_types["p13"].array_element_type.code
+      assert_equal create_list_value([true, nil, false]), request.params["p14"]
       assert_equal :ARRAY, request.param_types["p14"].code
-      assert_equal :BYTES, request.param_types["p14"].array_element_type.code
-      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["p15"]
+      assert_equal :BOOL, request.param_types["p14"].array_element_type.code
+      assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
+                   request.params["p15"]
       assert_equal :ARRAY, request.param_types["p15"].code
-      assert_equal :DATE, request.param_types["p15"].array_element_type.code
-      assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
-                   request.params["p16"]
+      assert_equal :BYTES, request.param_types["p15"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["p16"]
       assert_equal :ARRAY, request.param_types["p16"].code
-      assert_equal :TIMESTAMP, request.param_types["p16"].array_element_type.code
+      assert_equal :DATE, request.param_types["p16"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
+                   request.params["p17"]
+      assert_equal :ARRAY, request.param_types["p17"].code
+      assert_equal :TIMESTAMP, request.param_types["p17"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
+                   request.params["p17"]
+      assert_equal :ARRAY, request.param_types["p18"].code
+      assert_equal :JSON, request.param_types["p18"].array_element_type.code
+      assert_equal create_list_value(["{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", nil, \
+                                      "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"]),
+                   request.params["p18"]
     end
 
     def test_delete_associated_records

@@ -65,7 +65,8 @@ module ActiveRecord
         time:         { name: "TIMESTAMP" },
         date:         { name: "DATE" },
         binary:       { name: "BYTES", limit: "MAX" },
-        boolean:      { name: "BOOL" }
+        boolean:      { name: "BOOL" },
+        json:         { name: "JSON" }
       }.freeze
 
       include Spanner::Quoting
@@ -190,6 +191,7 @@ module ActiveRecord
         m.register_type "INT64", Type::Integer.new(limit: 8)
         register_class_with_limit m, %r{^STRING}i, Type::String
         m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
+        m.register_type "JSON", ActiveRecord::Type::Json.new
 
         register_array_types m
       end
@@ -203,6 +205,7 @@ module ActiveRecord
         m.register_type %r{^ARRAY<INT64>}i, Type::Spanner::Array.new(Type::Integer.new(limit: 8))
         m.register_type %r{^ARRAY<STRING\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::String.new)
         m.register_type %r{^ARRAY<TIMESTAMP>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Time.new)
+        m.register_type %r{^ARRAY<JSON>}i, Type::Spanner::Array.new(ActiveRecord::Type::Json.new)
       end
 
       def extract_limit sql_type

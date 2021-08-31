@@ -392,6 +392,15 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "9")
     )
     result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "col_json"),
+      Google::Protobuf::Value.new(string_value: "JSON"),
+      Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "10")
+    )
+    result_set.rows.push row
 
     row = Google::Protobuf::ListValue.new
     row.values.push(
@@ -399,7 +408,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<STRING(MAX)>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "10")
+      Google::Protobuf::Value.new(string_value: "11")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -408,7 +417,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<INT64>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "11")
+      Google::Protobuf::Value.new(string_value: "12")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -417,7 +426,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<FLOAT64>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "12")
+      Google::Protobuf::Value.new(string_value: "13")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -426,7 +435,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<NUMERIC>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "13")
+      Google::Protobuf::Value.new(string_value: "14")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -435,7 +444,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<BOOL>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "14")
+      Google::Protobuf::Value.new(string_value: "15")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -444,7 +453,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<BYTES(MAX)>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "15")
+      Google::Protobuf::Value.new(string_value: "16")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -453,7 +462,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<DATE>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "16")
+      Google::Protobuf::Value.new(string_value: "17")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -462,7 +471,16 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<TIMESTAMP>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "17")
+      Google::Protobuf::Value.new(string_value: "18")
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "col_array_json"),
+      Google::Protobuf::Value.new(string_value: "ARRAY<JSON>"),
+      Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "19")
     )
     result_set.rows.push row
 
