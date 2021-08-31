@@ -6,6 +6,7 @@ on:
 name: acceptance tests on production
 jobs:
   test:
+    if: github.owner == ‘cloudspannerecosystem’
     runs-on: ubuntu-latest
 
     strategy:
