@@ -30,6 +30,7 @@ module ActiveRecord
         AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
           col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
           col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
+          col_json: ENV["SPANNER_EMULATOR_HOST"] ? { kind: "user_renamed", change: %w[jack john]} : "",
           col_array_string: ["string1", nil, "string2"],
           col_array_int64: [100, nil, 200],
           col_array_float64: [3.14, nil, 2.0/3.0],
@@ -38,7 +39,11 @@ module ActiveRecord
           col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
           col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
           col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
-                                ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")]
+                                ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
+          col_array_json: ENV["SPANNER_EMULATOR_HOST"] ?
+                            [{ kind: "user_renamed", change: %w[jack john]}, nil, \
+                             { kind: "user_renamed", change: %w[alice meredith]}] : \
+                             [""]
       end
 
       def test_create_record
@@ -61,6 +66,8 @@ module ActiveRecord
           assert_equal StringIO.new("bytes").read, record.col_bytes.read
           assert_equal ::Date.new(2021, 6, 23), record.col_date
           assert_equal ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00").utc, record.col_timestamp.utc
+          assert_equal Hash({kind=>"user_renamed", change=>%w[jack john]}),
+                       record.col_json unless ENV["SPANNER_EMULATOR_HOST"]
 
           assert_equal ["string1", nil, "string2"], record.col_array_string
           assert_equal [100, nil, 200], record.col_array_int64
@@ -74,6 +81,10 @@ module ActiveRecord
                             nil, \
                             ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")].map { |timestamp| timestamp&.utc },
                        record.col_array_timestamp.map { |timestamp| timestamp&.utc}
+          assert_equal [Hash({kind=>"user_renamed", change=>%w[jack john]}), \
+                        nil, \
+                        Hash({kind=>"user_renamed", change=>%w[alice meredith]})],
+                       record.col_array_json unless ENV["SPANNER_EMULATOR_HOST"]
         end
       end
 
@@ -88,6 +99,7 @@ module ActiveRecord
                           col_bool: false, col_bytes: StringIO.new("new bytes"),
                           col_date: ::Date.new(2021, 6, 28),
                           col_timestamp: ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00"),
+                          col_json: ENV["SPANNER_EMULATOR_HOST"] ? { kind: "user_created", change: %w[jack alice]} : "",
                           col_array_string: ["new string 1", "new string 2"],
                           col_array_int64: [300, 200, 100],
                           col_array_float64: [1.1, 2.2, 3.3],
@@ -95,7 +107,10 @@ module ActiveRecord
                           col_array_bool: [false, true, false],
                           col_array_bytes: [StringIO.new("new bytes 1"), StringIO.new("new bytes 2")],
                           col_array_date: [::Date.new(2021, 6, 28)],
-                          col_array_timestamp: [::Time.utc(2020, 12, 31, 0, 0, 0)]
+                          col_array_timestamp: [::Time.utc(2020, 12, 31, 0, 0, 0)],
+                          col_array_json: ENV["SPANNER_EMULATOR_HOST"] ?
+                                            [{ kind: "user_created", change: %w[jack alice]}] : \
+                                            [""]
           end
 
           # Verify that the record was updated.
@@ -108,6 +123,8 @@ module ActiveRecord
           assert_equal StringIO.new("new bytes").read, record.col_bytes.read
           assert_equal ::Date.new(2021, 6, 28), record.col_date
           assert_equal ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00").utc, record.col_timestamp.utc
+          assert_equal Hash({kind=>"user_created", change=>%w[jack alice]}),
+                       record.col_json unless ENV["SPANNER_EMULATOR_HOST"]
 
           assert_equal ["new string 1", "new string 2"], record.col_array_string
           assert_equal [300, 200, 100], record.col_array_int64
@@ -118,6 +135,8 @@ module ActiveRecord
                        record.col_array_bytes.map(&:read)
           assert_equal [::Date.new(2021, 6, 28)], record.col_array_date
           assert_equal [::Time.utc(2020, 12, 31, 0, 0, 0)], record.col_array_timestamp.map(&:utc)
+          assert_equal [Hash({kind=>"user_created", change=>%w[jack alice]})],
+                       record.col_array_json unless ENV["SPANNER_EMULATOR_HOST"]
         end
       end
 
@@ -133,7 +152,8 @@ module ActiveRecord
               col_array_bool: [],
               col_array_bytes: [],
               col_array_date: [],
-              col_array_timestamp: []
+              col_array_timestamp: [],
+              col_array_json: []
           end
 
           record = AllTypes.find record.id
@@ -145,6 +165,7 @@ module ActiveRecord
           assert_equal [], record.col_array_bytes
           assert_equal [], record.col_array_date
           assert_equal [], record.col_array_timestamp
+          assert_equal [], record.col_array_json
         end
       end
     end
