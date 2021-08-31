@@ -65,7 +65,7 @@ module ActiveRecord
           assert_equal StringIO.new("bytes").read, record.col_bytes.read
           assert_equal ::Date.new(2021, 6, 23), record.col_date
           assert_equal ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00").utc, record.col_timestamp.utc
-          assert_equal Hash({kind=>"user_renamed", change=>%w[jack john]}),
+          assert_equal ({"kind" => "user_renamed", "change" => %w[jack john]}),
                        record.col_json unless ENV["SPANNER_EMULATOR_HOST"]
 
           assert_equal ["string1", nil, "string2"], record.col_array_string
@@ -80,9 +80,9 @@ module ActiveRecord
                             nil, \
                             ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")].map { |timestamp| timestamp&.utc },
                        record.col_array_timestamp.map { |timestamp| timestamp&.utc}
-          assert_equal [Hash({kind=>"user_renamed", change=>%w[jack john]}), \
+          assert_equal [{"kind" => "user_renamed", "change" => %w[jack john]}, \
                         nil, \
-                        Hash({kind=>"user_renamed", change=>%w[alice meredith]})],
+                        {"kind" => "user_renamed", "change" => %w[alice meredith]}],
                        record.col_array_json unless ENV["SPANNER_EMULATOR_HOST"]
         end
       end
@@ -122,7 +122,7 @@ module ActiveRecord
           assert_equal StringIO.new("new bytes").read, record.col_bytes.read
           assert_equal ::Date.new(2021, 6, 28), record.col_date
           assert_equal ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00").utc, record.col_timestamp.utc
-          assert_equal Hash({kind=>"user_created", change=>%w[jack alice]}),
+          assert_equal ({"kind" => "user_created", "change" => %w[jack alice]}),
                        record.col_json unless ENV["SPANNER_EMULATOR_HOST"]
 
           assert_equal ["new string 1", "new string 2"], record.col_array_string
@@ -134,7 +134,7 @@ module ActiveRecord
                        record.col_array_bytes.map(&:read)
           assert_equal [::Date.new(2021, 6, 28)], record.col_array_date
           assert_equal [::Time.utc(2020, 12, 31, 0, 0, 0)], record.col_array_timestamp.map(&:utc)
-          assert_equal [Hash({kind=>"user_created", change=>%w[jack alice]})],
+          assert_equal [{"kind" => "user_created", "change" => %w[jack alice]}],
                        record.col_array_json unless ENV["SPANNER_EMULATOR_HOST"]
         end
       end

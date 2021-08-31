@@ -611,6 +611,37 @@ module MockServerTests
                    request.params["p18"]
     end
 
+    def test_get_json
+      sql = "SELECT `all_types`.* FROM `all_types` WHERE `all_types`.`col_int64` = @p1 LIMIT @p2"
+      col_id = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_int64", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+      col_json = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_json", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::JSON)
+      col_json_array = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_array_json", type: Google::Cloud::Spanner::V1::Type.new(
+        code: Google::Cloud::Spanner::V1::TypeCode::ARRAY,
+        array_element_type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::JSON)
+      )
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push(col_id, col_json, col_json_array)
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+      row = Google::Protobuf::ListValue.new
+      json_array = Google::Protobuf::ListValue.new
+      json_array.values.push(
+        Google::Protobuf::Value.new(string_value: "{\"key1\": \"value1\"}"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+        Google::Protobuf::Value.new(string_value: "{\"key2\": \"value2\"}")
+      )
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: "1"),
+        Google::Protobuf::Value.new(string_value: "{\"key\": \"value\"}"),
+        Google::Protobuf::Value.new(list_value: json_array)
+      )
+      result_set.rows.push row
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+
+      row = AllTypes.find_by col_int64: 1
+      assert_equal ({"key"=>"value"}), row.col_json
+      assert_equal [{"key1"=>"value1"}, nil, {"key2"=>"value2"}], row.col_array_json
+    end
+
     def test_delete_associated_records
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
