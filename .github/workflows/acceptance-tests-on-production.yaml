@@ -6,7 +6,7 @@ on:
 name: acceptance tests on production
 jobs:
   test:
-    if: github.owner == ‘googleapis’
+    if: ${{ github.repository_owner == ‘googleapis’ }}
     runs-on: ubuntu-latest
 
     strategy:
