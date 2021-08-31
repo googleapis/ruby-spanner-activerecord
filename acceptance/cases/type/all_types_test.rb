@@ -30,7 +30,7 @@ module ActiveRecord
         AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
           col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
           col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
-          col_json: ENV["SPANNER_EMULATOR_HOST"] ? { kind: "user_renamed", change: %w[jack john]} : "",
+          col_json: ENV["SPANNER_EMULATOR_HOST"] ? "" : { kind: "user_renamed", change: %w[jack john]},
           col_array_string: ["string1", nil, "string2"],
           col_array_int64: [100, nil, 200],
           col_array_float64: [3.14, nil, 2.0/3.0],
@@ -40,10 +40,9 @@ module ActiveRecord
           col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
           col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
                                 ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
-          col_array_json: ENV["SPANNER_EMULATOR_HOST"] ?
+          col_array_json: ENV["SPANNER_EMULATOR_HOST"] ? [""] : \
                             [{ kind: "user_renamed", change: %w[jack john]}, nil, \
-                             { kind: "user_renamed", change: %w[alice meredith]}] : \
-                             [""]
+                             { kind: "user_renamed", change: %w[alice meredith]}]
       end
 
       def test_create_record
@@ -99,7 +98,7 @@ module ActiveRecord
                           col_bool: false, col_bytes: StringIO.new("new bytes"),
                           col_date: ::Date.new(2021, 6, 28),
                           col_timestamp: ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00"),
-                          col_json: ENV["SPANNER_EMULATOR_HOST"] ? { kind: "user_created", change: %w[jack alice]} : "",
+                          col_json: ENV["SPANNER_EMULATOR_HOST"] ? "" : { kind: "user_created", change: %w[jack alice]},
                           col_array_string: ["new string 1", "new string 2"],
                           col_array_int64: [300, 200, 100],
                           col_array_float64: [1.1, 2.2, 3.3],
@@ -109,8 +108,8 @@ module ActiveRecord
                           col_array_date: [::Date.new(2021, 6, 28)],
                           col_array_timestamp: [::Time.utc(2020, 12, 31, 0, 0, 0)],
                           col_array_json: ENV["SPANNER_EMULATOR_HOST"] ?
-                                            [{ kind: "user_created", change: %w[jack alice]}] : \
-                                            [""]
+                                            [""] : \
+                                            [{ kind: "user_created", change: %w[jack alice]}]
           end
 
           # Verify that the record was updated.

@@ -509,6 +509,11 @@ module MockServerTests
           nil,
           "2021-06-24T15:08:21.000000000Z"
         ]), mutation.insert.values[0][value_index += 1]
+      json_list = create_list_value([
+                                      "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}",
+                                      nil,
+                                      "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"
+                                    ])
       assert_equal create_list_value([
           "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}",
           nil,
