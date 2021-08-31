@@ -18,7 +18,7 @@ jobs:
 
   test:
     needs: [check-env]
-    if: needs.check-env.outputs.project-id == 'true'
+    if: needs.check-env.outputs.defined == 'true'
     runs-on: ubuntu-latest
 
     strategy:
