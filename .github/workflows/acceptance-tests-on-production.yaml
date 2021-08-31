@@ -6,6 +6,7 @@ on:
 name: acceptance tests on production
 jobs:
   test:
+    if: ${{ github.repository == 'googleapis/ruby-spanner-activerecord' }}
     runs-on: ubuntu-latest
 
     strategy:
