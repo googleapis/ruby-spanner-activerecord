@@ -17,6 +17,8 @@ ActiveRecord::Schema.define do
       t.column :col_bytes, :binary
       t.column :col_date, :date
       t.column :col_timestamp, :datetime
+      t.column :col_json, :json unless ENV["SPANNER_EMULATOR_HOST"]
+      t.column :col_json, :string if ENV["SPANNER_EMULATOR_HOST"]
 
       t.column :col_array_string, :string, array: true
       t.column :col_array_int64, :bigint, array: true
@@ -26,6 +28,8 @@ ActiveRecord::Schema.define do
       t.column :col_array_bytes, :binary, array: true
       t.column :col_array_date, :date, array: true
       t.column :col_array_timestamp, :datetime, array: true
+      t.column :col_array_json, :json, array: true unless ENV["SPANNER_EMULATOR_HOST"]
+      t.column :col_array_json, :string, array: true if ENV["SPANNER_EMULATOR_HOST"]
     end
 
     create_table :firms do |t|

@@ -39,10 +39,11 @@ class StatementResult
     col_bytes = Google::Cloud::Spanner::V1::StructType::Field.new name: "ColBytes", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BYTES)
     col_date = Google::Cloud::Spanner::V1::StructType::Field.new name: "ColDate", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::DATE)
     col_timestamp = Google::Cloud::Spanner::V1::StructType::Field.new name: "ColTimestamp", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::TIMESTAMP)
+    col_json = Google::Cloud::Spanner::V1::StructType::Field.new name: "ColJson", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::JSON)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
     metadata.row_type.fields.push(col_bool, col_int64, col_float64, col_numeric, col_string, col_bytes, col_date,
-                                  col_timestamp)
+                                  col_timestamp, col_json)
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     (1..row_count).each { |i|
@@ -59,7 +60,8 @@ class StatementResult
                                                   SecureRandom.random_number(1..12),
                                                   SecureRandom.random_number(1..28))
         ), 10),
-        random_value_or_null(Google::Protobuf::Value.new(string_value: random_timestamp_string),10)
+        random_value_or_null(Google::Protobuf::Value.new(string_value: random_timestamp_string),10),
+        random_value_or_null(Google::Protobuf::Value.new(string_value: "{\"key\": \"#{SecureRandom.alphanumeric(SecureRandom.random_number(10..200))}\"}"), 10),
       )
       result_set.rows.push row
     }

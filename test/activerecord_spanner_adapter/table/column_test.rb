@@ -101,4 +101,12 @@ class InformationSchemaTableColumnTest < TestHelper::MockActiveRecordTest
     column = new_table_column type: "TIMESTAMP", limit: 1024
     assert_equal column.spanner_type, "TIMESTAMP"
   end
+
+  def test_spanner_type_for_json
+    column = new_table_column type: "JSON"
+    assert_equal column.spanner_type, "JSON"
+
+    column = new_table_column type: "JSON", limit: 1024
+    assert_equal column.spanner_type, "JSON"
+  end
 end
