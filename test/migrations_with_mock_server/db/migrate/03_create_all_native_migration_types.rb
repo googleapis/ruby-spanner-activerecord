@@ -21,6 +21,7 @@ class CreateAllNativeMigrationTypes < ActiveRecord::Migration[6.0]
       t.column :col_date, :date
       t.column :col_binary, :binary
       t.column :col_boolean, :boolean
+      t.column :col_json, :json
 
       t.column :col_array_string, :string, array: true
       t.column :col_array_text, :text, array: true
@@ -34,6 +35,7 @@ class CreateAllNativeMigrationTypes < ActiveRecord::Migration[6.0]
       t.column :col_array_date, :date, array: true
       t.column :col_array_binary, :binary, array: true
       t.column :col_array_boolean, :boolean, array: true
+      t.column :col_array_json, :json, array: true
     end
   end
 end

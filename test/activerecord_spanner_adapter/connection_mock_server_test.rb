@@ -69,6 +69,7 @@ class SpannerMockServerConnectionTest
         _(row.fields[:ColBytes]).must_equal :BYTES
         _(row.fields[:ColDate]).must_equal :DATE
         _(row.fields[:ColTimestamp]).must_equal :TIMESTAMP
+        _(row.fields[:ColJson]).must_equal :JSON
 
         _(row.fields[0]).must_equal :BOOL
         _(row.fields[1]).must_equal :INT64
@@ -78,6 +79,7 @@ class SpannerMockServerConnectionTest
         _(row.fields[5]).must_equal :BYTES
         _(row.fields[6]).must_equal :DATE
         _(row.fields[7]).must_equal :TIMESTAMP
+        _(row.fields[8]).must_equal :JSON
         row_count += 1
       end
       connection.disconnect!

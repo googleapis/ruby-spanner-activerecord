@@ -117,10 +117,10 @@ describe "Spanner Mock Server" do
 
   it "can create a random result set" do
     result = StatementResult.create_random_result 100
-    _(result.result.metadata.row_type.fields.length).must_equal 8
+    _(result.result.metadata.row_type.fields.length).must_equal 9
     _(result.result.rows.length).must_equal 100
     result.each do |partial|
-      _(partial.values.length).must_equal 8 # Number values in partial result set
+      _(partial.values.length).must_equal 9 # Number values in partial result set
     end
   end
 
@@ -132,7 +132,7 @@ describe "Spanner Mock Server" do
     stream = @client.execute_streaming_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new session: session.name, sql: sql
     row_count = 0
     stream.each do |partial|
-      _(partial.values.length).must_equal 8 # Number values in partial result set
+      _(partial.values.length).must_equal 9 # Number values in partial result set
       row_count += 1
     end
     _(row_count).must_equal 100
