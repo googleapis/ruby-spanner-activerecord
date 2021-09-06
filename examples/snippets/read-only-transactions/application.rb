@@ -10,7 +10,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize
+  def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     # Use a read-only transaction to execute multiple reads at the same commit timestamp.
     # The Spanner ActiveRecord adapter supports the custom isolation level :read_only that
     # will start a read-only Spanner transaction with a strong timestamp bound.
@@ -39,6 +39,34 @@ class Application
     puts "Reloading the albums **AFTER** the read-only transaction. The updated title is now visible."
     puts "Album title 1: #{album1.reload.title}"
     puts "Album title 2: #{album2.reload.title}"
+
+    # You can also execute a stale read with ActiveRecord. Specify a hash as the isolation level with one of
+    # the following options:
+    # * timestamp: Read data at a specific timestamp.
+    # * staleness: Read data at a specific staleness measured in seconds.
+
+    # Get a valid timestamp from the server to use for the transaction.
+    timestamp = ActiveRecord::Base.connection.select_all("SELECT CURRENT_TIMESTAMP AS ts")[0]["ts"]
+    puts ""
+    puts "Read data at timestamp #{timestamp}"
+    ActiveRecord::Base.transaction isolation: { timestamp: timestamp } do
+      puts "Album title 1: #{album1.reload.title}"
+      puts "Album title 2: #{album2.reload.title}"
+    end
+
+    puts ""
+    puts "Read data with staleness 30 seconds"
+    ActiveRecord::Base.transaction isolation: { staleness: 30 } do
+      begin
+        puts "Album title 1: #{album1.reload.title}"
+      rescue StandardError => e
+        # The table will (in almost all cases) not be found, because the timestamp that is being used to read
+        # the data will be before the table was created. This will therefore cause a 'Table not found' error.
+        puts "Reading data with 30 seconds staleness failed with error: #{e.message}"
+        puts ""
+        puts "This error is expected."
+      end
+    end
 
     puts ""
     puts "Press any key to end the application"

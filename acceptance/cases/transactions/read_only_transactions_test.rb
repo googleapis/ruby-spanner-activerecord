@@ -35,6 +35,29 @@ module ActiveRecord
         end
       end
 
+      def test_read_in_snapshot_at_timestamp
+        # Get a valid timestamp from the server to use for the transaction.
+        timestamp = ActiveRecord::Base.connection.select_all("SELECT CURRENT_TIMESTAMP AS ts")[0]["ts"]
+        Base.transaction isolation: { timestamp: timestamp } do
+          org = Organization.find @organization.id
+          assert_equal "Organization 1", org.name
+        end
+      end
+
+      def test_read_in_snapshot_with_staleness
+        Base.transaction isolation: { staleness: 1 } do
+          begin
+            # It could be that the record or even the table cannot be found, as the read timestamp could be
+            # before either of them were created, but the record could also be found, all depending on the execution
+            # speed of the test. All those scenarios are valid.
+            org = Organization.find @organization.id
+            assert_equal "Organization 1", org.name
+          rescue => e
+            assert e.message.include?("Table not found") || e.message.include?("Couldn't find Organization"), e.message
+          end
+        end
+      end
+
       def test_snapshot_does_not_see_new_changes
         Base.transaction isolation: :read_only do
           org = Organization.find @organization.id
