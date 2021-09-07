@@ -111,9 +111,67 @@ module MockServerTests
       assert_empty rollback_requests
     end
 
-    def register_singer_find_by_id_result
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
-      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+    def test_single_max_staleness
+      sql = register_singer_find_by_id_result true
+
+      Singer.optimizer_hints("max_staleness: 5.45").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.max_staleness
+      assert_equal 5, single_use.read_only.max_staleness.seconds
+      assert_equal 450000000, single_use.read_only.max_staleness.nanos
+    end
+
+    def test_single_exact_staleness
+      sql = register_singer_find_by_id_result true
+
+      Singer.optimizer_hints("exact_staleness:100").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.exact_staleness
+      assert_equal 100, single_use.read_only.exact_staleness.seconds
+      assert_equal 0, single_use.read_only.exact_staleness.nanos
+    end
+
+    def test_single_min_read_timestamp
+      sql = register_singer_find_by_id_result true
+
+      Singer.optimizer_hints("min_read_timestamp: 2021-09-07T14:33:30.1123Z").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.min_read_timestamp
+      time = Google::Cloud::Spanner::Convert.time_to_timestamp Time.xmlschema("2021-09-07T14:33:30.1123Z")
+      assert_equal time, single_use.read_only.min_read_timestamp
+    end
+
+    def test_single_read_timestamp
+      sql = register_singer_find_by_id_result true
+
+      Singer.optimizer_hints("read_timestamp: 2021-09-07T14:33:31Z").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.read_timestamp
+      time = Google::Cloud::Spanner::Convert.time_to_timestamp Time.xmlschema("2021-09-07T14:33:31.000Z")
+      assert_equal time, single_use.read_only.read_timestamp
+    end
+
+    def register_singer_find_by_id_result with_hints = false
+      res = MockServerTests::create_random_singers_result(1)
+      sql = "SELECT  `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2" if with_hints
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2" unless  with_hints
+      @mock.put_statement_result sql, res
       sql
     end
   end

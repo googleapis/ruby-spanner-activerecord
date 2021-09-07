@@ -80,7 +80,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   def do_execute_sql request, streaming
     @requests << request
     validate_session request.session
-    validate_transaction request.session, request.transaction.id if request.transaction&.id
+    validate_transaction request.session, request.transaction.id if request.transaction&.id && request.transaction&.id != ""
     result = get_statement_result request.sql
     if result.result_type == StatementResult::EXCEPTION
       raise result.result

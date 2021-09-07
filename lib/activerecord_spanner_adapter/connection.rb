@@ -197,6 +197,13 @@ module ActiveRecordSpannerAdapter
 
     def execute_query sql, params: nil, types: nil
       if params
+        # First process and remove any hints in the params that indicate that
+        # a different read staleness should be used than the default.
+        staleness_hint = params.find { |p| p[1].is_a? Arel::Visitors::StalenessHint }
+        if staleness_hint
+          selector = session.single_use_transaction staleness_hint[1].value
+          params.delete staleness_hint[0]
+        end
         converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
             params, types
@@ -213,7 +220,7 @@ module ActiveRecordSpannerAdapter
           sql,
           params: converted_params,
           types: types,
-          transaction: transaction_selector,
+          transaction: transaction_selector || selector,
           seqno: (current_transaction&.next_sequence_number)
       rescue Google::Cloud::AbortedError
         # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.

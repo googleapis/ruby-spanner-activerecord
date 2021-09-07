@@ -58,6 +58,46 @@ module ActiveRecord
         end
       end
 
+      def test_single_read_at_timestamp
+        # Get a valid timestamp from the server to use for the transaction.
+        timestamp = ActiveRecord::Base.connection.select_all("SELECT CURRENT_TIMESTAMP AS ts")[0]["ts"]
+
+        org = Organization.optimizer_hints("read_timestamp:#{timestamp.xmlschema(9)}").find @organization.id
+        assert_equal "Organization 1", org.name
+      end
+
+      def test_single_read_at_min_read_timestamp
+        # Get a valid timestamp from the server to use for the transaction.
+        timestamp = ActiveRecord::Base.connection.select_all("SELECT CURRENT_TIMESTAMP AS ts")[0]["ts"]
+
+        org = Organization.optimizer_hints("min_read_timestamp:#{timestamp.xmlschema(9)}").find @organization.id
+        assert_equal "Organization 1", org.name
+      end
+
+      def test_single_read_with_max_staleness
+        begin
+          # It could be that the record or even the table cannot be found, as the read timestamp could be
+          # before either of them were created, but the record could also be found, all depending on the execution
+          # speed of the test. All those scenarios are valid.
+          org = Organization.optimizer_hints("max_staleness: 1").find @organization.id
+          assert_equal "Organization 1", org.name
+        rescue => e
+          assert e.message.include?("Table not found") || e.message.include?("Couldn't find Organization"), e.message
+        end
+      end
+
+      def test_single_read_with_exact_staleness
+        begin
+          # It could be that the record or even the table cannot be found, as the read timestamp could be
+          # before either of them were created, but the record could also be found, all depending on the execution
+          # speed of the test. All those scenarios are valid.
+          org = Organization.optimizer_hints("exact_staleness: 1").find @organization.id
+          assert_equal "Organization 1", org.name
+        rescue => e
+          assert e.message.include?("Table not found") || e.message.include?("Couldn't find Organization"), e.message
+        end
+      end
+
       def test_snapshot_does_not_see_new_changes
         Base.transaction isolation: :read_only do
           org = Organization.find @organization.id
