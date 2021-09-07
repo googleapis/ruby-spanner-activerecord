@@ -11,7 +11,7 @@ module ActiveRecordSpannerAdapter
     def initialize connection, isolation
       @connection = connection
       @isolation = isolation
-      @committable = true unless [:read_only, :pdml].include?(isolation) || isolation.is_a?(Hash)
+      @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
