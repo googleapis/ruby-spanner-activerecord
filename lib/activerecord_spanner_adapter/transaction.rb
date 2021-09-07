@@ -11,6 +11,7 @@ module ActiveRecordSpannerAdapter
     def initialize connection, isolation
       @connection = connection
       @isolation = isolation
+      @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
@@ -34,6 +35,16 @@ module ActiveRecordSpannerAdapter
       begin
         @grpc_transaction =
           case @isolation
+          when Hash
+            if @isolation[:timestamp]
+              @connection.session.create_snapshot timestamp: @isolation[:timestamp]
+            elsif @isolation[:staleness]
+              @connection.session.create_snapshot staleness: @isolation[:staleness]
+            elsif @isolation[:strong]
+              @connection.session.create_snapshot strong: true
+            else
+              raise "Invalid snapshot argument: #{@isolation}"
+            end
           when :read_only
             @connection.session.create_snapshot strong: true
           when :pdml
@@ -56,15 +67,14 @@ module ActiveRecordSpannerAdapter
     end
 
     def next_sequence_number
-      @sequence_number += 1 unless @isolation == :read_only
+      @sequence_number += 1 if @committable
     end
 
     def commit
       raise "This transaction is not active" unless active?
 
       begin
-        @connection.session.commit_transaction @grpc_transaction, @mutations \
-            unless [:read_only, :pdml].include? @isolation
+        @connection.session.commit_transaction @grpc_transaction, @mutations if @committable
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
         if @connection.session_not_found? e
@@ -94,7 +104,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def shoot_and_forget_rollback
-      @connection.session.rollback @grpc_transaction.transaction_id unless @isolation == :read_only
+      @connection.session.rollback @grpc_transaction.transaction_id if @committable
     rescue StandardError # rubocop:disable Lint/HandleExceptions
       # Ignored
     end

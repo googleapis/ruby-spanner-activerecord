@@ -149,7 +149,7 @@ module ActiveRecord
         end
 
         # Begins a transaction on the database with the specified isolation level. Cloud Spanner only supports
-        # isolation level :serializable, but also defines two additional 'isolation levels' that can be used
+        # isolation level :serializable, but also defines three additional 'isolation levels' that can be used
         # to start specific types of Spanner transactions:
         # * :read_only: Starts a read-only snapshot transaction using a strong timestamp bound.
         # * :buffered_mutations: Starts a read/write transaction that will use mutations instead of DML for single-row
@@ -158,9 +158,24 @@ module ActiveRecord
         # * :pdml: Starts a Partitioned DML transaction. Executing multiple DML statements in one PDML transaction
         #          block is NOT supported A PDML transaction is not guaranteed to be atomic.
         #          See https://cloud.google.com/spanner/docs/dml-partitioned for more information.
+        #
+        # In addition to the above, a Hash containing read-only snapshot options may be used to start a specific
+        # read-only snapshot:
+        # * { timestamp: Time } Starts a read-only snapshot at the given timestamp.
+        # * { staleness: Integer } Starts a read-only snapshot with the given staleness in seconds.
+        # * { strong: <any value>} Starts a read-only snapshot with strong timestamp bound
+        #                          (this is the same as :read_only)
+        #
         def begin_isolated_db_transaction isolation
-          raise "Unsupported isolation level: #{isolation}" unless \
+          if isolation.is_a? Hash
+            raise "Unsupported isolation level: #{isolation}" unless \
+              isolation[:timestamp] || isolation[:staleness] || isolation[:strong]
+            raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`." \
+              if isolation.count != 1
+          else
+            raise "Unsupported isolation level: #{isolation}" unless \
               [:serializable, :read_only, :buffered_mutations, :pdml].include? isolation
+          end
 
           log "BEGIN #{isolation}" do
             @connection.begin_transaction isolation
