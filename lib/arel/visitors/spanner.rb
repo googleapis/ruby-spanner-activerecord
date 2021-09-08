@@ -38,15 +38,18 @@ module Arel # :nodoc: all
           if v.start_with? "max_staleness:"
             collector.hints[:staleness] = \
               StalenessHint.new max_staleness: v.delete_prefix("max_staleness:").to_f
+            next
           end
           if v.start_with? "exact_staleness:"
             collector.hints[:staleness] = \
               StalenessHint.new exact_staleness: v.delete_prefix("exact_staleness:").to_f
+            next
           end
           if v.start_with? "min_read_timestamp:"
             time = Time.xmlschema v.delete_prefix("min_read_timestamp:")
             collector.hints[:staleness] = \
               StalenessHint.new min_read_timestamp: time
+            next
           end
           next unless v.start_with? "read_timestamp:"
           time = Time.xmlschema v.delete_prefix("read_timestamp:")

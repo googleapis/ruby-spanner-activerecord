@@ -36,7 +36,7 @@ module Google
         end
 
         # Create a single-use transaction selector.
-        def single_use_transaction opts
+        def self.single_use_transaction opts
           return nil if opts.nil? || opts.empty?
 
           exact_timestamp = Convert.time_to_timestamp \
