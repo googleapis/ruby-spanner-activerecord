@@ -195,7 +195,7 @@ module ActiveRecordSpannerAdapter
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, types: nil
+    def execute_query sql, params: nil, types: nil, single_use_selector: nil
       if params
         converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
@@ -213,7 +213,7 @@ module ActiveRecordSpannerAdapter
           sql,
           params: converted_params,
           types: types,
-          transaction: transaction_selector,
+          transaction: transaction_selector || single_use_selector,
           seqno: (current_transaction&.next_sequence_number)
       rescue Google::Cloud::AbortedError
         # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.

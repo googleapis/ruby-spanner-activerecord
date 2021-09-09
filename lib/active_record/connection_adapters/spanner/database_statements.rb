@@ -27,6 +27,14 @@ module ActiveRecord
             transaction_required = statement_type == :dml
             materialize_transactions
 
+            # First process and remove any hints in the binds that indicate that
+            # a different read staleness should be used than the default.
+            staleness_hint = binds.find { |b| b.is_a? Arel::Visitors::StalenessHint }
+            if staleness_hint
+              selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
+              binds.delete staleness_hint
+            end
+
             log sql, name do
               types, params = to_types_and_params binds
               ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
@@ -35,7 +43,7 @@ module ActiveRecord
                     @connection.execute_query sql, params: params, types: types
                   end
                 else
-                  @connection.execute_query sql, params: params, types: types
+                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector
                 end
               end
             end
