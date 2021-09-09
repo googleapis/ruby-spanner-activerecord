@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.5.0...activerecord-spanner-adapter/v0.6.0) (2021-09-09)
+
+
+### Features
+
+* support JSON data type ([#123](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/123)) ([d177ddf](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/d177ddfc7326f02189bd4054571564b94d162b02))
+* support single stale reads ([#127](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/127)) ([a600628](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/a600628267355b808f478ed543bc505e73f95d4a))
+* support stale reads in read-only transactions ([#126](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/126)) ([8bf7730](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/8bf77300283c01e951725dd5e457270db20e98d2))
+
 ## 0.5.0 (2021-08-31)
 
 
