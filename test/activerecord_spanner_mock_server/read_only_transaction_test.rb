@@ -170,7 +170,7 @@ module MockServerTests
     def register_singer_find_by_id_result with_hints = false
       res = MockServerTests::create_random_singers_result(1)
       sql = "SELECT  `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2" if with_hints
-      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2" unless  with_hints
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2" unless with_hints
       @mock.put_statement_result sql, res
       sql
     end

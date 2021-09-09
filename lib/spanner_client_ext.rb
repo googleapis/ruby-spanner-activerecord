@@ -39,14 +39,10 @@ module Google
         def self.single_use_transaction opts
           return nil if opts.nil? || opts.empty?
 
-          exact_timestamp = Convert.time_to_timestamp \
-            opts[:timestamp] || opts[:read_timestamp]
-          exact_staleness = Convert.number_to_duration \
-            opts[:staleness] || opts[:exact_staleness]
-          bounded_timestamp = Convert.time_to_timestamp \
-            opts[:bounded_timestamp] || opts[:min_read_timestamp]
-          bounded_staleness = Convert.number_to_duration \
-            opts[:bounded_staleness] || opts[:max_staleness]
+          exact_timestamp = Convert.time_to_timestamp opts[:read_timestamp]
+          exact_staleness = Convert.number_to_duration opts[:exact_staleness]
+          min_read_timestamp = Convert.time_to_timestamp opts[:min_read_timestamp]
+          max_staleness = Convert.number_to_duration opts[:max_staleness]
 
           V1::TransactionSelector.new(single_use:
             V1::TransactionOptions.new(read_only:
@@ -54,8 +50,8 @@ module Google
                 strong: opts[:strong],
                 read_timestamp: exact_timestamp,
                 exact_staleness: exact_staleness,
-                min_read_timestamp: bounded_timestamp,
-                max_staleness: bounded_staleness,
+                min_read_timestamp: min_read_timestamp,
+                max_staleness: max_staleness,
                 return_read_timestamp: true
               }.delete_if { |_, v| v.nil? })))
         end
