@@ -15,7 +15,8 @@ module ActiveRecord
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
-    def self.create attributes = nil, &block
+    def self.create! attributes = nil, &block
+      return super unless spanner_adapter?
       return super if active_transaction?
 
       transaction isolation: :buffered_mutations do
@@ -23,8 +24,22 @@ module ActiveRecord
       end
     end
 
+    def self.create attributes = nil, &block
+      return super unless spanner_adapter?
+      return super if active_transaction?
+
+      transaction isolation: :buffered_mutations do
+        return super
+      end
+    end
+
+    def self.spanner_adapter?
+      connection.adapter_name == "spanner"
+    end
+
     def self._insert_record values
-      return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless spanner_adapter?
+      return super unless connection&.current_spanner_transaction&.isolation == :buffered_mutations
 
       primary_key = self.primary_key
       primary_key_value = nil
@@ -48,7 +63,7 @@ module ActiveRecord
           values: [grpc_values.list_value]
         )
       )
-      Base.connection.current_spanner_transaction.buffer mutation
+      connection.current_spanner_transaction.buffer mutation
 
       primary_key_value
     end
@@ -56,6 +71,7 @@ module ActiveRecord
     # Deletes all records of this class. This method will use mutations instead of DML if there is no active
     # transaction, or if the active transaction has been created with the option isolation: :buffered_mutations.
     def self.delete_all
+      return super unless spanner_adapter?
       return super if active_transaction?
 
       transaction isolation: :buffered_mutations do
@@ -72,7 +88,8 @@ module ActiveRecord
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
     def update attributes
-      return super if Base.active_transaction?
+      return super unless self.class.spanner_adapter?
+      return super if self.class.active_transaction?
 
       transaction isolation: :buffered_mutations do
         return super
@@ -83,7 +100,8 @@ module ActiveRecord
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
     def destroy
-      return super if Base.active_transaction?
+      return super unless self.class.spanner_adapter?
+      return super if self.class.active_transaction?
 
       transaction isolation: :buffered_mutations do
         return super
@@ -110,7 +128,8 @@ module ActiveRecord
     private_class_method :_create_grpc_values_for_insert
 
     def _update_row attribute_names, attempted_action = "update"
-      return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.spanner_adapter?
+      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
 
       if locking_enabled?
         _execute_version_check attempted_action
@@ -129,7 +148,7 @@ module ActiveRecord
           values: [grpc_values.list_value]
         )
       )
-      Base.connection.current_spanner_transaction.buffer mutation
+      self.class.connection.current_spanner_transaction.buffer mutation
       1 # Affected rows
     end
 
@@ -161,13 +180,15 @@ module ActiveRecord
     end
 
     def destroy_row
-      return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.spanner_adapter?
+      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
 
       _delete_row
     end
 
     def _delete_row
-      return super unless Base.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.spanner_adapter?
+      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
       if locking_enabled?
         _execute_version_check "destroy"
       end
@@ -186,7 +207,7 @@ module ActiveRecord
           key_set: { keys: [list_value] }
         )
       )
-      Base.connection.current_spanner_transaction.buffer mutation
+      self.class.connection.current_spanner_transaction.buffer mutation
       1 # Affected rows
     end
 
@@ -210,7 +231,7 @@ module ActiveRecord
               "WHERE `#{self.class.primary_key}` = @id AND `#{locking_column}` = @lock_version"
       params = { "id" => id_in_database, "lock_version" => previous_lock_value }
       param_types = { "id" => :INT64, "lock_version" => :INT64 }
-      locked_row = Base.connection.raw_connection.execute_query sql, params: params, types: param_types
+      locked_row = self.class.connection.raw_connection.execute_query sql, params: params, types: param_types
       raise ActiveRecord::StaleObjectError.new(self, attempted_action) unless locked_row.rows.any?
     end
   end
