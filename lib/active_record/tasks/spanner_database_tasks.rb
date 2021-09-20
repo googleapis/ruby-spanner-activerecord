@@ -18,7 +18,7 @@ module ActiveRecord
         @connection.create_database
       rescue Google::Cloud::Error => error
         if error.instance_of? Google::Cloud::AlreadyExistsError
-          raise ActiveRecord::Tasks::DatabaseAlreadyExists
+          raise ActiveRecord::DatabaseAlreadyExists
         end
 
         raise error
