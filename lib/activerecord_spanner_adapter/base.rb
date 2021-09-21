@@ -37,9 +37,12 @@ module ActiveRecord
       connection.adapter_name == "spanner"
     end
 
+    def self.buffered_mutations?
+      spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
+    end
+
     def self._insert_record values
-      return super unless spanner_adapter?
-      return super unless connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless buffered_mutations?
 
       primary_key = self.primary_key
       primary_key_value = nil
@@ -128,8 +131,7 @@ module ActiveRecord
     private_class_method :_create_grpc_values_for_insert
 
     def _update_row attribute_names, attempted_action = "update"
-      return super unless self.class.spanner_adapter?
-      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.buffered_mutations?
 
       if locking_enabled?
         _execute_version_check attempted_action
@@ -180,15 +182,13 @@ module ActiveRecord
     end
 
     def destroy_row
-      return super unless self.class.spanner_adapter?
-      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.buffered_mutations?
 
       _delete_row
     end
 
     def _delete_row
-      return super unless self.class.spanner_adapter?
-      return super unless self.class.connection&.current_spanner_transaction&.isolation == :buffered_mutations
+      return super unless self.class.buffered_mutations?
       if locking_enabled?
         _execute_version_check "destroy"
       end
