@@ -142,6 +142,30 @@ module ActiveRecord
 
         assert_equal [post], posts.to_a
       end
+
+      def test_statement_hint
+        post = Post.optimizer_hints("statement_hint: @{USE_ADDITIONAL_PARALLELISM=TRUE}")
+                   .select(:title).to_a.first
+
+        assert_nil post.id
+        assert_equal "Title - 1", post.title
+      end
+
+      def test_table_hint
+        post = Post.optimizer_hints("table_hint: posts@{FORCE_INDEX=_BASE_TABLE}")
+                   .select(:title).to_a.first
+
+        assert_nil post.id
+        assert_equal "Title - 1", post.title
+      end
+
+      def test_join_hint
+        post = Post.joins("inner join @{JOIN_TYPE=HASH_JOIN} comments on posts.id=comments.post_id")
+                   .select(:title).to_a.first
+
+        assert_nil post.id
+        assert_equal "Title - 1", post.title
+      end
     end
   end
 end

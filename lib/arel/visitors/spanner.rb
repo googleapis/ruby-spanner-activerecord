@@ -14,11 +14,24 @@ module Arel # :nodoc: all
       end
     end
 
+    class StatementHint
+      attr_reader :value
+
+      def initialize value
+        @value = value
+      end
+    end
+
     class Spanner < Arel::Visitors::ToSql
       def compile node, collector = Arel::Collectors::SQLString.new
         collector.class.module_eval { attr_accessor :hints }
+        collector.class.module_eval { attr_accessor :table_hints }
+        collector.class.module_eval { attr_accessor :join_hints }
         collector.hints = {}
+        collector.table_hints = {}
+        collector.join_hints = {}
         sql, binds = accept(node, collector).value
+        sql = collector.hints[:statement_hint].value + sql if collector.hints[:statement_hint]
         binds << collector.hints[:staleness] if collector.hints[:staleness]
         [sql, binds]
       end
@@ -32,9 +45,25 @@ module Arel # :nodoc: all
         BIND_BLOCK
       end
 
+      def visit_table_hint v, collector
+        value = v.delete_prefix("table_hint:").strip
+        # TODO: This does not support FORCE_INDEX hints that reference an index that contains '@{' in the name.
+        start_of_hint_index = value.rindex "@{"
+        table_name = value[0, start_of_hint_index]
+        table_hint = value[start_of_hint_index, value.length]
+        collector.table_hints[table_name] = table_hint if table_name && table_hint
+      end
+
+      def visit_statement_hint v, collector
+        collector.hints[:statement_hint] = \
+          StatementHint.new v.delete_prefix("statement_hint:")
+      end
+
       # rubocop:disable Naming/MethodName
       def visit_Arel_Nodes_OptimizerHints o, collector
         o.expr.each do |v|
+          visit_table_hint v, collector if v.start_with? "table_hint:"
+          visit_statement_hint v, collector if v.start_with? "statement_hint:"
           if v.start_with? "max_staleness:"
             collector.hints[:staleness] = \
               StalenessHint.new max_staleness: v.delete_prefix("max_staleness:").to_f
@@ -57,6 +86,16 @@ module Arel # :nodoc: all
             StalenessHint.new read_timestamp: time
         end
         collector
+      end
+
+      def visit_Arel_Table o, collector
+        return super unless collector.table_hints[o.name]
+        if o.table_alias
+          collector << quote_table_name(o.name) << collector.table_hints[o.name] \
+                    << " " << quote_table_name(o.table_alias)
+        else
+          collector << quote_table_name(o.name) << collector.table_hints[o.name]
+        end
       end
 
       def visit_Arel_Nodes_BindParam o, collector
