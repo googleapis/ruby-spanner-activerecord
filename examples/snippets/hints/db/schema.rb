@@ -12,10 +12,17 @@
 
 ActiveRecord::Schema.define(version: 1) do
 
+  create_table "albums", id: { limit: 8 }, force: :cascade do |t|
+    t.string "title"
+    t.integer "singer_id", limit: 8
+  end
+
   create_table "singers", id: { limit: 8 }, force: :cascade do |t|
     t.string "first_name", limit: 100
     t.string "last_name", limit: 200, null: false
     t.string "full_name", limit: 300, null: false
+    t.index ["full_name"], name: "index_singers_on_full_name", order: { full_name: :asc }
   end
 
+  add_foreign_key "albums", "singers"
 end
