@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.6.0...activerecord-spanner-adapter/v0.7.0) (2021-10-03)
+
+
+### Features
+
+* add support for query hints ([#134](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/134)) ([f4b5b1e](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/f4b5b1e5b959d43756258e84f95f26f375b7fba8))
+
 ## [0.6.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.5.0...activerecord-spanner-adapter/v0.6.0) (2021-09-09)
 
 
