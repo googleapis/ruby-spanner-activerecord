@@ -30,6 +30,12 @@ module ActiveRecordSpannerAdapter
       @mutations << mutation
     end
 
+    # Begins the transaction.
+    #
+    # Read-only and PDML transactions are started by executing a BeginTransaction RPC.
+    # Read/write transactions are not really started by this method, and instead a
+    # transaction selector is prepared that will be included with the first statement
+    # on the transaction.
     def begin
       raise "Nested transactions are not allowed" if @state != :INITIALIZED
       begin
@@ -69,7 +75,9 @@ module ActiveRecordSpannerAdapter
       end
     end
 
-    def retry_begin_read_write
+    # Forces a BeginTransaction RPC for a read/write transaction. This is used by a
+    # connection if the first statement of a transaction failed.
+    def force_begin_read_write
       @grpc_transaction = @connection.session.create_transaction
     end
 
@@ -82,8 +90,7 @@ module ActiveRecordSpannerAdapter
 
       begin
         # Start a transaction with an explicit BeginTransaction RPC if the transaction only contains mutations.
-        @grpc_transaction = @connection.session.create_transaction \
-            if @committable && !@mutations.empty? && !@grpc_transaction
+        force_begin_read_write if @committable && !@mutations.empty? && !@grpc_transaction
 
         @connection.session.commit_transaction @grpc_transaction, @mutations if @committable && @grpc_transaction
         @state = :COMMITTED
@@ -104,7 +111,7 @@ module ActiveRecordSpannerAdapter
     def rollback
       # Allow rollback after abort and/or a failed commit.
       raise "This transaction is not active" unless active? || @state == :FAILED || @state == :ABORTED
-      if active?
+      if active? && @grpc_transaction
         # We do a shoot-and-forget rollback here, as the error that caused the transaction to be rolled back could
         # also have invalidated the transaction (e.g. `Session not found`). If the rollback fails for any other
         # reason, we also do not need to retry it or propagate the error to the application, as the transaction will
@@ -124,6 +131,9 @@ module ActiveRecordSpannerAdapter
       @state = :ABORTED
     end
 
+    # Sets the underlying gRPC transaction to use for this Transaction.
+    # This is used for queries/DML statements that inlined the BeginTransaction option and returned
+    # a transaction in the metadata.
     def grpc_transaction= grpc
       @grpc_transaction = Google::Cloud::Spanner::Transaction.from_grpc grpc, @connection.session
     end
@@ -131,9 +141,13 @@ module ActiveRecordSpannerAdapter
     def transaction_selector
       return unless active?
 
+      # Use the transaction that has been started by a BeginTransaction RPC or returned by a
+      # statement, if present.
       return Google::Spanner::V1::TransactionSelector.new id: @grpc_transaction.transaction_id \
           if @grpc_transaction
 
+      # Return a transaction selector that will instruct the statement to also start a transaction
+      # and return its id as a side effect.
       @begin_transaction_selector
     end
   end

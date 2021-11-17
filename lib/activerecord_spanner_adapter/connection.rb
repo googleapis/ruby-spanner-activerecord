@@ -243,11 +243,14 @@ module ActiveRecordSpannerAdapter
         selector = create_transaction_after_failed_first_statement e
         retry
       end
+      # It was not the first statement, so propagate the error.
       raise
     end
 
+    # Creates a transaction using a BeginTransaction RPC. This is used if the first statement of a
+    # transaction fails, as that also means that no transaction id was returned.
     def create_transaction_after_failed_first_statement original_error
-      transaction = current_transaction.retry_begin_read_write
+      transaction = current_transaction.force_begin_read_write
       Google::Spanner::V1::TransactionSelector.new id: transaction.transaction_id
     rescue Google::Cloud::Error
       # Raise the original error if the BeginTransaction RPC also fails.
