@@ -33,25 +33,28 @@ module ActiveRecordSpannerAdapter
     def begin
       raise "Nested transactions are not allowed" if @state != :INITIALIZED
       begin
-        @grpc_transaction =
-          case @isolation
-          when Hash
-            if @isolation[:timestamp]
-              @connection.session.create_snapshot timestamp: @isolation[:timestamp]
-            elsif @isolation[:staleness]
-              @connection.session.create_snapshot staleness: @isolation[:staleness]
-            elsif @isolation[:strong]
-              @connection.session.create_snapshot strong: true
-            else
-              raise "Invalid snapshot argument: #{@isolation}"
-            end
-          when :read_only
-            @connection.session.create_snapshot strong: true
-          when :pdml
-            @connection.session.create_pdml
+        case @isolation
+        when Hash
+          if @isolation[:timestamp]
+            @grpc_transaction = @connection.session.create_snapshot timestamp: @isolation[:timestamp]
+          elsif @isolation[:staleness]
+            @grpc_transaction = @connection.session.create_snapshot staleness: @isolation[:staleness]
+          elsif @isolation[:strong]
+            @grpc_transaction = @connection.session.create_snapshot strong: true
           else
-            @connection.session.create_transaction
+            raise "Invalid snapshot argument: #{@isolation}"
           end
+        when :read_only
+          @grpc_transaction = @connection.session.create_snapshot strong: true
+        when :pdml
+          @grpc_transaction = @connection.session.create_pdml
+        else
+          @begin_transaction_selector = Google::Spanner::V1::TransactionSelector.new \
+            begin: Google::Spanner::V1::TransactionOptions.new(
+              read_write: Google::Spanner::V1::TransactionOptions::ReadWrite.new
+            )
+
+        end
         @state = :STARTED
       rescue Google::Cloud::NotFoundError => e
         if @connection.session_not_found? e
@@ -74,7 +77,11 @@ module ActiveRecordSpannerAdapter
       raise "This transaction is not active" unless active?
 
       begin
-        @connection.session.commit_transaction @grpc_transaction, @mutations if @committable
+        # Start a transaction with an explicit BeginTransaction RPC if the transaction only contains mutations.
+        @grpc_transaction = @connection.session.create_transaction \
+            if @committable && !@mutations.empty? && !@grpc_transaction
+
+        @connection.session.commit_transaction @grpc_transaction, @mutations if @committable && @grpc_transaction
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
         if @connection.session_not_found? e
@@ -113,11 +120,17 @@ module ActiveRecordSpannerAdapter
       @state = :ABORTED
     end
 
+    def grpc_transaction= grpc
+      @grpc_transaction = Google::Cloud::Spanner::Transaction.from_grpc grpc, @connection.session
+    end
+
     def transaction_selector
       return unless active?
 
-      Google::Spanner::V1::TransactionSelector.new \
-        id: @grpc_transaction.transaction_id
+      return Google::Spanner::V1::TransactionSelector.new id: @grpc_transaction.transaction_id \
+          if @grpc_transaction
+
+      @begin_transaction_selector
     end
   end
 end

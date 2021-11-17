@@ -209,12 +209,15 @@ module ActiveRecordSpannerAdapter
       end
 
       begin
-        session.execute_query \
+        res = session.execute_query \
           sql,
           params: converted_params,
           types: types,
           transaction: transaction_selector || single_use_selector,
           seqno: (current_transaction&.next_sequence_number)
+        current_transaction.grpc_transaction = res.metadata.transaction \
+            if current_transaction && res&.metadata&.transaction
+        res
       rescue Google::Cloud::AbortedError
         # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
         current_transaction&.mark_aborted
