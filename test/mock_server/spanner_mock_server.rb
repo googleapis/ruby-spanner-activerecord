@@ -25,11 +25,17 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     @transactions = {}
     @aborted_transactions = {}
     @requests = []
+    @errors = {}
     put_statement_result "SELECT 1", StatementResult.create_select1_result
   end
 
   def put_statement_result sql, result
     @statement_results[sql] = result
+  end
+
+  def push_error sql_or_method, error
+    @errors[sql_or_method] = [] unless @errors[sql_or_method]
+    @errors[sql_or_method].push error
   end
 
   def create_session request, _unused_call
@@ -83,6 +89,8 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     created_transaction = do_create_transaction request.session if request.transaction&.begin
     transaction_id = created_transaction&.id || request.transaction&.id
     validate_transaction request.session, transaction_id if transaction_id && transaction_id != ""
+
+    raise @errors[request.sql].pop if @errors[request.sql] && !@errors[request.sql].empty?
     result = get_statement_result(request.sql).clone
     if result.result_type == StatementResult::EXCEPTION
       raise result.result
@@ -111,6 +119,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
 
   def begin_transaction request, _unused_call
     @requests << request
+    raise @errors[__method__.to_s].pop if @errors[__method__.to_s] && !@errors[__method__.to_s].empty?
     validate_session request.session
     do_create_transaction request.session
   end

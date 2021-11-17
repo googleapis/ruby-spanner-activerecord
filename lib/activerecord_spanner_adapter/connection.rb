@@ -208,30 +208,50 @@ module ActiveRecordSpannerAdapter
         self.current_transaction = nil
       end
 
-      begin
-        res = session.execute_query \
-          sql,
-          params: converted_params,
-          types: types,
-          transaction: transaction_selector || single_use_selector,
-          seqno: (current_transaction&.next_sequence_number)
-        current_transaction.grpc_transaction = res.metadata.transaction \
-            if current_transaction && res&.metadata&.transaction
-        res
-      rescue Google::Cloud::AbortedError
-        # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
-        current_transaction&.mark_aborted
-        raise
-      rescue Google::Cloud::NotFoundError => e
-        if session_not_found?(e) || transaction_not_found?(e)
-          reset!
-          # Force a retry of the entire transaction if this statement was executed as part of a transaction.
-          # Otherwise, just retry the statement itself.
-          raise_aborted_err if current_transaction&.active?
-          retry
-        end
-        raise
+      selector = transaction_selector || single_use_selector
+      execute_sql_request sql, converted_params, types, selector
+    end
+
+    def execute_sql_request sql, converted_params, types, selector
+      res = session.execute_query \
+        sql,
+        params: converted_params,
+        types: types,
+        transaction: selector,
+        seqno: (current_transaction&.next_sequence_number)
+      current_transaction.grpc_transaction = res.metadata.transaction \
+          if current_transaction && res&.metadata&.transaction
+      res
+    rescue Google::Cloud::AbortedError
+      # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
+      current_transaction&.mark_aborted
+      raise
+    rescue Google::Cloud::NotFoundError => e
+      if session_not_found?(e) || transaction_not_found?(e)
+        reset!
+        # Force a retry of the entire transaction if this statement was executed as part of a transaction.
+        # Otherwise, just retry the statement itself.
+        raise_aborted_err if current_transaction&.active?
+        retry
       end
+      raise
+    rescue Google::Cloud::Error => e
+      # Check if it was the first statement in a transaction that included a BeginTransaction
+      # option in the request. If so, execute an explicit BeginTransaction and then retry the
+      # request without the BeginTransaction option.
+      if current_transaction && selector&.begin&.read_write
+        selector = create_transaction_after_failed_first_statement e
+        retry
+      end
+      raise
+    end
+
+    def create_transaction_after_failed_first_statement original_error
+      transaction = current_transaction.retry_begin_read_write
+      Google::Spanner::V1::TransactionSelector.new id: transaction.transaction_id
+    rescue Google::Cloud::Error
+      # Raise the original error if the BeginTransaction RPC also fails.
+      raise original_error
     end
 
     # Transactions

@@ -69,6 +69,10 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def retry_begin_read_write
+      @grpc_transaction = @connection.session.create_transaction
+    end
+
     def next_sequence_number
       @sequence_number += 1 if @committable
     end
