@@ -79,14 +79,14 @@ module MockServerTests
       end
 
       begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_requests.length
-      refute_equal begin_requests[0].session, begin_requests[1].session
+      assert_empty begin_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       refute_equal sql_requests[0].session, sql_requests[1].session
+      sql_requests.each { |req| assert req.transaction&.begin&.read_write }
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
       assert_equal 1, commit_requests.length
-      assert_equal begin_requests[1].session, commit_requests[0].session
+      assert_equal sql_requests[1].session, commit_requests[0].session
     end
 
     def test_session_not_found_on_select_in_transaction
@@ -99,14 +99,14 @@ module MockServerTests
       end
 
       begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_requests.length
-      refute_equal begin_requests[0].session, begin_requests[1].session
+      assert_empty begin_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }
       assert_equal 2, sql_requests.length
       refute_equal sql_requests[0].session, sql_requests[1].session
+      sql_requests.each { |req| assert req.transaction&.begin&.read_write }
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
       assert_equal 1, commit_requests.length
-      assert_equal begin_requests[1].session, commit_requests[0].session
+      assert_equal sql_requests[1].session, commit_requests[0].session
     end
 
     def test_session_not_found_on_commit
@@ -119,14 +119,14 @@ module MockServerTests
       end
 
       begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_requests.length
-      refute_equal begin_requests[0].session, begin_requests[1].session
+      assert_empty begin_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       refute_equal sql_requests[0].session, sql_requests[1].session
+      sql_requests.each { |req| assert req.transaction&.begin&.read_write }
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
       assert_equal 2, commit_requests.length
-      assert_equal begin_requests[1].session, commit_requests[1].session
+      assert_equal sql_requests[1].session, commit_requests[1].session
     end
 
     def register_insert_singer_result

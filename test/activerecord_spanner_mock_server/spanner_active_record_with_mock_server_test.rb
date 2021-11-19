@@ -93,10 +93,11 @@ module MockServerTests
       singer.save!
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 1, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       # Check the encoded parameters.
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
       select_requests.each do |request|
+        assert request.transaction&.begin&.read_write
         assert_equal "Dave", request.params["p1"]
         assert_equal singer.id.to_s, request.params["p2"]
         assert_equal :STRING, request.param_types["p1"].code
@@ -118,13 +119,18 @@ module MockServerTests
       end
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 1, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       # All of the SQL requests should use a transaction.
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql.start_with?("SELECT `singers`.*") || req.sql.start_with?("UPDATE")) }
-      sql_requests.each do |request|
+      assert_equal 3, sql_requests.length
+      sql_requests.each_with_index do |request, index|
         refute_nil request.transaction
-        @id ||= request.transaction.id
-        assert_equal @id, request.transaction.id
+        if index > 0
+          @id ||= request.transaction.id
+          assert_equal @id, request.transaction.id
+        else
+          assert request.transaction.begin&.read_write
+        end
       end
 
       update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }

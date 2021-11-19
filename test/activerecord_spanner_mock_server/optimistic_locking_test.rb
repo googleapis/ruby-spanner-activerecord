@@ -93,7 +93,7 @@ module MockServerTests
       assert commit_request
 
       assert_equal version.to_s, select_request.params["lock_version"]
-      assert_equal commit_request.transaction_id, select_request.transaction&.id
+      assert select_request.transaction&.begin&.read_write
 
       mutation = commit_request.mutations[0]
       col_index = -1
@@ -141,7 +141,7 @@ module MockServerTests
       assert commit_request
 
       assert_equal version.to_s, select_request.params["lock_version"]
-      assert_equal commit_request.transaction_id, select_request.transaction&.id
+      assert select_request.transaction&.begin&.read_write
 
       mutation = commit_request.mutations[0]
       assert_equal :delete, mutation.operation
@@ -180,13 +180,15 @@ module MockServerTests
       end
 
       # When an update is done using mutations, the version check is executed using a SELECT statement inside the transaction.
+      begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       select_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
       commit_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }.first
+      assert_empty begin_requests
       assert select_request
       assert commit_request
 
       assert_equal version.to_s, select_request.params["lock_version"]
-      assert_equal commit_request.transaction_id, select_request.transaction&.id
+      assert select_request.transaction&.begin&.read_write
       assert_equal 2, commit_request.mutations.length
 
       insert = commit_request.mutations[0]
@@ -239,7 +241,7 @@ module MockServerTests
       assert commit_request
 
       assert_equal version.to_s, select_request.params["lock_version"]
-      assert_equal commit_request.transaction_id, select_request.transaction&.id
+      assert select_request.transaction&.begin&.read_write
 
       insert = commit_request.mutations[0]
       delete = commit_request.mutations[1]

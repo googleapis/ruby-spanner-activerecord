@@ -95,6 +95,10 @@ module Google
         end
       end
 
+      class Results
+        attr_reader :metadata
+      end
+
       class Transaction
         attr_accessor :seqno, :commit
       end
