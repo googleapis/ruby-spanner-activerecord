@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.7.1](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.7.0...activerecord-spanner-adapter/v0.7.1) (2021-11-21)
+
+
+### Performance Improvements
+
+* inline BeginTransaction with first statement in the transaction ([#139](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/139)) ([ed88647](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/ed88647a4df995b4f4221ac056f9204ee45ce90f))
+
 ## [0.7.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.6.0...activerecord-spanner-adapter/v0.7.0) (2021-10-03)
 
 
