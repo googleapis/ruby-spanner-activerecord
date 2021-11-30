@@ -26,6 +26,9 @@ class CreateTables < ActiveRecord::Migration[6.0]
         t.string :title
       end
 
+      # Add a unique index to the albumid column to prevent full table scans when a single album record is queried.
+      add_index :albums, [:albumid], unique: true
+
       create_table :tracks, id: false do |t|
         # Interleave the `tracks` table in the parent table `albums` and cascade delete all tracks that belong to an
         # album when an album is deleted.
@@ -39,6 +42,9 @@ class CreateTables < ActiveRecord::Migration[6.0]
         t.string :title
         t.numeric :duration
       end
+
+      # Add a unique index to the trackid column to prevent full table scans when a single track record is queried.
+      add_index :tracks, [:trackid], unique: true
     end
   end
 end
