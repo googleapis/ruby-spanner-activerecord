@@ -188,6 +188,20 @@ module TestMigrationsWithMockServer
         ActiveRecord::SchemaMigration
       )
 
+      select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
+      register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
+      select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_albums_index_columns_sql
+      select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_albums_indexes_sql
+
+      select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
+      register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
+      select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_tracks_index_columns_sql
+      select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
+      register_empty_select_indexes_result select_tracks_indexes_sql
+
       register_version_result "1", "4"
 
       context.migrate 4
@@ -196,7 +210,7 @@ module TestMigrationsWithMockServer
       ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
       # The migration simulation also creates the two migration metadata tables.
       assert_equal 3, ddl_requests.length
-      assert_equal 3, ddl_requests[2].statements.length
+      assert_equal 5, ddl_requests[2].statements.length
 
       expectedDdl = "CREATE TABLE `singers` "
       expectedDdl << "(`singerid` INT64 NOT NULL, `first_name` STRING(200), `last_name` STRING(MAX)) "
@@ -208,10 +222,18 @@ module TestMigrationsWithMockServer
       expectedDdl << ") PRIMARY KEY (`singerid`, `albumid`), INTERLEAVE IN PARENT `singers`"
       assert_equal expectedDdl, ddl_requests[2].statements[1]
 
+      expectedDdl = "CREATE UNIQUE INDEX `index_albums_on_albumid` "
+      expectedDdl << "ON `albums` (`albumid`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[2]
+
       expectedDdl = "CREATE TABLE `tracks` "
       expectedDdl << "(`trackid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `albumid` INT64 NOT NULL, `title` STRING(MAX), `duration` NUMERIC)"
       expectedDdl << " PRIMARY KEY (`singerid`, `albumid`, `trackid`), INTERLEAVE IN PARENT `albums` ON DELETE CASCADE"
-      assert_equal expectedDdl, ddl_requests[2].statements[2]
+      assert_equal expectedDdl, ddl_requests[2].statements[3]
+
+      expectedDdl = "CREATE UNIQUE INDEX `index_tracks_on_trackid` "
+      expectedDdl << "ON `tracks` (`trackid`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[4]
     end
 
     def test_create_table_with_commit_timestamp

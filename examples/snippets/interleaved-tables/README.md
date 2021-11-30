@@ -12,12 +12,20 @@ methods that are defined on `TableDefinition`:
   deletes of a parent record should automatically cascade delete all child records. 
 * `parent_key`: Creates a column that is a reference to (a part of) the primary key of the parent table. Each child
   table must include all the primary key columns of the parent table as a `parent_key`.
-  
+
 Cloud Spanner requires a child table to include the exact same primary key columns as the parent table in addition to
 the primary key column(s) of the child table. This means that the default `id` primary key column of ActiveRecord is
 not usable in combination with interleaved tables. Instead each primary key column should be prefixed with the table
 name of the table that it references, or use some other unique name.
 
+## Performance Recommendations
+ActiveRecord will only use the child id when it access a record in a child table. The primary key of the child table is
+however the combination of both the parent and the child id, and selecting a child record using only the child id can
+cause a full table scan of the child table, as the primary key is not usable for the query. It is therefore
+__strongly recommended__ that you also create a unique index on the child id column. See also the example data model
+below.
+
+## Example Data Model
 This example uses the following table schema:
 
 ```sql
@@ -33,6 +41,8 @@ CREATE TABLE albums (
     title STRING(MAX)
 ) PRIMARY KEY (singerid, albumid), INTERLEAVE IN PARENT singers;
 
+CREATE UNIQUE INDEX index_albums_on_albumid ON albums (albumid);
+
 CREATE TABLE tracks (
     trackid INT64 NOT NULL,
     singerid INT64 NOT NULL,
@@ -40,6 +50,8 @@ CREATE TABLE tracks (
     title STRING(MAX),
     duration NUMERIC
 ) PRIMARY KEY (singerid, albumid, trackid), INTERLEAVE IN PARENT albums ON DELETE CASCADE;
+
+CREATE UNIQUE INDEX index_tracks_on_trackid ON tracks (trackid);
 ```
 
 This schema can be created in ActiveRecord as follows:
@@ -63,6 +75,9 @@ create_table :albums, id: false do |t|
     t.string :title
 end
 
+# Add a unique index to the albumid column to prevent full table scans when a single album record is queried.
+add_index :albums, [:albumid], unique: true
+
 create_table :tracks, id: false do |t|
     # Interleave the `tracks` table in the parent table `albums` and cascade delete all tracks that belong to an
     # album when an album is deleted.
@@ -76,6 +91,9 @@ create_table :tracks, id: false do |t|
     t.string :title
     t.numeric :duration
 end
+
+# Add a unique index to the trackid column to prevent full table scans when a single track record is queried.
+add_index :tracks, [:trackid], unique: true
 ```
 
 ## Models for Interleaved Tables

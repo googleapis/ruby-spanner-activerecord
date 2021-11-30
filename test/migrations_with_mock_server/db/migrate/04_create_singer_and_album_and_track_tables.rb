@@ -32,6 +32,9 @@ class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[6.0]
         t.string :title
       end
 
+      # Add a unique index to the albumid column to prevent full table scans when a single album record is queried.
+      add_index :albums, [:albumid], unique: true
+
       # This table will be interleaved in a table that itself is already an interleaved table. We need to include the
       # primary key columns of all the parent tables in the hierarchy.
       create_table :tracks do |t|
@@ -41,6 +44,9 @@ class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[6.0]
         t.string :title
         t.numeric :duration
       end
+
+      # Add a unique index to the trackid column to prevent full table scans when a single track record is queried.
+      add_index :tracks, [:trackid], unique: true
 
       # Execute the change as one DDL batch.
       connection.run_batch
