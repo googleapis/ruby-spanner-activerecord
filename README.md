@@ -69,7 +69,6 @@ Some noteworthy examples in the snippets directory:
 - [mutations](examples/snippets/mutations): Shows how you can use [mutations instead of DML](https://cloud.google.com/spanner/docs/dml-versus-mutations)
   for inserting, updating and deleting data in a Cloud Spanner database. Mutations can have a significant performance
   advantage compared to DML statements, but do not allow read-your-writes semantics during a transaction.
-- [interleaved-tables](examples/snippets/interleaved-tables): Shows how to create and work with a hierarchy of `INTERLEAVED IN` tables.
 - [array-data-type](examples/snippets/array-data-type): Shows how to work with `ARRAY` data types.
 
 ## Limitations
@@ -82,7 +81,6 @@ Table without Primary Key| Cloud Spanner support does not support tables without
 Table names CANNOT have spaces within them whether back-ticked or not|Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`|Ensure that your table names don't contain spaces.
 Table names CANNOT have punctuation marks and MUST contain valid UTF-8|Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names|Ensure that your table names don't contain punctuation marks.
 Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not support index with fields length | Ensure that your database definition does not include index definitions with field lengths.
-Interleaved tables have composite primary keys| ActiveRecord uses single-column primary keys. Interleaved tables in Cloud Spanner always have multiple columns in the primary key, as a child table always includes the primary key columns of the parent table. You can use interleaved tables with the Spanner ActiveRecord provider. The provider will however only use the child column of the primary key to access individual records, which can cause full table scans.| Define a unique secondary index on the child primary key column.
 
 ## Contributing
 
