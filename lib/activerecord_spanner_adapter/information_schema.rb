@@ -62,7 +62,8 @@ module ActiveRecordSpannerAdapter
     end
 
     def table_columns table_name, column_name: nil
-      sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION"
+      sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE,"
+      sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION"
       sql << " FROM INFORMATION_SCHEMA.COLUMNS"
       sql << " WHERE TABLE_NAME=%<table_name>s"
       sql << " AND COLUMN_NAME=%<column_name>s" if column_name
