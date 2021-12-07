@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.7.1...activerecord-spanner-adapter/v1.0.0) (2021-12-07)
+
+
+### Features
+
+* release 1.0.0 ([#146](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/146)) ([15ce616](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/15ce6161fd052aaf6a1f078e65c0f836e8d640f3))
+
 ### [0.7.1](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.7.0...activerecord-spanner-adapter/v0.7.1) (2021-11-21)
 
 
