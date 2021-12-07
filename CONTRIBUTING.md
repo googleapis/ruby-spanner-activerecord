@@ -70,7 +70,7 @@ $ cd ruby-spanner-activerecord
 $ bundle exec rubocop
 ```
 
-The rubocop settings depend on [googleapis/ruby-style](https://github.com/googleapis/ruby-style/), in addition to [.rubocop.yml](https://github.com/googleapis/ruby-spanner-activerecord/blob/master/.rubocop.yml).
+The rubocop settings depend on [googleapis/ruby-style](https://github.com/googleapis/ruby-style/), in addition to [.rubocop.yml](https://github.com/googleapis/ruby-spanner-activerecord/blob/main/.rubocop.yml).
 
 ## Code of Conduct
 
