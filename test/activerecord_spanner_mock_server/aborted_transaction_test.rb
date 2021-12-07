@@ -17,9 +17,9 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
-      # There should only be one transaction.
+      # There should only be one transaction. The BeginTransaction should be inlined with the first request.
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 1, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
       assert_equal 1, commit_requests.length
     end
@@ -29,15 +29,16 @@ module MockServerTests
 
       already_aborted = false
       ActiveRecord::Base.transaction do
-        already_aborted = abort_current_transaction unless already_aborted
+        already_aborted = @mock.abort_next_transaction unless already_aborted
         # The following statement will fail with an Aborted error. That will cause the entire
         # transaction block to be retried.
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
       # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
+      # The BeginTransaction should be inlined with the first request.
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
@@ -51,12 +52,12 @@ module MockServerTests
 
       already_aborted = false
       ActiveRecord::Base.transaction do
-        already_aborted = abort_current_transaction unless already_aborted
+        already_aborted = @mock.abort_next_transaction unless already_aborted
         Singer.find_by id: 1
       end
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }
       assert_equal 2, sql_requests.length
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
@@ -75,7 +76,7 @@ module MockServerTests
       end
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 2, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }
       assert_equal 2, sql_requests.length
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }

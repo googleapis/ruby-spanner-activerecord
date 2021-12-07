@@ -1,5 +1,19 @@
 # Changelog
 
+### [0.7.1](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.7.0...activerecord-spanner-adapter/v0.7.1) (2021-11-21)
+
+
+### Performance Improvements
+
+* inline BeginTransaction with first statement in the transaction ([#139](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/139)) ([ed88647](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/ed88647a4df995b4f4221ac056f9204ee45ce90f))
+
+## [0.7.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.6.0...activerecord-spanner-adapter/v0.7.0) (2021-10-03)
+
+
+### Features
+
+* add support for query hints ([#134](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/134)) ([f4b5b1e](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/f4b5b1e5b959d43756258e84f95f26f375b7fba8))
+
 ## [0.6.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.5.0...activerecord-spanner-adapter/v0.6.0) (2021-09-09)
 
 
@@ -17,7 +31,6 @@
 * Add support for NUMERIC type ([#73](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/73)) ([176cf99](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/176cf99dc8c26b3fd34d9e85d82a91dbde2b15c8))
 * Add support for ARRAY data type ([#86](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/86)) ([0c66a62](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/0c66a620cab968779de04faf48e03eec643ebea9))
 * google-cloud-spanner version upgraded to 2.2 ([#55](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/55)) ([d7581d6](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/d7581d60bd9a9e7b9989565449119f73e2caa694))
-* Support interleaved tables ([#83](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/83)) ([82265f9](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/82265f94ace79964639a2c65554714752be39724))
 * retry session not found ([#81](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/81)) ([88fd3b7](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/88fd3b70a03a90de2b667bb0f2e86efe5dc9328b))
 * support and test multiple ActiveRecord versions ([#107](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/107)) ([db9d96c](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/db9d96c44b9560f6904209df1a9aa42bf50a5844))
 * support DDL batches on connection ([#72](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/72)) ([0d18cd4](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/0d18cd49641bdb567012d6ac88b1909461d42551))

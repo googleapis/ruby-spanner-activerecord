@@ -87,7 +87,6 @@ class StatementResult
   end
 
   attr_reader :result_type
-  attr_reader :result
 
   def initialize result
     if result.is_a?(Google::Cloud::Spanner::V1::ResultSet)
@@ -104,23 +103,39 @@ class StatementResult
     end
   end
 
-  def each
+  def metadata transaction = nil
+    return @result.metadata unless transaction
+    return Google::Cloud::Spanner::V1::ResultSetMetadata.new transaction: transaction \
+        unless @result.metadata
+    metadata = @result.metadata.clone
+    metadata.transaction = transaction
+    metadata
+  end
+
+  def result transaction = nil
+    res = @result.clone
+    res.metadata = metadata(transaction) if res.respond_to?(:metadata=)
+    res
+  end
+
+  def each transaction = nil
+    @result.metadata = metadata transaction if @result.respond_to?(:metadata=) && transaction
     return enum_for(:each) unless block_given?
     if @result.rows.length == 0
       partial = Google::Cloud::Spanner::V1::PartialResultSet.new
-      partial.metadata = result.metadata
-      partial.stats = result.stats
+      partial.metadata = @result.metadata
+      partial.stats = @result.stats&.clone
       yield partial
     else
       @result.rows.each do |row|
         index = 0
         partial = Google::Cloud::Spanner::V1::PartialResultSet.new
         if index == 0
-          partial.metadata = result.metadata
+          partial.metadata = @result.metadata
         end
         index += 1
-        if index == result.rows.length
-          partial.stats = result.stats
+        if index == @result.rows.length
+          partial.stats = @result.stats&.clone
         end
         partial.values = row.values
         yield partial

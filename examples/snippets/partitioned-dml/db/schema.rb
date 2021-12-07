@@ -2,8 +2,8 @@
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
 #
-# This file is the source Rails uses to define your schema when running `rails
-# db:schema:load`. When creating a new database, `rails db:schema:load` tends to
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
 # be faster and is potentially less error prone than running all of your
 # migrations from scratch. Old migrations may fail to apply correctly if those
 # migrations use external dependencies or application code.
@@ -12,21 +12,15 @@
 
 ActiveRecord::Schema.define(version: 1) do
 
-  create_table "albums", primary_key: "albumid", force: :cascade do |t|
-    t.integer "singerid", limit: 8, null: false
+  create_table "albums", id: { limit: 8 }, force: :cascade do |t|
     t.string "title"
+    t.integer "singer_id", limit: 8
   end
 
-  create_table "singers", primary_key: "singerid", force: :cascade do |t|
-    t.string "first_name"
-    t.string "last_name"
+  create_table "singers", id: { limit: 8 }, force: :cascade do |t|
+    t.string "first_name", limit: 100
+    t.string "last_name", limit: 200, null: false
   end
 
-  create_table "tracks", primary_key: "trackid", force: :cascade do |t|
-    t.integer "singerid", limit: 8, null: false
-    t.integer "albumid", limit: 8, null: false
-    t.string "title"
-    t.decimal "duration"
-  end
-
+  add_foreign_key "albums", "singers"
 end

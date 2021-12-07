@@ -93,10 +93,11 @@ module MockServerTests
       singer.save!
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 1, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       # Check the encoded parameters.
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
       select_requests.each do |request|
+        assert request.transaction&.begin&.read_write
         assert_equal "Dave", request.params["p1"]
         assert_equal singer.id.to_s, request.params["p2"]
         assert_equal :STRING, request.param_types["p1"].code
@@ -118,13 +119,18 @@ module MockServerTests
       end
 
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_equal 1, begin_transaction_requests.length
+      assert_empty begin_transaction_requests
       # All of the SQL requests should use a transaction.
       sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql.start_with?("SELECT `singers`.*") || req.sql.start_with?("UPDATE")) }
-      sql_requests.each do |request|
+      assert_equal 3, sql_requests.length
+      sql_requests.each_with_index do |request, index|
         refute_nil request.transaction
-        @id ||= request.transaction.id
-        assert_equal @id, request.transaction.id
+        if index > 0
+          @id ||= request.transaction.id
+          assert_equal @id, request.transaction.id
+        else
+          assert request.transaction.begin&.read_write
+        end
       end
 
       update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
@@ -693,6 +699,94 @@ module MockServerTests
       # PDML transactions should not be committed.
       commit_request = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }.first
       refute commit_request
+    end
+
+    def test_statement_hint
+      sql = " @{USE_ADDITIONAL_PARALLELISM=true, OPTIMIZER_STATISTICS_PACKAGE='stats-package-1'}SELECT  `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      Singer.optimizer_hints("statement_hint: @{USE_ADDITIONAL_PARALLELISM=true, OPTIMIZER_STATISTICS_PACKAGE='stats-package-1'}").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
+    end
+
+    def test_statement_and_staleness_hint
+      sql = " @{USE_ADDITIONAL_PARALLELISM=true}SELECT  `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      Singer
+        .optimizer_hints("statement_hint: @{USE_ADDITIONAL_PARALLELISM=true}")
+        .optimizer_hints("min_read_timestamp: 2021-09-07T14:33:30.1123Z")
+        .find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.min_read_timestamp
+      time = Google::Cloud::Spanner::Convert.time_to_timestamp Time.xmlschema("2021-09-07T14:33:30.1123Z")
+      assert_equal time, single_use.read_only.min_read_timestamp
+    end
+
+    def test_table_hint
+      sql = "SELECT  `singers`.* FROM `singers`@{FORCE_INDEX=idx_singers_full_name} WHERE `singers`.`id` = @p1 LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      Singer.optimizer_hints("table_hint: singers@{FORCE_INDEX=idx_singers_full_name}").find_by(id: 1)
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
+    end
+
+    def test_multiple_table_hints
+      sql = "SELECT  `singers`.* FROM `singers`@{FORCE_INDEX=idx_singers_full_name} INNER JOIN `albums`@{FORCE_INDEX=_BASE_TABLE} ON `albums`.`singer_id` = `singers`.`id` WHERE (albums.title='test') ORDER BY `singers`.`id` ASC LIMIT @p1"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      Singer.optimizer_hints("table_hint: singers@{FORCE_INDEX=idx_singers_full_name}")
+            .optimizer_hints("table_hint: albums@{FORCE_INDEX=_BASE_TABLE}")
+            .joins(:albums)
+            .where("albums.title='test'")
+            .first
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
+    end
+
+    def test_multiple_table_and_statement_hints
+      sql = " @{USE_ADDITIONAL_PARALLELISM=true}SELECT  `singers`.* FROM `singers`@{FORCE_INDEX=idx_singers_full_name} INNER JOIN `albums`@{FORCE_INDEX=_BASE_TABLE} ON `albums`.`singer_id` = `singers`.`id` WHERE (albums.title='test') ORDER BY `singers`.`id` ASC LIMIT @p1"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      Singer.optimizer_hints("table_hint: singers@{FORCE_INDEX=idx_singers_full_name}")
+            .optimizer_hints("table_hint: albums@{FORCE_INDEX=_BASE_TABLE}")
+            .optimizer_hints("statement_hint: @{USE_ADDITIONAL_PARALLELISM=true}")
+            .optimizer_hints("min_read_timestamp: 2021-09-07T14:33:30.1123Z")
+            .joins(:albums)
+            .where("albums.title='test'")
+            .first
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
+      single_use = execute_sql_request.transaction.single_use
+      assert single_use
+      assert single_use.read_only.return_read_timestamp
+      assert single_use.read_only.min_read_timestamp
+      time = Google::Cloud::Spanner::Convert.time_to_timestamp Time.xmlschema("2021-09-07T14:33:30.1123Z")
+      assert_equal time, single_use.read_only.min_read_timestamp
+    end
+
+    def test_join_hint
+      sql = "SELECT `singers`.* FROM `singers` INNER JOIN @{JOIN_METHOD=HASH_JOIN, FORCE_JOIN_ORDER=TRUE} albums ON albums.singer_id=singers.id WHERE (albums.title='test') ORDER BY `singers`.`id` ASC LIMIT @p1"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+
+      # Joins can be customized by specifying them as strings, so we don't have to use any custom optimizer hints.
+      Singer.joins("INNER JOIN @{JOIN_METHOD=HASH_JOIN, FORCE_JOIN_ORDER=TRUE} albums ON albums.singer_id=singers.id")
+            .where("albums.title='test'")
+            .first
+
+      execute_sql_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      assert_equal sql, execute_sql_request.sql
     end
 
     private

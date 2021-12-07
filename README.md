@@ -4,7 +4,7 @@
 
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
 
-This project provides a Cloud Spanner adapter for ActiveRecord. It has the __Preview__ release status and supports the following versions:
+This project provides a Cloud Spanner adapter for ActiveRecord. It supports the following versions:
 
 - ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
 - ActiveRecord 6.1.x with Ruby 2.6 and higher.
@@ -69,7 +69,6 @@ Some noteworthy examples in the snippets directory:
 - [mutations](examples/snippets/mutations): Shows how you can use [mutations instead of DML](https://cloud.google.com/spanner/docs/dml-versus-mutations)
   for inserting, updating and deleting data in a Cloud Spanner database. Mutations can have a significant performance
   advantage compared to DML statements, but do not allow read-your-writes semantics during a transaction.
-- [interleaved-tables](examples/snippets/interleaved-tables): Shows how to create and work with a hierarchy of `INTERLEAVED IN` tables.
 - [array-data-type](examples/snippets/array-data-type): Shows how to work with `ARRAY` data types.
 
 ## Limitations

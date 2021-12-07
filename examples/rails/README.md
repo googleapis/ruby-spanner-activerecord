@@ -99,7 +99,7 @@ If you are not familiar with Active Record, you can read more about it on [Ruby 
 ### Use Cloud Spanner adapter in Gemfile
 1. Edit the Gemfile file of the `blog` app and add the `activerecord-spanner-adapter` gem:
     ```ruby
-    gem 'activerecord-spanner-adapter', git: 'https://github.com/googleapis/ruby-spanner-activerecord.git'
+    gem 'activerecord-spanner-adapter'
     ```
 1. Install gems:
 
