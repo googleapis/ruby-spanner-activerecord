@@ -142,17 +142,17 @@ Replace `[PROJECT_ID]` with the project id you are currently using.
 ### Create database
 
 You now can run the following command to create the database:
-    ```shell
-    ./bin/rails db:create
-    ```
-    You should see output like the following:
-    ```
-    Created database 'blog_dev'
-    ```
+
+```shell
+./bin/rails db:create
+```
+    
+You should see output like the following: `Created database 'blog_dev'`
+    
 ### Generate a Model and apply the migration
 1. Use the model generato to define a model:
     ```shell
-    bin/rails generate model Article title:string body:text
+    ./bin/rails generate model Article title:string body:text
     ```
 1. Apply the migration:
     ```shell
