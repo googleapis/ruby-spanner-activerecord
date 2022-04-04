@@ -75,6 +75,7 @@ Some noteworthy examples in the snippets directory:
 
 Limitation|Comment|Resolution
 ---|---|---
+Interleaved tables are not supported|Cloud Spanner requires to use composite primary keys for interleaved tables, but Active Record does not support composite primary keys. More details: [#160](https://github.com/googleapis/ruby-spanner-activerecord/issues/160) |Use non-interleaved tables.
 Lack of DEFAULT for columns [change_column_default](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/change_column_default)|Cloud Spanner does not support DEFAULT values for columns. The use of default must be enforced in your controller logic| Always set a value in your model or controller logic.
 Lack of sequential and auto-assigned IDs|Cloud Spanner doesn't autogenerate IDs and this integration instead creates UUID4 to avoid [hotspotting](https://cloud.google.com/spanner/docs/schema-design#uuid_primary_key) so you SHOULD NOT rely on IDs being sorted| UUID4s are automatically generated for primary keys.
 Table without Primary Key| Cloud Spanner support does not support tables without a primary key.| Always define a primary key for your table.
