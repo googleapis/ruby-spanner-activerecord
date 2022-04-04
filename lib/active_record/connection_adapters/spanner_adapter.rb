@@ -178,6 +178,15 @@ module ActiveRecord
         Arel::Visitors::Spanner.new self
       end
 
+      def build_insert_sql insert
+        if insert.skip_duplicates? || insert.update_duplicates?
+          raise NotImplementedError, "CloudSpanner does not support skip_duplicates" + " and update_duplicates."
+        end
+
+        values_list, = insert.values_list
+        "INSERT #{insert.into} #{values_list}"
+      end
+
       private
 
       def initialize_type_map m = type_map
