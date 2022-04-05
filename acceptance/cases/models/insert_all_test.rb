@@ -48,6 +48,34 @@ module ActiveRecord
         assert_equal "Bob", authors[1].name
         assert_equal "Carol", authors[2].name
       end
+
+      def test_insert_all_with_buffered_mutation_transaction
+        values = [
+          { id: Author.next_sequence_value, name: "Alice" },
+          { id: Author.next_sequence_value, name: "Bob" },
+          { id: Author.next_sequence_value, name: "Carol" },
+        ]
+
+        assert_raise(RuntimeError) do
+          ActiveRecord::Base.transaction isolation: :buffered_mutations do
+            Author.insert_all!(values)
+          end
+        end
+      end
+
+      def test_upsert_all_with_buffered_mutation_transaction
+        values = [
+          { id: Author.next_sequence_value, name: "Alice" },
+          { id: Author.next_sequence_value, name: "Bob" },
+          { id: Author.next_sequence_value, name: "Carol" },
+        ]
+
+        assert_raise(RuntimeError) do
+          ActiveRecord::Base.transaction isolation: :buffered_mutations do
+            Author.upsert_all(values)
+          end
+        end
+      end
     end
   end
 end
