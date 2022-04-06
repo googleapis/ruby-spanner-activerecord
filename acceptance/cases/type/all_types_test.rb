@@ -32,17 +32,18 @@ module ActiveRecord
           col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
           col_json: ENV["SPANNER_EMULATOR_HOST"] ? "" : { kind: "user_renamed", change: %w[jack john]},
           col_array_string: ["string1", nil, "string2"],
-          col_array_int64: [100, nil, 200],
-          col_array_float64: [3.14, nil, 2.0/3.0],
-          col_array_numeric: [6.626, nil, 3.20],
-          col_array_bool: [true, nil, false],
+          col_array_int64: [100, nil, 200, "300"],
+          col_array_float64: [3.14, nil, 2.0/3.0, "3.14"],
+          col_array_numeric: [6.626, nil, 3.20, "400"],
+          col_array_bool: [true, nil, false, "false"],
           col_array_bytes: [StringIO.new("bytes1"), nil, StringIO.new("bytes2")],
-          col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)],
+          col_array_date: [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24), "2021-06-25"],
           col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
-                                ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
+                                ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00"), "2021-06-25 17:08:21 +02:00"],
           col_array_json: ENV["SPANNER_EMULATOR_HOST"] ? [""] : \
                             [{ kind: "user_renamed", change: %w[jack john]}, nil, \
-                             { kind: "user_renamed", change: %w[alice meredith]}]
+                             { kind: "user_renamed", change: %w[alice meredith]},
+                             "{\"kind\":\"user_renamed\",\"change\":[\"bob\",\"carol\"]}"]
       end
 
       def test_create_record
@@ -69,20 +70,21 @@ module ActiveRecord
                        record.col_json unless ENV["SPANNER_EMULATOR_HOST"]
 
           assert_equal ["string1", nil, "string2"], record.col_array_string
-          assert_equal [100, nil, 200], record.col_array_int64
-          assert_equal [3.14, nil, 2.0/3.0], record.col_array_float64
-          assert_equal [6.626, nil, 3.20], record.col_array_numeric
-          assert_equal [true, nil, false], record.col_array_bool
+          assert_equal [100, nil, 200, 300], record.col_array_int64
+          assert_equal [3.14, nil, 2.0/3.0, 3.14], record.col_array_float64
+          assert_equal [6.626, nil, 3.20, 400], record.col_array_numeric
+          assert_equal [true, nil, false, false], record.col_array_bool
           assert_equal [StringIO.new("bytes1"), nil, StringIO.new("bytes2")].map { |bytes| bytes&.read },
                        record.col_array_bytes.map { |bytes| bytes&.read }
-          assert_equal [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24)], record.col_array_date
+          assert_equal [::Date.new(2021, 6, 23), nil, ::Date.new(2021, 6, 24), ::Date.new(2021, 06, 25)], record.col_array_date
           assert_equal [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), \
                             nil, \
-                            ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")].map { |timestamp| timestamp&.utc },
+                            ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00"), ::Time.new(2021, 6, 25, 17, 8, 21, "+02:00")].map { |timestamp| timestamp&.utc },
                        record.col_array_timestamp.map { |timestamp| timestamp&.utc}
           assert_equal [{"kind" => "user_renamed", "change" => %w[jack john]}, \
                         nil, \
-                        {"kind" => "user_renamed", "change" => %w[alice meredith]}],
+                        {"kind" => "user_renamed", "change" => %w[alice meredith]},
+                        {"kind" => "user_renamed", "change" => %w[bob carol]}],
                        record.col_array_json unless ENV["SPANNER_EMULATOR_HOST"]
         end
       end

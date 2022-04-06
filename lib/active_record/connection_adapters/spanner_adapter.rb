@@ -198,7 +198,7 @@ module ActiveRecord
 
       def register_array_types m
         m.register_type %r{^ARRAY<BOOL>}i, Type::Spanner::Array.new(Type::Boolean.new)
-        m.register_type %r{^ARRAY<BYTES\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::Binary.new)
+        m.register_type %r{^ARRAY<BYTES\((MAX|d+)\)>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Bytes.new)
         m.register_type %r{^ARRAY<DATE>}i, Type::Spanner::Array.new(Type::Date.new)
         m.register_type %r{^ARRAY<FLOAT64>}i, Type::Spanner::Array.new(Type::Float.new)
         m.register_type %r{^ARRAY<NUMERIC>}i, Type::Spanner::Array.new(Type::Decimal.new)
