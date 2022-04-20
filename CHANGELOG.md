@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.0.1](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v1.0.0...activerecord-spanner-adapter/v1.0.1) (2022-04-20)
+
+
+### Bug Fixes
+
+* ActiveRecord::Type::Spanner::Array does not use element type ([#164](https://www.github.com/googleapis/ruby-spanner-activerecord/issues/164)) ([947358c](https://www.github.com/googleapis/ruby-spanner-activerecord/commit/947358cbfd95d563cfa99ce18d213fb3fbc39570))
+
 ## [1.0.0](https://www.github.com/googleapis/ruby-spanner-activerecord/compare/activerecord-spanner-adapter/v0.7.1...activerecord-spanner-adapter/v1.0.0) (2021-12-07)
 
 
