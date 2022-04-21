@@ -1,5 +1,16 @@
 # Changelog
 
+### 1.0.1 (2022-04-21)
+
+#### Bug Fixes
+
+* ActiveRecord::Type::Spanner::Array does not use element type
+
+#### Documentation
+
+* add limitation of interleaved tables
+* fix a couple of minor formatting issues
+
 ### 1.0.0 (2021-12-07)
 
 * GA release
