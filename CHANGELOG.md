@@ -4,7 +4,7 @@
 
 #### Bug Fixes
 
-* ActiveRecord::Type::Spanner::Array does not use element type ([#164](https://github.com/googleapis/ruby-spanner-activerecord/issues/164)) ([947358c](https://github.com/googleapis/ruby-spanner-activerecord/commit/947358cbfd95d563cfa99ce18d213fb3fbc39570)), closes [#163](https://github.com/googleapis/ruby-spanner-activerecord/issues/163)
+* ActiveRecord::Type::Spanner::Array does not use element type
 
 #### Documentation
 
