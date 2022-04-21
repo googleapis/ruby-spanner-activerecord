@@ -1,5 +1,16 @@
 # Changelog
 
+### 1.0.1 (2022-04-21)
+
+#### Bug Fixes
+
+* ActiveRecord::Type::Spanner::Array does not use element type ([#164](https://github.com/googleapis/ruby-spanner-activerecord/issues/164)) ([947358c](https://github.com/googleapis/ruby-spanner-activerecord/commit/947358cbfd95d563cfa99ce18d213fb3fbc39570)), closes [#163](https://github.com/googleapis/ruby-spanner-activerecord/issues/163)
+
+#### Documentation
+
+* add limitation of interleaved tables
+* fix a couple of minor formatting issues
+
 ### 1.0.0 (2021-12-07)
 
 * GA release
