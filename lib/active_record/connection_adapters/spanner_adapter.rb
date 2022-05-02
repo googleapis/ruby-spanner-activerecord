@@ -8,6 +8,7 @@ require "securerandom"
 require "google/cloud/spanner"
 require "spanner_client_ext"
 require "active_record/connection_adapters/abstract_adapter"
+require "active_record/connection_adapters/abstract/connection_pool"
 require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
 require "active_record/connection_adapters/spanner/schema_cache"
@@ -43,9 +44,9 @@ module ActiveRecord
   module ConnectionAdapters
     module AbstractPool
       def get_schema_cache connection
-        @schema_cache ||= SpannerSchemaCache.new connection
-        @schema_cache.connection = connection
-        @schema_cache
+        self.schema_cache ||= SpannerSchemaCache.new connection
+        schema_cache.connection = connection
+        schema_cache
       end
     end
 
