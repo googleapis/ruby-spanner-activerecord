@@ -98,6 +98,16 @@ module Arel # :nodoc: all
         end
       end
 
+      # For ActiveRecord 7.0
+      def visit_ActiveModel_Attribute o, collector
+        # Do not generate a query parameter if the value should be set to the PENDING_COMMIT_TIMESTAMP(), as that is
+        # not supported as a parameter value by Cloud Spanner.
+        return collector << "PENDING_COMMIT_TIMESTAMP()" \
+          if o.type.is_a?(ActiveRecord::Type::Spanner::Time) && o.value == :commit_timestamp
+        collector.add_bind(o, &bind_block)
+      end
+
+      # For ActiveRecord 6.x
       def visit_Arel_Nodes_BindParam o, collector
         # Do not generate a query parameter if the value should be set to the PENDING_COMMIT_TIMESTAMP(), as that is
         # not supported as a parameter value by Cloud Spanner.
