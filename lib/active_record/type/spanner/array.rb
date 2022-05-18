@@ -15,15 +15,29 @@ module ActiveRecord
           @element_type = element_type
         end
 
-        def serialize value
+        def cast value
           return super if value.nil?
-          return super unless @element_type.is_a? Type::Decimal
           return super unless value.respond_to? :map
 
-          # Convert a decimal (NUMERIC) array to a String array to prevent it from being encoded as a FLOAT64 array.
           value.map do |v|
-            next if v.nil?
-            v.to_s
+            @element_type.cast v
+          end
+        end
+
+        def serialize value
+          return super if value.nil?
+          return super unless value.respond_to? :map
+
+          if @element_type.is_a? ActiveRecord::Type::Decimal
+            # Convert a decimal (NUMERIC) array to a String array to prevent it from being encoded as a FLOAT64 array.
+            value.map do |v|
+              next if v.nil?
+              v.to_s
+            end
+          else
+            value.map do |v|
+              @element_type.serialize v
+            end
           end
         end
       end
