@@ -208,7 +208,7 @@ module SpannerAdapter
           t.date :start_date
           t.datetime :start_datetime
           t.time :start_time
-          t.json :details unless ENV["SPANNER_EMULATOR_HOST"]
+          t.json :details
         end
       end
 

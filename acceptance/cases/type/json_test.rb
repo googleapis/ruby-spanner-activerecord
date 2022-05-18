@@ -18,8 +18,6 @@ module ActiveRecord
       end
 
       def test_set_json
-        return if ENV["SPANNER_EMULATOR_HOST"]
-
         expected_hash = {"key"=>"value", "array_key"=>%w[value1 value2]}
         record = TestTypeModel.new details: {key: "value", array_key: %w[value1 value2]}
 
