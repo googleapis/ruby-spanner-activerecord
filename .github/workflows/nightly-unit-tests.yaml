@@ -11,8 +11,8 @@ jobs:
       matrix:
         # Run unit tests all supported combinations of Ruby and ActiveRecord.
         ruby: [2.5, 2.6, 2.7, 3.0]
-        ar: [6.0.0, 6.0.1, 6.0.2.2, 6.0.3.7, 6.0.4, 6.1.0, 6.1.1, 6.1.2.1, 6.1.3.2, 6.1.4]
-        # Exclude Ruby 3.0 and ActiveRecord 6.0.x as that combination is not supported.
+        ar: [6.0.0, 6.0.1, 6.0.2.2, 6.0.3.7, 6.0.4, 6.1.0, 6.1.1, 6.1.2.1, 6.1.3.2, 6.1.4, 7.0.2.4]
+        # Exclude combinations that are not supported.
         exclude:
           - ruby: 3.0
             ar: 6.0.0
@@ -24,6 +24,12 @@ jobs:
             ar: 6.0.3.7
           - ruby: 3.0
             ar: 6.0.4
+          - ruby: 2.5
+            ar: 7.0.2.4
+          - ruby: 2.6
+            ar: 7.0.2.4
+    env:
+      AR_VERSION: ${{ matrix.ar }}
     steps:
     - uses: actions/checkout@v3
     - name: Set up Ruby
@@ -32,8 +38,6 @@ jobs:
         # Disable caching as we are overriding the ActiveRecord below.
         bundler-cache: false
         ruby-version: ${{ matrix.ruby }}
-    - name: Set ActiveRecord version
-      run: sed -i "s/\"activerecord\", \"~> 6.1.4\"/\"activerecord\", \"${{ matrix.ar }}\"/" activerecord-spanner-adapter.gemspec
     - name: Install dependencies
       run: bundle install
     - name: Run tests
