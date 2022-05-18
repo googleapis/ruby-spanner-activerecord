@@ -41,7 +41,7 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self.insert_all attributes, returning: nil, unique_by: nil
+    def self.insert_all _attributes, _returning: nil, _unique_by: nil
       raise NotImplementedError, "Cloud Spanner does not support skip_duplicates."
     end
 
@@ -66,9 +66,11 @@ module ActiveRecord
 
     def self.upsert_all attributes, returning: nil, unique_by: nil
       return super unless spanner_adapter?
-      raise NotImplementedError, "Cloud Spanner does not support upsert using DML. " \
-                                 "Use upsert outside a transaction block or in a transaction block with isolation: :buffered_mutations" \
-                                 if active_transaction? && !buffered_mutations?
+      if active_transaction? && !buffered_mutations?
+        raise NotImplementedError, "Cloud Spanner does not support upsert using DML. " \
+                                   "Use upsert outside a transaction block or in a transaction " \
+                                   "block with isolation: :buffered_mutations"
+      end
 
       # This might seem inefficient, but is actually not, as it is only buffering a mutation locally.
       # The mutations will be sent as one batch when the transaction is committed.
@@ -101,7 +103,7 @@ module ActiveRecord
 
       if primary_key && values.is_a?(Hash)
         primary_key_value = values[primary_key]
-        primary_key_value = values[:"#{primary_key}"] unless primary_key_value
+        primary_key_value ||= values[:"#{primary_key}"]
 
         if !primary_key_value && prefetch_primary_key?
           primary_key_value = next_sequence_value
@@ -120,18 +122,6 @@ module ActiveRecord
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         "#{method}": write
       )
-
-      # if method == :insert_or_update
-      #   mutation = Google::Cloud::Spanner::V1::Mutation.new(
-      #     insert_or_update: write
-      #   )
-      # elsif method == :insert
-      #   mutation = Google::Cloud::Spanner::V1::Mutation.new(
-      #     insert: write
-      #   )
-      # else
-      #   raise NotImplementedError, "Unknown insert/upsert method: #{method}"
-      # end
 
       connection.current_spanner_transaction.buffer mutation
 
