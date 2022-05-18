@@ -789,7 +789,138 @@ module MockServerTests
       assert_equal sql, execute_sql_request.sql
     end
 
+    def test_insert_all
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+      assert_raises(NotImplementedError) { Singer.insert_all values }
+    end
+
+    def test_insert_all_bang_mutations
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+
+      [true, false].each do |use_transaction|
+        @mock.requests.clear
+
+        if use_transaction
+          Singer.insert_all! values
+        else
+          Singer.transaction isolation: :buffered_mutations do
+            Singer.insert_all! values
+          end
+        end
+
+        verify_insert_upsert_all :insert
+      end
+    end
+
+    def test_insert_all_bang_dml
+      insert_sql = "INSERT INTO `singers` (`id`,`first_name`,`last_name`) VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
+      @mock.put_statement_result insert_sql, StatementResult.new(3)
+
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+      Singer.transaction do
+        Singer.insert_all! values
+      end
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+      assert_equal 1, commit_requests.length
+      assert_equal 0, commit_requests[0].mutations.length
+      execute_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
+      assert_equal 1, execute_requests.length
+    end
+
+    def test_upsert_all_mutations
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+
+      [true, false].each do |use_transaction|
+        @mock.requests.clear
+
+        if use_transaction
+          Singer.upsert_all values
+        else
+          Singer.transaction isolation: :buffered_mutations do
+            Singer.upsert_all values
+          end
+        end
+
+        verify_insert_upsert_all :insert_or_update
+      end
+    end
+
+    def test_upsert_all_dml
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+      err = assert_raises(NotImplementedError) do
+        Singer.transaction do
+          Singer.upsert_all values
+        end
+      end
+      assert_match "Use upsert outside a transaction block", err.message
+    end
+
     private
+
+    def verify_insert_upsert_all operation
+      commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 3, mutations.length
+      mutation = mutations[0]
+      assert_equal operation, mutation.operation
+      write = mutation["#{operation}"]
+      assert_equal "singers", write.table
+
+      assert_equal 1, write.values.length
+      assert_equal 3, write.values[0].length
+      assert_equal 1, write.values[0][0].to_i
+      assert_equal "Dave", write.values[0][1]
+      assert_equal "Allison", write.values[0][2]
+
+      assert_equal 3, write.columns.length
+      assert_equal "id", write.columns[0]
+      assert_equal "first_name", write.columns[1]
+      assert_equal "last_name", write.columns[2]
+
+      mutation = mutations[1]
+      assert_equal operation, mutation.operation
+      write = mutation["#{operation}"]
+      assert_equal "singers", write.table
+
+      assert_equal 1, write.values.length
+      assert_equal 3, write.values[0].length
+      assert_equal 2, write.values[0][0].to_i
+      assert_equal "Alice", write.values[0][1]
+      assert_equal "Davidson", write.values[0][2]
+
+      mutation = mutations[2]
+      assert_equal operation, mutation.operation
+      write = mutation["#{operation}"]
+      assert_equal "singers", write.table
+
+      assert_equal 1, write.values.length
+      assert_equal 3, write.values[0].length
+      assert_equal 3, write.values[0][0].to_i
+      assert_equal "Rene", write.values[0][1]
+      assert_equal "Henderson", write.values[0][2]
+    end
 
     def create_list_value values
       Google::Protobuf::ListValue.new values: (values.map do |value|
