@@ -12,13 +12,13 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: setup ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '2.7'
     - name: cache gems
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: vendor/bundle
         key: ${{ runner.os }}-rubocop-${{ hashFiles('**/Gemfile.lock') }}

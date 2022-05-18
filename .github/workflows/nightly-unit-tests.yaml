@@ -31,7 +31,7 @@ jobs:
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
