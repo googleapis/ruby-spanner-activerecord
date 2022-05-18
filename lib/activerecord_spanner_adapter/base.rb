@@ -144,6 +144,14 @@ module ActiveRecord
       !(current_transaction.nil? || current_transaction.is_a?(ConnectionAdapters::NullTransaction))
     end
 
+    def self.unwrap_attribute attr_or_value
+      if attr_or_value.is_a? ActiveModel::Attribute
+        attr_or_value.value
+      else
+        attr_or_value
+      end
+    end
+
     # Updates the given attributes of the object in the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
@@ -174,6 +182,7 @@ module ActiveRecord
       serialized_values = []
       columns = []
       values.each_pair do |k, v|
+        v = unwrap_attribute v
         type = metadata.type k
         serialized_values << (type.method(:serialize).arity < 0 ? type.serialize(v, :mutation) : type.serialize(v))
         columns << metadata.arel_table[k].name
@@ -225,6 +234,7 @@ module ActiveRecord
       all_values.each do |h|
         h.each_pair do |k, v|
           type = metadata.type k
+          v = self.class.unwrap_attribute v
           has_serialize_options = type.method(:serialize).arity < 0
           all_serialized_values << (has_serialize_options ? type.serialize(v, :mutation) : type.serialize(v))
           all_columns << metadata.arel_table[k].name

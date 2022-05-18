@@ -10,14 +10,20 @@ module ActiveRecord
       class SchemaCreation < SchemaCreation
         private
 
-        # rubocop:disable Naming/MethodName, Metrics/AbcSize
+        # rubocop:disable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity
 
         def visit_TableDefinition o
           create_sql = +"CREATE TABLE #{quote_table_name o.name} "
           statements = o.columns.map { |c| accept c }
 
-          o.foreign_keys.each do |to_table, options|
-            statements << foreign_key_in_create(o.name, to_table, options)
+          if ActiveRecord::VERSION::MAJOR >= 7
+            o.foreign_keys.each do |fk|
+              statements << accept(fk)
+            end
+          else
+            o.foreign_keys.each do |to_table, options|
+              statements << foreign_key_in_create(o.name, to_table, options)
+            end
           end
 
           create_sql << "(#{statements.join ', '}) " if statements.any?
@@ -106,7 +112,7 @@ module ActiveRecord
           sql
         end
 
-        # rubocop:enable Naming/MethodName, Metrics/AbcSize
+        # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity
 
         def add_column_options! sql, options
           if options[:null] == false || options[:primary_key] == true
