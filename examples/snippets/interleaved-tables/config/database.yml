@@ -1,0 +1,8 @@
+development:
+  adapter: spanner
+  emulator_host: localhost:9010
+  project: test-project
+  instance: test-instance
+  database: testdb
+  pool: 5
+  timeout: 5000

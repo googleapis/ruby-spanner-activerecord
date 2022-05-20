@@ -11,3 +11,4 @@ gem "pry-byebug", "~> 3.9.0"
 # Required for samples
 gem 'docker-api'
 gem "sinatra-activerecord"
+gem "composite_primary_keys", "~> 13"

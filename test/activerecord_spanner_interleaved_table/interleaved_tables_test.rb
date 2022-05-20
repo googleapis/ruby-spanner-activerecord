@@ -68,9 +68,9 @@ module TestInterleavedTables
     def test_find_album
       # Selecting a single album should only use the albumid column, and not the singerid column that is technically also
       # part of the primary key.
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1)
-      album = Album.find 1
+      album = Album.find [1, 1]
       refute_nil album.albumid, "albumid should not be nil"
       refute_nil album.singerid, "singerid should not be nil"
     end
@@ -171,9 +171,9 @@ module TestInterleavedTables
     def test_create_track
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_singers_result(1, 1)
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`albumid` = @p1 LIMIT @p2"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1, 1, 1)
-      album = Album.find 1
+      album = Album.find [1, 1]
 
       track = Track.create album: album, title: "Random Title", duration: 5.5
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
@@ -201,9 +201,9 @@ module TestInterleavedTables
     end
 
     def test_update_track
-      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @p1 LIMIT @p2"
+      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = 1 AND `tracks`.`albumid` = 1 AND `tracks`.`trackid` = 1 LIMIT @p1"
       @mock.put_statement_result sql_track, TestInterleavedTables::create_random_tracks_result(1, 1, 1, 1)
-      track = Track.find 1
+      track = Track.find [1, 1, 1]
 
       track.update title: "New Title", duration: 3.14
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
@@ -230,9 +230,9 @@ module TestInterleavedTables
     end
 
     def test_destroy_track
-      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`trackid` = @p1 LIMIT @p2"
+      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = 2 AND `tracks`.`albumid` = 3 AND `tracks`.`trackid` = 1 LIMIT @p1"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(1, 1, 2, 3)
-      track = Track.find 1
+      track = Track.find [2, 3, 1]
       track.destroy
 
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
