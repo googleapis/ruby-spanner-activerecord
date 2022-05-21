@@ -5,6 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 class Track < ActiveRecord::Base
+  # Use the `composite_primary_key` gem to create a composite primary key definition for the model.
   self.primary_keys = :singerid, :albumid, :trackid
 
   # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is ()`singerid`, `albumid`).

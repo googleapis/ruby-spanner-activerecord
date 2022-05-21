@@ -19,6 +19,9 @@ module ActiveRecord
       def setup
         super
 
+        @original_verbosity = $VERBOSE
+        $VERBOSE = nil
+
         singer = Singer.create first_name: "Pete", last_name: "Allison"
         album = Album.create title: "Musical Jeans", singer: singer
         Track.create title: "Increased Headline", album: album, singer: singer
@@ -30,6 +33,8 @@ module ActiveRecord
         Track.delete_all
         Album.delete_all
         Singer.delete_all
+
+        $VERBOSE = @original_verbosity
       end
 
       # Runs the given block in a transaction with the given isolation level, or without a transaction if isolation is

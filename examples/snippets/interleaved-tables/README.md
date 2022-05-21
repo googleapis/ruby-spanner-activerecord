@@ -1,6 +1,9 @@
 # Sample - Interleaved Tables
 
 This example shows how to use interleaved tables with the Spanner ActiveRecord adapter.
+Interleaved tables use composite primary keys. This is not natively supported by ActiveRecord.
+It is therefore necessary to use the `composite_primary_keys` (https://github.com/composite-primary-keys/composite_primary_keys)
+gem to enable the use of interleaved tables.
 
 See https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables for more information
 on interleaved tables if you are not familiar with this concept.
@@ -17,13 +20,6 @@ Cloud Spanner requires a child table to include the exact same primary key colum
 the primary key column(s) of the child table. This means that the default `id` primary key column of ActiveRecord is
 not usable in combination with interleaved tables. Instead each primary key column should be prefixed with the table
 name of the table that it references, or use some other unique name.
-
-## Performance Recommendations
-ActiveRecord will only use the child id when it access a record in a child table. The primary key of the child table is
-however the combination of both the parent and the child id, and selecting a child record using only the child id can
-cause a full table scan of the child table, as the primary key is not usable for the query. It is therefore
-__strongly recommended__ that you also create a unique index on the child id column. See also the example data model
-below.
 
 ## Example Data Model
 This example uses the following table schema:
@@ -75,14 +71,12 @@ create_table :albums, id: false do |t|
     t.string :title
 end
 
-# Add a unique index to the albumid column to prevent full table scans when a single album record is queried.
-add_index :albums, [:albumid], unique: true
-
 create_table :tracks, id: false do |t|
     # Interleave the `tracks` table in the parent table `albums` and cascade delete all tracks that belong to an
     # album when an album is deleted.
     t.interleave_in :albums, :cascade
-    # `trackid` is considered the only primary key column by ActiveRecord.
+    # Add `trackid` as the primary key in the table definition. Add the other key parts as
+    # a `parent_key`.
     t.primary_key :trackid
     # `singerid` and `albumid` form the parent key of `tracks`. These are part of the primary key definition in the
     # database, but are presented as parent keys to ActiveRecord.
@@ -91,15 +85,15 @@ create_table :tracks, id: false do |t|
     t.string :title
     t.numeric :duration
 end
-
-# Add a unique index to the trackid column to prevent full table scans when a single track record is queried.
-add_index :tracks, [:trackid], unique: true
 ```
 
 ## Models for Interleaved Tables
+The model definition for an interleaved table (a child table) must use the `primary_keys=col1, col2, ...`
+function from the `composite_primary_key` gem.
+
 An interleaved table parent/child relationship must be modelled as a `belongs_to`/`has_many` association in
 ActiveRecord. As the columns that are used to reference a parent record use a custom column name, it is required to also
-include the custom column name in the `belongs_to` and `has_many` definitions.
+include the custom column name(s) in the `belongs_to` and `has_many` definitions.
 
 Instances of these models can be used in the same way as any other association in ActiveRecord, but with a couple of
 inherent limitations:
@@ -113,36 +107,40 @@ inherent limitations:
 
 ```ruby
 class Singer < ActiveRecord::Base
-  # `albums` is defined as INTERLEAVE IN PARENT `singers`. The primary key of `albums` is (`singerid`, `albumid`), but
-  # only `albumid` is used by ActiveRecord as the primary key. The `singerid` column is defined as a `parent_key` of
-  # `albums` (see also the `db/migrate/01_create_tables.rb` file).
-  has_many :albums, foreign_key: "singerid"
+  # `albums` is defined as INTERLEAVE IN PARENT `singers`.
+  # The primary key of `albums` is (`singerid`, `albumid`).
+  has_many :albums, foreign_key: :singerid
 
-  # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `tracks` is
-  # (`singerid`, `albumid`, `trackid`), but only `trackid` is used by ActiveRecord as the primary key. The `singerid`
-  # and `albumid` columns are defined as `parent_key` of `tracks` (see also the `db/migrate/01_create_tables.rb` file).
-  # The `singerid` column can therefore be used to associate tracks with a singer without the need to go through albums.
+  # `tracks` is defined as INTERLEAVE IN PARENT `albums`.
+  # The primary key of `tracks` is (`singerid`, `albumid`, `trackid`).
+  # The `singerid` column can be used to associate tracks with a singer without the need to go through albums.
   # Note also that the inclusion of `singerid` as a column in `tracks` is required in order to make `tracks` a child
   # table of `albums` which has primary key (`singerid`, `albumid`).
-  has_many :tracks, foreign_key: "singerid"
+  has_many :tracks, foreign_key: :singerid
 end
 
 class Album < ActiveRecord::Base
-  # `albums` is defined as INTERLEAVE IN PARENT `singers`. The primary key of `singers` is `singerid`.
-  belongs_to :singer, foreign_key: "singerid"
+  # Use the `composite_primary_key` gem to create a composite primary key definition for the model.
+  self.primary_keys = :singerid, :albumid
 
-  # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is (`singerid`, `albumid`), but
-  # only `albumid` is used by ActiveRecord as the primary key. The `singerid` column is defined as a `parent_key` of
-  # `albums` (see also the `db/migrate/01_create_tables.rb` file).
-  has_many :tracks, foreign_key: "albumid"
+  # `albums` is defined as INTERLEAVE IN PARENT `singers`.
+  # The primary key of `singers` is `singerid`.
+  belongs_to :singer, foreign_key: :singerid
+
+  # `tracks` is defined as INTERLEAVE IN PARENT `albums`.
+  # The primary key of `albums` is (`singerid`, `albumid`).
+  has_many :tracks, foreign_key: [:singerid, :albumid]
 end
 
 class Track < ActiveRecord::Base
+  # Use the `composite_primary_key` gem to create a composite primary key definition for the model.
+  self.primary_keys = :singerid, :albumid, :trackid
+
   # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is ()`singerid`, `albumid`).
-  belongs_to :album, foreign_key: "albumid"
+  belongs_to :album, foreign_key: [:singerid, :albumid]
 
   # `tracks` also has a `singerid` column should be used to associate a Track with a Singer.
-  belongs_to :singer, foreign_key: "singerid"
+  belongs_to :singer, foreign_key: :singerid
 
   # Override the default initialize method to automatically set the singer attribute when an album is given.
   def initialize attributes = nil

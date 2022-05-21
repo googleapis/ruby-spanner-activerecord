@@ -69,8 +69,10 @@ class Application
     singer = Singer.all.sample
     puts "Creating a new album for #{singer.first_name} #{singer.last_name}"
     album = singer.albums.build title: "New Title"
-    album.tracks.build title: "Track 1", duration: 3.5, singer: singer
-    album.tracks.build title: "Track 2", duration: 3.6, singer: singer
+    # NOTE: When adding multiple elements to a collection, you *MUST* set the primary key value (i.e. trackid).
+    # Otherwise, ActiveRecord thinks that you are adding the same record multiple times and will only add one.
+    album.tracks.build title: "Track 1", duration: 3.5, singer: singer, trackid: Track.next_sequence_value
+    album.tracks.build title: "Track 2", duration: 3.6, singer: singer, trackid: Track.next_sequence_value
     # This will save the album and corresponding tracks in one transaction.
     album.save!
 
@@ -85,7 +87,7 @@ class Application
     # It is not possible to change the singer of an album or the album of a track. This is because the associations
     # between these are not traditional foreign keys, but an immutable parent-child relationship.
     album = Album.all.sample
-    new_singer = Singer.all.except(album.singer).sample
+    new_singer = Singer.all.where.not(singerid: album.singer).sample
     # This will fail as we cannot assign a new singer to an album as it is an INTERLEAVE IN PARENT relationship.
     begin
       album.update! singer: new_singer

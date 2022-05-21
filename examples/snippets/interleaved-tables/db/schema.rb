@@ -15,7 +15,6 @@ ActiveRecord::Schema.define(version: 1) do
   create_table "albums", primary_key: "albumid", id: { limit: 8 }, force: :cascade do |t|
     t.integer "singerid", limit: 8, null: false
     t.string "title"
-    t.index ["albumid"], name: "index_albums_on_albumid", unique: true, order: { albumid: :asc }
   end
 
   create_table "singers", primary_key: "singerid", id: { limit: 8 }, force: :cascade do |t|
@@ -28,7 +27,6 @@ ActiveRecord::Schema.define(version: 1) do
     t.integer "albumid", limit: 8, null: false
     t.string "title"
     t.decimal "duration"
-    t.index ["trackid"], name: "index_tracks_on_trackid", unique: true, order: { trackid: :asc }
   end
 
 end
