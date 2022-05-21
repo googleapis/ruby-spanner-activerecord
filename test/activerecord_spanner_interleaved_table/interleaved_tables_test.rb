@@ -354,9 +354,9 @@ module TestInterleavedTables
     end
 
     def test_delete_all
-      # Some versions (6.0.x) of ActiveRecord generate a DELETE statement with a WHERE clause.
+      # composite_primary_keys v12 generates a query with a WHERE EXISTS clause.
       # This disables the use of mutations for delete_all.
-      delete_sql = "DELETE FROM `tracks` WHERE (`tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid`) IN (SELECT `tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid` FROM `tracks`)"
+      delete_sql = "DELETE FROM `tracks` WHERE EXISTS ((SELECT `tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid` FROM `tracks` `cpk_child` WHERE `tracks`.`singerid` = `cpk_child`.`singerid` AND `tracks`.`albumid` = `cpk_child`.`albumid` AND `tracks`.`trackid` = `cpk_child`.`trackid`))"
       @mock.put_statement_result delete_sql, StatementResult.new(5)
 
       original_verbosity = $VERBOSE

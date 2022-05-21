@@ -4,6 +4,8 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require_relative "relation"
+
 module ActiveRecord
   class TableMetadata # :nodoc:
     # This attr_reader is private in ActiveRecord 6.0.x and public in 6.1.x. This makes sure it is always available in
@@ -46,29 +48,11 @@ module ActiveRecord
       primary_key_value = nil
 
       if primary_key && values.is_a?(Hash)
-        if primary_key.is_a?(Array)
-          primary_key_value = []
-          primary_key.each do |col|
-            value = values[col]
-
-            if !value && prefetch_primary_key?
-              value = next_sequence_value
-              values[col] = value
-            end
-            primary_key_value.append value
-          end
-        else
-          primary_key_value = values[primary_key]
-
-          if !primary_key_value && prefetch_primary_key?
-            primary_key_value = next_sequence_value
-            values[primary_key] = primary_key_value
-          end
-        end
+        primary_key_value = _set_primary_key_values primary_key, values
       end
 
       unless buffered_mutations?
-        im = arel_table.compile_insert(_substitute_values(values))
+        im = arel_table.compile_insert _substitute_values(values)
         return connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
       end
 
@@ -84,6 +68,29 @@ module ActiveRecord
       )
       connection.current_spanner_transaction.buffer mutation
 
+      primary_key_value
+    end
+
+    def self._set_primary_key_values primary_key, values
+      if primary_key.is_a? Array
+        primary_key_value = []
+        primary_key.each do |col|
+          value = values[col]
+
+          if !value && prefetch_primary_key?
+            value = next_sequence_value
+            values[col] = value
+          end
+          primary_key_value.append value
+        end
+      else
+        primary_key_value = values[primary_key]
+
+        if !primary_key_value && prefetch_primary_key?
+          primary_key_value = next_sequence_value
+          values[primary_key] = primary_key_value
+        end
+      end
       primary_key_value
     end
 
@@ -248,19 +255,19 @@ module ActiveRecord
       serialized_values
     end
 
-    def _execute_version_check attempted_action
+    def _execute_version_check attempted_action # rubocop:disable Metrics/AbcSize
       locking_column = self.class.locking_column
       previous_lock_value = read_attribute_before_type_cast locking_column
 
       primary_key = self.class.primary_key
-      if primary_key.is_a?(Array)
+      if primary_key.is_a? Array
         pk_sql = ""
         params = {}
         param_types = {}
         id = id_in_database
         primary_key.each_with_index do |col, idx|
           pk_sql.concat "`#{col}`=@id#{idx}"
-          pk_sql.concat " AND " if idx < primary_key.length-1
+          pk_sql.concat " AND " if idx < primary_key.length - 1
 
           params["id#{idx}"] = id[idx]
           param_types["id#{idx}"] = :INT64
@@ -276,9 +283,6 @@ module ActiveRecord
       # We need to check the version using a SELECT query, as a mutation cannot include a WHERE clause.
       sql = "SELECT 1 FROM `#{self.class.arel_table.name}` " \
               "WHERE #{pk_sql} AND `#{locking_column}` = @lock_version"
-              # "WHERE `#{self.class.primary_key}` = @id AND `#{locking_column}` = @lock_version"
-      # params = { "id" => id_in_database, "lock_version" => previous_lock_value }
-      # param_types = { "id" => :INT64, "lock_version" => :INT64 }
       locked_row = self.class.connection.raw_connection.execute_query sql, params: params, types: param_types
       raise ActiveRecord::StaleObjectError.new(self, attempted_action) unless locked_row.rows.any?
     end
