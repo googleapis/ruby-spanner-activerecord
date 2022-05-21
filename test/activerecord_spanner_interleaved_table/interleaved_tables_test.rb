@@ -354,10 +354,18 @@ module TestInterleavedTables
     end
 
     def test_delete_all
+      # Some versions (6.0.x) of ActiveRecord generate a DELETE statement with a WHERE clause.
+      # This disables the use of mutations for delete_all.
+      delete_sql = "DELETE FROM `tracks` WHERE (`tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid`) IN (SELECT `tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid` FROM `tracks`)"
+      @mock.put_statement_result delete_sql, StatementResult.new(5)
+
       original_verbosity = $VERBOSE
       $VERBOSE = nil
       Track.delete_all
       $VERBOSE = original_verbosity
+
+      delete_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }
+      return unless delete_requests.empty?
 
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length
