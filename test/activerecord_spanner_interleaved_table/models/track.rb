@@ -10,13 +10,13 @@ module TestInterleavedTables
   class Track < ActiveRecord::Base
     self.primary_keys = :singerid, :albumid, :trackid
 
-    # Note that the actual primary key of album consists of both (singerid, albumid) columns.
     belongs_to :album, foreign_key: [:singerid, :albumid]
     belongs_to :singer, foreign_key: :singerid
 
     def album=value
-      self.singer = value.singer
       super
+      # Ensure the singer of this track is equal to the singer of the album that is set.
+      self.singer = value&.singer
     end
   end
 end

@@ -65,6 +65,27 @@ module TestInterleavedTables
       end
     end
 
+    def test_create_singer
+      singer = Singer.create first_name: "Pete", last_name: "Allison"
+      commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
+      assert_equal 1, commit_request.mutations.length
+      mutation = commit_request.mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "singers", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+
+      assert_equal 3, mutation.insert.columns.length
+      assert_equal "first_name", mutation.insert.columns[0]
+      assert_equal "last_name", mutation.insert.columns[1]
+      assert_equal "singerid", mutation.insert.columns[2]
+
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal "Pete", mutation.insert.values[0][0]
+      assert_equal "Allison", mutation.insert.values[0][1]
+      assert_equal singer.singerid, mutation.insert.values[0][2].to_i
+    end
+
     def test_find_album
       # Selecting a single album should only use the albumid column, and not the singerid column that is technically also
       # part of the primary key.
@@ -254,6 +275,7 @@ module TestInterleavedTables
       album = Album.find [1, 1]
 
       track = Track.create album: album, title: "Random Title", duration: 5.5
+
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length
       mutation = commit_request.mutations[0]
@@ -340,8 +362,8 @@ module TestInterleavedTables
       singer = Singer.find 1
 
       album = Album.new title: "Album 3", singer: singer
-      album.tracks.build title: "Track - 31", singer: singer, trackid: Track.next_sequence_value
-      album.tracks.build title: "Track - 32", singer: singer, trackid: Track.next_sequence_value
+      album.tracks.build title: "Track - 31", singer: singer, trackid: 1
+      album.tracks.build title: "Track - 32", singer: singer, trackid: 2
       album.save!
 
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
@@ -349,8 +371,20 @@ module TestInterleavedTables
 
       insert_album_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_album_sql }
       assert_equal 1, insert_album_requests.length
+      assert_equal album.singerid, insert_album_requests[0].params["p1"].to_i
+      assert_equal album.title, insert_album_requests[0].params["p2"]
+      assert_equal album.albumid, insert_album_requests[0].params["p3"].to_i
+
       insert_track_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_track_sql }
       assert_equal 2, insert_track_requests.length
+      # Verify track id
+      assert_equal 1, insert_track_requests[0].params["p1"].to_i
+      assert_equal 2, insert_track_requests[1].params["p1"].to_i
+      # Verify singer and album id
+      insert_track_requests.each do |req|
+        assert_equal singer.singerid, req.params["p2"].to_i
+        assert_equal album.albumid, req.params["p3"].to_i
+      end
     end
 
     def test_delete_all

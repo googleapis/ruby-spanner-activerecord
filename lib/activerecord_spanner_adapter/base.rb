@@ -52,7 +52,12 @@ module ActiveRecord
       end
 
       unless buffered_mutations?
-        im = arel_table.compile_insert _substitute_values(values)
+        if ActiveRecord::VERSION::MAJOR >= 7
+          im = Arel::InsertManager.new(arel_table)
+          im.insert(values.transform_keys { |name| arel_table[name] })
+        else
+          im = arel_table.compile_insert _substitute_values(values)
+        end
         return connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
       end
 
@@ -78,8 +83,10 @@ module ActiveRecord
           value = values[col]
 
           if !value && prefetch_primary_key?
-            value = next_sequence_value
-            values[col] = value
+            values[col] = ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
+            value = values[col].value
+          elsif value.is_a?(ActiveModel::Attribute)
+            value = value.value
           end
           primary_key_value.append value
         end
@@ -88,7 +95,7 @@ module ActiveRecord
 
         if !primary_key_value && prefetch_primary_key?
           primary_key_value = next_sequence_value
-          values[primary_key] = primary_key_value
+          values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value, ActiveModel::Type::BigInteger.new
         end
       end
       primary_key_value
