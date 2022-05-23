@@ -83,9 +83,14 @@ module ActiveRecord
           value = values[col]
 
           if !value && prefetch_primary_key?
-            values[col] = ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
-            value = values[col].value
-          elsif value.is_a?(ActiveModel::Attribute)
+            if ActiveRecord::VERSION::MAJOR >= 7
+              value = ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
+            else
+              value = next_sequence_value
+            end
+            values[col] = value
+          end
+          if value.is_a?(ActiveModel::Attribute)
             value = value.value
           end
           primary_key_value.append value
@@ -95,7 +100,11 @@ module ActiveRecord
 
         if !primary_key_value && prefetch_primary_key?
           primary_key_value = next_sequence_value
-          values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value, ActiveModel::Type::BigInteger.new
+          if ActiveRecord::VERSION::MAJOR >= 7
+            values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value, ActiveModel::Type::BigInteger.new
+          else
+            values[primary_key] = primary_key_value
+          end
         end
       end
       primary_key_value
