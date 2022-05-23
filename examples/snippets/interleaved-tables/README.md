@@ -37,8 +37,6 @@ CREATE TABLE albums (
     title STRING(MAX)
 ) PRIMARY KEY (singerid, albumid), INTERLEAVE IN PARENT singers;
 
-CREATE UNIQUE INDEX index_albums_on_albumid ON albums (albumid);
-
 CREATE TABLE tracks (
     trackid INT64 NOT NULL,
     singerid INT64 NOT NULL,
@@ -46,8 +44,6 @@ CREATE TABLE tracks (
     title STRING(MAX),
     duration NUMERIC
 ) PRIMARY KEY (singerid, albumid, trackid), INTERLEAVE IN PARENT albums ON DELETE CASCADE;
-
-CREATE UNIQUE INDEX index_tracks_on_trackid ON tracks (trackid);
 ```
 
 This schema can be created in ActiveRecord as follows:
@@ -136,10 +132,10 @@ class Track < ActiveRecord::Base
   # Use the `composite_primary_key` gem to create a composite primary key definition for the model.
   self.primary_keys = :singerid, :albumid, :trackid
 
-  # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is ()`singerid`, `albumid`).
+  # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is (`singerid`, `albumid`).
   belongs_to :album, foreign_key: [:singerid, :albumid]
 
-  # `tracks` also has a `singerid` column should be used to associate a Track with a Singer.
+  # `tracks` also has a `singerid` column that can be used to associate a Track with a Singer.
   belongs_to :singer, foreign_key: :singerid
 
   # Override the default initialize method to automatically set the singer attribute when an album is given.

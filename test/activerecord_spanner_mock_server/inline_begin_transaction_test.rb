@@ -14,13 +14,13 @@ module MockServerTests
       insert_sql = register_insert_singer_result
 
       ActiveRecord::Base.transaction do
-        Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+        Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
       # There should be no explicit BeginTransaction request.
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       assert_empty begin_transaction_requests
-      sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql.start_with?(insert_sql.chop) }.first
+      sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
       assert sql_request.transaction&.begin&.read_write
 
       commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
@@ -35,7 +35,7 @@ module MockServerTests
         already_aborted = @mock.abort_next_transaction unless already_aborted
         # The following statement will fail with an Aborted error. That will cause the entire
         # transaction block to be retried.
-        Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+        Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
       # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
@@ -147,7 +147,7 @@ module MockServerTests
       # violation for example indicates that a record with a specific key value exists.
       err = assert_raises ActiveRecord::StatementInvalid do
         ActiveRecord::Base.transaction do
-          Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+          Singer.create(first_name: "Dave", last_name: "Allison")
         end
       end
       assert err.cause.is_a?(Google::Cloud::FailedPreconditionError)
@@ -182,7 +182,7 @@ module MockServerTests
       attempts = 0
       ActiveRecord::Base.transaction do
         begin
-          Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+          Singer.create(first_name: "Dave", last_name: "Allison")
         rescue ActiveRecord::StatementInvalid
           raise if (attempts += 1) > 1
           # Ignore the error and retry the statement.
@@ -223,13 +223,13 @@ module MockServerTests
       ActiveRecord::Base.transaction do
         # This statement will fail once, and then be retried internally after an explicit
         # BeginTransaction RPC. The second attempt will succeed as the error was only pushed once.
-        Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+        Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
       # There should be one explicit BeginTransaction request.
       begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       assert_equal 1, begin_transaction_requests.length
-      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql.start_with?(insert_sql.chop) }
+      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       assert sql_requests[0].transaction&.begin&.read_write
       assert sql_requests[1].transaction&.id
@@ -254,7 +254,7 @@ module MockServerTests
           # This statement will fail and cause an internal retry with an explicit BeginTransaction
           # RPC. That RPC invocation will fail, but the original error from the SQL statement
           # will be the error that is returned.
-          Singer.create(first_name: "Dave", last_name: "Allison", id: 1)
+          Singer.create(first_name: "Dave", last_name: "Allison")
         end
       end
       assert err.cause.is_a?(Google::Cloud::FailedPreconditionError)
@@ -271,7 +271,7 @@ module MockServerTests
     end
 
     def register_insert_singer_result
-      sql = "INSERT INTO `singers` (`id`, `first_name`, `last_name`) VALUES (@p1, @p2, @p3)"
+      sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result sql, StatementResult.new(1)
       sql
     end

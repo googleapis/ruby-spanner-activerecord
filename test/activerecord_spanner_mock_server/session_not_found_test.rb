@@ -80,7 +80,7 @@ module MockServerTests
 
       begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       assert_empty begin_requests
-      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql.start_with?(insert_sql.chop) }
+      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       refute_equal sql_requests[0].session, sql_requests[1].session
       sql_requests.each { |req| assert req.transaction&.begin&.read_write }
@@ -120,7 +120,7 @@ module MockServerTests
 
       begin_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
       assert_empty begin_requests
-      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql.start_with?(insert_sql.chop)}
+      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
       assert_equal 2, sql_requests.length
       refute_equal sql_requests[0].session, sql_requests[1].session
       sql_requests.each { |req| assert req.transaction&.begin&.read_write }
@@ -130,7 +130,7 @@ module MockServerTests
     end
 
     def register_insert_singer_result
-      sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, %"
+      sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result sql, StatementResult.new(1)
       sql
     end
