@@ -43,17 +43,20 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values
+    def self._insert_record values # rubocop:disable Metrics/AbcSize
       primary_key = self.primary_key
-      primary_key_value = nil
+      return super unless primary_key && values.is_a?(Hash)
 
-      if primary_key && values.is_a?(Hash)
-        primary_key_value = _set_primary_key_values primary_key, values
-      end
+      primary_key_value =
+        if primary_key.is_a? Array
+          _set_composite_primary_key_values primary_key, values
+        else
+          _set_single_primary_key_value primary_key, values
+        end
 
       unless buffered_mutations?
         if ActiveRecord::VERSION::MAJOR >= 7
-          im = Arel::InsertManager.new(arel_table)
+          im = Arel::InsertManager.new arel_table
           im.insert(values.transform_keys { |name| arel_table[name] })
         else
           im = arel_table.compile_insert _substitute_values(values)
@@ -76,35 +79,38 @@ module ActiveRecord
       primary_key_value
     end
 
-    def self._set_primary_key_values primary_key, values
-      if primary_key.is_a? Array
-        primary_key_value = []
-        primary_key.each do |col|
-          value = values[col]
+    def self._set_composite_primary_key_values primary_key, values
+      primary_key_value = []
+      primary_key.each do |col|
+        value = values[col]
 
-          if !value && prefetch_primary_key?
+        if !value && prefetch_primary_key?
+          value =
             if ActiveRecord::VERSION::MAJOR >= 7
-              value = ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
+              ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
             else
-              value = next_sequence_value
+              next_sequence_value
             end
-            values[col] = value
-          end
-          if value.is_a?(ActiveModel::Attribute)
-            value = value.value
-          end
-          primary_key_value.append value
+          values[col] = value
         end
-      else
-        primary_key_value = values[primary_key]
+        if value.is_a? ActiveModel::Attribute
+          value = value.value
+        end
+        primary_key_value.append value
+      end
+      primary_key_value
+    end
 
-        if !primary_key_value && prefetch_primary_key?
-          primary_key_value = next_sequence_value
-          if ActiveRecord::VERSION::MAJOR >= 7
-            values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value, ActiveModel::Type::BigInteger.new
-          else
-            values[primary_key] = primary_key_value
-          end
+    def self._set_single_primary_key_value primary_key, values
+      primary_key_value = values[primary_key]
+
+      if !primary_key_value && prefetch_primary_key?
+        primary_key_value = next_sequence_value
+        if ActiveRecord::VERSION::MAJOR >= 7
+          values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value,
+                                                                     ActiveModel::Type::BigInteger.new
+        else
+          values[primary_key] = primary_key_value
         end
       end
       primary_key_value
