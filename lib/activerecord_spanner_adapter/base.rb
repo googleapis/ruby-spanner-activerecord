@@ -43,9 +43,10 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values # rubocop:disable Metrics/AbcSize
-      primary_key = self.primary_key
-      return super unless primary_key && values.is_a?(Hash)
+    def self._insert_record values
+      return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
+
+      return _buffer_record values, :insert if buffered_mutations?
 
       primary_key_value =
         if primary_key.is_a? Array
@@ -53,27 +54,85 @@ module ActiveRecord
         else
           _set_single_primary_key_value primary_key, values
         end
-
-      unless buffered_mutations?
-        if ActiveRecord::VERSION::MAJOR >= 7
-          im = Arel::InsertManager.new arel_table
-          im.insert(values.transform_keys { |name| arel_table[name] })
-        else
-          im = arel_table.compile_insert _substitute_values(values)
-        end
-        return connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+      if ActiveRecord::VERSION::MAJOR >= 7
+        im = Arel::InsertManager.new arel_table
+        im.insert(values.transform_keys { |name| arel_table[name] })
+      else
+        im = arel_table.compile_insert _substitute_values(values)
       end
+      connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+    end
+
+    def self._upsert_record values
+      _buffer_record values, :insert_or_update
+    end
+
+    def self.insert_all _attributes, _returning: nil, _unique_by: nil
+      raise NotImplementedError, "Cloud Spanner does not support skip_duplicates."
+    end
+
+    def self.insert_all! attributes, returning: nil
+      return super unless spanner_adapter?
+      return super if active_transaction? && !buffered_mutations?
+
+      # This might seem inefficient, but is actually not, as it is only buffering a mutation locally.
+      # The mutations will be sent as one batch when the transaction is committed.
+      if active_transaction?
+        attributes.each do |record|
+          _insert_record record
+        end
+      else
+        transaction isolation: :buffered_mutations do
+          attributes.each do |record|
+            _insert_record record
+          end
+        end
+      end
+    end
+
+    def self.upsert_all attributes, returning: nil, unique_by: nil
+      return super unless spanner_adapter?
+      if active_transaction? && !buffered_mutations?
+        raise NotImplementedError, "Cloud Spanner does not support upsert using DML. " \
+                                   "Use upsert outside a transaction block or in a transaction " \
+                                   "block with isolation: :buffered_mutations"
+      end
+
+      # This might seem inefficient, but is actually not, as it is only buffering a mutation locally.
+      # The mutations will be sent as one batch when the transaction is committed.
+      if active_transaction?
+        attributes.each do |record|
+          _upsert_record record
+        end
+      else
+        transaction isolation: :buffered_mutations do
+          attributes.each do |record|
+            _upsert_record record
+          end
+        end
+      end
+    end
+
+    def self._buffer_record values, method
+      primary_key_value =
+        if primary_key.is_a? Array
+          _set_composite_primary_key_values primary_key, values
+        else
+          _set_single_primary_key_value primary_key, values
+        end
 
       metadata = TableMetadata.new self, arel_table
       columns, grpc_values = _create_grpc_values_for_insert metadata, values
 
-      mutation = Google::Cloud::Spanner::V1::Mutation.new(
-        insert: Google::Cloud::Spanner::V1::Mutation::Write.new(
-          table: arel_table.name,
-          columns: columns,
-          values: [grpc_values.list_value]
-        )
+      write = Google::Cloud::Spanner::V1::Mutation::Write.new(
+        table: arel_table.name,
+        columns: columns,
+        values: [grpc_values.list_value]
       )
+      mutation = Google::Cloud::Spanner::V1::Mutation.new(
+        "#{method}": write
+      )
+
       connection.current_spanner_transaction.buffer mutation
 
       primary_key_value
@@ -102,7 +161,7 @@ module ActiveRecord
     end
 
     def self._set_single_primary_key_value primary_key, values
-      primary_key_value = values[primary_key]
+      primary_key_value = values[primary_key] || values[primary_key.to_sym]
 
       if !primary_key_value && prefetch_primary_key?
         primary_key_value = next_sequence_value

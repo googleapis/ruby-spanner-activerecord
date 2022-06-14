@@ -179,6 +179,19 @@ module ActiveRecord
         Arel::Visitors::Spanner.new self
       end
 
+      def build_insert_sql insert
+        if current_spanner_transaction&.isolation == :buffered_mutations
+          raise "ActiveRecordSpannerAdapter does not support insert_sql with buffered_mutations transaction."
+        end
+
+        if insert.skip_duplicates? || insert.update_duplicates?
+          raise NotImplementedError, "CloudSpanner does not support skip_duplicates and update_duplicates."
+        end
+
+        values_list, = insert.values_list
+        "INSERT #{insert.into} #{values_list}"
+      end
+
       module TypeMapBuilder
         private
 

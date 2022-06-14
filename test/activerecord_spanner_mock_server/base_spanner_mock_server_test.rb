@@ -33,6 +33,8 @@ module MockServerTests
       # Register INFORMATION_SCHEMA queries on the mock server.
       MockServerTests::register_select_tables_result @mock
       MockServerTests::register_singers_columns_result @mock
+      MockServerTests::register_singers_indexed_columns_result @mock
+      MockServerTests::register_singers_indexes_result @mock
       MockServerTests::register_singers_primary_key_columns_result @mock
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       MockServerTests::register_versioned_singers_columns_result @mock
