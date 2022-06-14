@@ -145,6 +145,31 @@ module MockServerTests
       end
     end
 
+    def test_after_save
+      singer = Singer.create(first_name: "Dave", last_name: "Allison")
+
+      assert_equal "Dave Allison", singer.full_name
+    end
+
+    def test_after_save_buffered_mutations
+      singer = Singer.transaction isolation: :buffered_mutations do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_equal "Dave Allison", singer.full_name
+    end
+
+    def test_after_save_transaction
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+
+      singer = Singer.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_equal "Dave Allison", singer.full_name
+    end
+
     def test_create_singer_with_last_performance_as_time
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)

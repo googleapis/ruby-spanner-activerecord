@@ -7,5 +7,15 @@
 module MockServerTests
   class Singer < ActiveRecord::Base
     has_many :albums
+    attr_reader :full_name
+
+    def initialize(attributes = nil)
+      super attributes
+      @full_name = ""
+    end
+
+    after_save do
+      @full_name = first_name + ' ' + last_name
+    end
   end
 end
