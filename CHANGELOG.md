@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.1.0 (2022-06-24)
+
+#### Features
+
+* Support insert_all and upsert_all with DML and mutations
+
 ### 1.0.1 (2022-04-21)
 
 #### Bug Fixes
