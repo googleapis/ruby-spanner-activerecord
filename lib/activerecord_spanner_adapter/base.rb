@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require_relative "relation"
+require "activerecord_spanner_adapter/relation"
 
 module ActiveRecord
   class TableMetadata # :nodoc:
