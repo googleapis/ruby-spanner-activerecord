@@ -4,4 +4,4 @@
 # For syntax help see:
 # https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners#codeowners-syntax
 
-*     @jiren @skuruppu @dazuma @hengfengli @olavloite @xiangshen-dk
+*     @googleapis/yoshi-ruby @skuruppu @hengfengli @olavloite @xiangshen-dk
