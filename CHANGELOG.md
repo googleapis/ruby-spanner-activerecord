@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.2.0 (2022-08-03)
+
+#### Features
+
+* support composite primary keys for interleaved tables ([#175](https://github.com/googleapis/ruby-spanner-activerecord/issues/175)) 
+
 ### 1.1.0 (2022-06-24)
 
 #### Features
