@@ -6,6 +6,6 @@
 
 module TestInterleavedTables
   class Singer < ActiveRecord::Base
-    has_many :albums, foreign_key: "singerid"
+    has_many :albums, foreign_key: :singerid
   end
 end

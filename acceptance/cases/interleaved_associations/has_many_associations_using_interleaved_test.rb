@@ -20,6 +20,8 @@ module ActiveRecord
 
       def setup
         super
+        @original_verbosity = $VERBOSE
+        $VERBOSE = nil
 
         @singer = Singer.create first_name: "FirstName1", last_name: "LastName1"
 
@@ -35,6 +37,8 @@ module ActiveRecord
       def teardown
         Album.destroy_all
         Singer.destroy_all
+
+        $VERBOSE = @original_verbosity
       end
 
       def test_has_many
@@ -73,8 +77,8 @@ module ActiveRecord
 
       def test_create_and_destroy_associated_records
         singer2 = Singer.new first_name: "First", last_name: "Last"
-        singer2.albums.build title: "New Title 1"
-        singer2.albums.build title: "New Title 2"
+        singer2.albums.build title: "New Title 1", albumid: Album.next_sequence_value
+        singer2.albums.build title: "New Title 2", albumid: Album.next_sequence_value
         singer2.save!
 
         singer2.reload
@@ -91,8 +95,8 @@ module ActiveRecord
 
       def test_create_and_destroy_nested_associated_records
         album3 = Album.new singer: singer, title: "Title 3"
-        album3.tracks.build title: "Title3_1", duration: 2.5, singer: singer
-        album3.tracks.build title: "Title3_2", singer: singer
+        album3.tracks.build title: "Title3_1", duration: 2.5, singer: singer, trackid: Track.next_sequence_value
+        album3.tracks.build title: "Title3_2", singer: singer, trackid: Track.next_sequence_value
         album3.save!
 
         album3.reload
@@ -110,8 +114,8 @@ module ActiveRecord
 
       def test_create_and_delete_associated_records
         singer2 = Singer.new first_name: "First", last_name: "Last"
-        singer2.albums.build title: "Album - 11"
-        singer2.albums.build title: "Album - 12"
+        singer2.albums.build title: "Album - 11", albumid: Album.next_sequence_value
+        singer2.albums.build title: "Album - 12", albumid: Album.next_sequence_value
         singer2.save!
 
         singer2.reload
@@ -128,8 +132,8 @@ module ActiveRecord
 
       def test_create_and_delete_nested_associated_records
         album3 = Album.new title: "Album 3", singer: singer
-        album3.tracks.build title: "Track - 31", singer: singer
-        album3.tracks.build title: "Track - 32", singer: singer
+        album3.tracks.build title: "Track - 31", singer: singer, trackid: Track.next_sequence_value
+        album3.tracks.build title: "Track - 32", singer: singer, trackid: Track.next_sequence_value
         album3.save!
 
         album3.reload

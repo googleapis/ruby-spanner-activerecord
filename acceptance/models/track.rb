@@ -5,8 +5,11 @@
 # https://opensource.org/licenses/MIT.
 
 class Track < ActiveRecord::Base
-  belongs_to :album, foreign_key: "albumid"
-  belongs_to :singer, foreign_key: "singerid", counter_cache: true
+  # Register both primary key columns with composite_primary_keys
+  self.primary_keys = :singerid, :albumid, :trackid
+
+  belongs_to :album, foreign_key: [:singerid, :albumid]
+  belongs_to :singer, foreign_key: :singerid, counter_cache: true
 
   def initialize attributes = nil
     super
