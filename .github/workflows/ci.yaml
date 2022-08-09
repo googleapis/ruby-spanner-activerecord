@@ -10,14 +10,14 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        ruby: [2.6, 2.7, 3.0]
-        ar: [6.0.4, 6.1.4, 7.0.2.4]
+        ruby: ["2.6", "2.7", "3.0"]
+        ar: ["6.0.4", "6.1.4", "7.0.2.4"]
         # Exclude combinations that are not supported.
         exclude:
-          - ruby: 3.0
-            ar: 6.0.4
-          - ruby: 2.6
-            ar: 7.0.2.4
+          - ruby: "3.0"
+            ar: "6.0.4"
+          - ruby: "2.6"
+            ar: "7.0.2.4"
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
