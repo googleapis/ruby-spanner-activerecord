@@ -10,7 +10,7 @@ branchProtectionRules:
   requiresCodeOwnerReviews: true
   requiresStrictStatusChecks: true
 permissionRules:
-  - team: yoshi-ruby
+  - team: ruby-team
     permission: push
-  - team: yoshi-ruby-admins
+  - team: ruby-admins
     permission: admin
