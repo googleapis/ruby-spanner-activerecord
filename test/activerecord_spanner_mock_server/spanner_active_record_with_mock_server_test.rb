@@ -846,7 +846,9 @@ module MockServerTests
     end
 
     def test_insert_all_bang_dml
+      insert_sql_2_5 = "INSERT INTO `singers`(`id`,`first_name`,`last_name`) VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
       insert_sql = "INSERT INTO `singers` (`id`,`first_name`,`last_name`) VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
+      @mock.put_statement_result insert_sql_2_5, StatementResult.new(3)
       @mock.put_statement_result insert_sql, StatementResult.new(3)
 
       values = [
@@ -861,7 +863,7 @@ module MockServerTests
       commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
       assert_equal 1, commit_requests.length
       assert_equal 0, commit_requests[0].mutations.length
-      execute_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
+      execute_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && (req.sql == insert_sql || req.sql == insert_sql_2_5) }
       assert_equal 1, execute_requests.length
     end
 
