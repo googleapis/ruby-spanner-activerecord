@@ -3,7 +3,6 @@ on:
     # 05:30 UTC
     - cron:  '30 5 * * *'
   workflow_dispatch:
-  pull_request:
 name: nightly-unit-tests
 jobs:
   test:

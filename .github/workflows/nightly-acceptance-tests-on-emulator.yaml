@@ -3,7 +3,6 @@ on:
     # 06:00 UTC
     - cron:  '0 6 * * *'
   workflow_dispatch:
-  pull_request:
 name: nightly acceptance tests on emulator
 jobs:
   test:
