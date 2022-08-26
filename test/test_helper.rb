@@ -204,7 +204,7 @@ module MockGoogleSpanner
     alias execute execute_query
 
     def create_transaction
-      grpc = Google::Spanner::V1::Transaction.new id: SecureRandom.base64
+      grpc = Google::Cloud::Spanner::V1::Transaction.new id: SecureRandom.base64
       Google::Cloud::Spanner::Transaction.from_grpc grpc, self
     end
 
@@ -248,7 +248,7 @@ module MockGoogleSpanner
 
     def create_snapshot session_name, strong: nil, timestamp: nil,
                         staleness: nil
-      Google::Spanner::V1::Transaction.new id: SecureRandom.base64
+      Google::Cloud::Spanner::V1::Transaction.new id: SecureRandom.base64
     end
 
     def update statements: nil, operation_id: nil
