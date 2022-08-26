@@ -251,7 +251,7 @@ module ActiveRecordSpannerAdapter
     # transaction fails, as that also means that no transaction id was returned.
     def create_transaction_after_failed_first_statement original_error
       transaction = current_transaction.force_begin_read_write
-      Google::Spanner::V1::TransactionSelector.new id: transaction.transaction_id
+      Google::Cloud::Spanner::V1::TransactionSelector.new id: transaction.transaction_id
     rescue Google::Cloud::Error
       # Raise the original error if the BeginTransaction RPC also fails.
       raise original_error

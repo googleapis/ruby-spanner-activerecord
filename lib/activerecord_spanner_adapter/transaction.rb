@@ -55,9 +55,9 @@ module ActiveRecordSpannerAdapter
         when :pdml
           @grpc_transaction = @connection.session.create_pdml
         else
-          @begin_transaction_selector = Google::Spanner::V1::TransactionSelector.new \
-            begin: Google::Spanner::V1::TransactionOptions.new(
-              read_write: Google::Spanner::V1::TransactionOptions::ReadWrite.new
+          @begin_transaction_selector = Google::Cloud::Spanner::V1::TransactionSelector.new \
+            begin: Google::Cloud::Spanner::V1::TransactionOptions.new(
+              read_write: Google::Cloud::Spanner::V1::TransactionOptions::ReadWrite.new
             )
 
         end
@@ -143,7 +143,7 @@ module ActiveRecordSpannerAdapter
 
       # Use the transaction that has been started by a BeginTransaction RPC or returned by a
       # statement, if present.
-      return Google::Spanner::V1::TransactionSelector.new id: @grpc_transaction.transaction_id \
+      return Google::Cloud::Spanner::V1::TransactionSelector.new id: @grpc_transaction.transaction_id \
           if @grpc_transaction
 
       # Return a transaction selector that will instruct the statement to also start a transaction
