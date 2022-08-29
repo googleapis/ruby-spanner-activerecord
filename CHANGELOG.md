@@ -1,5 +1,12 @@
 # Changelog
 
+### 1.2.2 (2022-08-29)
+
+#### Documentation
+
+* add ActiveRecord 7 as a supported version to the README ([#189](https://github.com/googleapis/ruby-spanner-activerecord/issues/189)) 
+* update limitation on interleaved tables and default column values ([#190](https://github.com/googleapis/ruby-spanner-activerecord/issues/190)) 
+
 ### 1.2.1 (2022-08-28)
 
 #### Bug Fixes
