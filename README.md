@@ -8,6 +8,7 @@ This project provides a Cloud Spanner adapter for ActiveRecord. It supports the 
 
 - ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
 - ActiveRecord 6.1.x with Ruby 2.6 and higher.
+- ActiveRecord 7.0.x with Ruby 2.7 and higher.
 
 Known limitations are listed in the [Limitations](#limitations) section.
 Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
