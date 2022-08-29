@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.2.1 (2022-08-28)
+
+#### Bug Fixes
+
+* Corrected the namespace for the transaction selector class ([#187](https://github.com/googleapis/ruby-spanner-activerecord/issues/187)) 
+
 ### 1.2.0 (2022-08-03)
 
 #### Features
