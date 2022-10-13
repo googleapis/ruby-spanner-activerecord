@@ -228,7 +228,8 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[2]
 
       expectedDdl = "CREATE TABLE `tracks` "
-      expectedDdl << "(`trackid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `albumid` INT64 NOT NULL, `title` STRING(MAX), `duration` NUMERIC)"
+      expectedDdl << "(`trackid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `albumid` INT64 NOT NULL, `title` STRING(MAX), `duration` NUMERIC,"
+      expectedDdl << " CONSTRAINT chk_rails_tracks_duration CHECK (duration > 0))"
       expectedDdl << " PRIMARY KEY (`singerid`, `albumid`, `trackid`), INTERLEAVE IN PARENT `albums` ON DELETE CASCADE"
       assert_equal expectedDdl, ddl_requests[2].statements[3]
 

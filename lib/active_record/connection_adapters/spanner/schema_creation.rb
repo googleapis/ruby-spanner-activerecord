@@ -26,6 +26,12 @@ module ActiveRecord
             end
           end
 
+          if ActiveRecord::VERSION::MAJOR >= 7
+            statements.concat(o.check_constraints.map { |chk| accept chk })
+          else
+            statements.concat(o.check_constraints.map { |expression, options| check_constraint_in_create(o.name, expression, options) })
+          end
+
           create_sql << "(#{statements.join ', '}) " if statements.any?
 
           primary_keys = if o.primary_keys
