@@ -54,6 +54,15 @@ module ActiveRecord
         def quoted_binary value
           "b'#{value}'"
         end
+
+        def _type_cast value
+          case value
+          when Array
+            ActiveSupport::JSON.encode value
+          else
+            super
+          end
+        end
       end
     end
   end
