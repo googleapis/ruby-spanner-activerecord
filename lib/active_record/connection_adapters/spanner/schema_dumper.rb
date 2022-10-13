@@ -13,6 +13,14 @@ module ActiveRecord
         def default_primary_key? column
           schema_type(column) == :integer
         end
+
+        def prepare_column_options(column)
+          super.tap do |spec|
+            unless column.sql_type_metadata.allow_commit_timestamp.nil?
+              spec[:allow_commit_timestamp] = column.sql_type_metadata.allow_commit_timestamp
+            end
+          end
+        end
       end
     end
   end

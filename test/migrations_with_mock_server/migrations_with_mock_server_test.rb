@@ -1034,6 +1034,8 @@ module TestMigrationsWithMockServer
 
     def register_schema_migrations_columns_result
       # CREATE TABLE `schema_migrations` (`version` STRING(MAX) NOT NULL) PRIMARY KEY (`version`)
+      MockServerTests::register_commit_timestamps_result @mock, "schema_migrations"
+
       sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='schema_migrations' ORDER BY ORDINAL_POSITION ASC"
 
       column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1066,6 +1068,8 @@ module TestMigrationsWithMockServer
 
     def register_ar_internal_metadata_columns_result
       # CREATE TABLE `ar_internal_metadata` (`key` STRING(MAX) NOT NULL, `value` STRING(MAX), `created_at` TIMESTAMP NOT NULL, `updated_at` TIMESTAMP NOT NULL) PRIMARY KEY (`key`)
+      MockServerTests::register_commit_timestamps_result @mock, "ar_internal_metadata"
+
       sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ar_internal_metadata' ORDER BY ORDINAL_POSITION ASC"
 
       column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1186,6 +1190,7 @@ module TestMigrationsWithMockServer
     end
 
     def register_single_select_columns_result sql, column_name, spanner_type, is_nullable = true
+      MockServerTests::register_commit_timestamps_result @mock, "singers", column_name
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1269,6 +1274,7 @@ module TestMigrationsWithMockServer
     end
 
     def register_select_single_column_result sql, column_name, spanner_type, is_nullable = true
+      MockServerTests::register_commit_timestamps_result @mock, "singers", column_name
       # "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
