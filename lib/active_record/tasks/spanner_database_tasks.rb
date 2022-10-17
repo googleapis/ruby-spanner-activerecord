@@ -29,7 +29,12 @@ module ActiveRecord
       end
 
       def purge
-        drop
+        begin
+          drop
+        rescue ActiveRecord::NoDatabaseError
+          # ignored; create the database
+        end
+
         create
       end
 
