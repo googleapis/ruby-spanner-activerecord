@@ -15,8 +15,8 @@ module ActiveRecord
           @on_delete = on_delete
         end
 
-        def parent_key name
-          column name, :parent_key, null: false
+        def parent_key name, type: nil
+          column name, :parent_key, null: false, passed_type: type
         end
 
         def interleave_in?
