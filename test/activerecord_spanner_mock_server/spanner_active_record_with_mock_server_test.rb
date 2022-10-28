@@ -275,22 +275,13 @@ module MockServerTests
 
     def test_create_album_from_singer
       select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
-      select_albums_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singer_id` = @p1"
       insert_album_sql = "INSERT INTO `albums` (`title`, `singer_id`, `id`) VALUES (@p1, @p2, @p3)"
 
       @mock.put_statement_result select_singer_sql, MockServerTests::create_random_singers_result(1)
-      @mock.put_statement_result select_albums_sql, MockServerTests::create_random_albums_result(2)
       @mock.put_statement_result insert_album_sql, StatementResult.new(1)
 
       singer = Singer.find_by id: 1
       singer.albums.create title: 'My title'
-
-      albums = singer.albums
-
-      assert_equal 2, albums.length
-      request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_albums_sql }.first
-      assert_equal singer.id.to_s, request.params["p1"]
-      assert_equal :INT64, request.param_types["p1"].code
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_album_sql }.first
       assert_equal :STRING, request.param_types["p1"].code
