@@ -237,6 +237,47 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[4]
     end
 
+    def test_interleaved_table_with_uuid_pk
+      context = ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+        ActiveRecord::SchemaMigration
+      )
+
+      select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
+      register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
+      select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_albums_index_columns_sql
+      select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
+      MockServerTests::register_empty_select_indexes_result @mock, select_albums_indexes_sql
+
+      select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
+      register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
+      select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_tracks_index_columns_sql
+      select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
+      MockServerTests::register_empty_select_indexes_result @mock, select_tracks_indexes_sql
+
+      register_version_result "1", "10"
+
+      context.migrate 10
+
+      # The migration should create the migration tables and the singers, albums and tracks tables in one request.
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 2, ddl_requests[2].statements.length
+
+      expectedDdl = "CREATE TABLE `parent_with_uuid_pk` "
+      expectedDdl << "(`parentid` STRING(36) NOT NULL, `first_name` STRING(MAX), `last_name` STRING(MAX)) "
+      expectedDdl << "PRIMARY KEY (`parentid`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
+
+      expectedDdl = "CREATE TABLE `child_with_uuid_pk` "
+      expectedDdl << "(`parentid` STRING(36) NOT NULL, `childid` INT64 NOT NULL, `title` STRING(MAX)) "
+      expectedDdl << "PRIMARY KEY (`parentid`, `childid`), INTERLEAVE IN PARENT `parent_with_uuid_pk`"
+      assert_equal expectedDdl, ddl_requests[2].statements[1]
+    end
+
     def test_create_table_with_commit_timestamp
       context = ActiveRecord::MigrationContext.new(
         "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
