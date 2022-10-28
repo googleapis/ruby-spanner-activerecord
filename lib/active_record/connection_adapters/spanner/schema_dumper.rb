@@ -15,11 +15,19 @@ module ActiveRecord
         end
 
         def prepare_column_options column
-          super.tap do |spec|
-            unless column.sql_type_metadata.allow_commit_timestamp.nil?
-              spec[:allow_commit_timestamp] = column.sql_type_metadata.allow_commit_timestamp
-            end
+          spec = super
+
+          unless column.sql_type_metadata.allow_commit_timestamp.nil?
+            spec[:allow_commit_timestamp] = column.sql_type_metadata.allow_commit_timestamp
           end
+
+          if column.virtual?
+            spec[:as] = extract_expression_for_virtual_column column
+            spec[:stored] = true
+            spec = { type: schema_type(column).inspect }.merge! spec
+          end
+
+          spec
         end
 
         def header stream
@@ -47,6 +55,10 @@ module ActiveRecord
           index_parts << "interleave_in: #{index.interleave_in.inspect}" if index.interleave_in
           index_parts << "storing: #{format_index_parts index.storing}" if index.storing.present?
           index_parts
+        end
+
+        def extract_expression_for_virtual_column column
+          column.default_function.inspect
         end
       end
     end
