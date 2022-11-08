@@ -63,7 +63,7 @@ module ActiveRecord
         def visit_ColumnDefinition o
           o.sql_type = type_to_sql o.type, **o.options
           column_sql = +"#{quote_column_name o.name} #{o.sql_type}"
-          add_column_options! column_sql, column_options(o)
+          add_column_options! o, column_sql, column_options(o)
           column_sql
         end
 
@@ -114,9 +114,12 @@ module ActiveRecord
 
         # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity
 
-        def add_column_options! sql, options
+        def add_column_options! column, sql, options
           if options[:null] == false || options[:primary_key] == true
             sql << " NOT NULL"
+          end
+          if options.key? :default
+            sql << " DEFAULT #{quote_default_expression options[:default], column}"
           end
 
           if !options[:allow_commit_timestamp].nil? &&
