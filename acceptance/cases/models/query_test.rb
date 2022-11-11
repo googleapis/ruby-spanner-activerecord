@@ -166,6 +166,11 @@ module ActiveRecord
         assert_nil post.id
         assert_equal "Title - 1", post.title
       end
+
+      def test_to_sql
+        assert_equal "SELECT `comments`.* FROM `comments` WHERE `comments`.`comment` = 'Comment - 2'",
+                     Comment.where(comment: 'Comment - 2').to_sql
+      end
     end
   end
 end
