@@ -46,7 +46,7 @@ module ActiveRecord
             pk = options.fetch :primary_key do
               Base.get_primary_key table_name.to_s.singularize
             end
-            id = id.fetch(:type, :primary_key) if id.is_a?(Hash)
+            id = id.fetch :type, :primary_key if id.is_a? Hash
 
             if pk.is_a? Array
               td.primary_keys pk
