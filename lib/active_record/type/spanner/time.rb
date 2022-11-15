@@ -16,7 +16,7 @@ module ActiveRecord
             return "spanner.commit_timestamp()" if isolation_level == :mutation
           end
 
-          serialize(value)
+          serialize value
         end
 
         def serialize value

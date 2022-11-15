@@ -12,7 +12,7 @@ module ActiveRecord
       class TypeMetadata < DelegateClass(SqlTypeMetadata)
         undef to_yaml if method_defined? :to_yaml
 
-        include Deduplicable
+        include Deduplicable if defined?(Deduplicable)
 
         attr_reader :ordinal_position, :allow_commit_timestamp
 
@@ -40,7 +40,7 @@ module ActiveRecord
         private
 
         def deduplcated
-          __setobj__(__getobj__.deduplcate)
+          __setobj__ __getobj__.deduplcate
           super
         end
       end

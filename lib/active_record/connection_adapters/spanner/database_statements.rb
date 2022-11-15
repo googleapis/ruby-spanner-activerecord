@@ -220,7 +220,7 @@ module ActiveRecord
           params = binds.enum_for(:each_with_index).map do |bind, i|
             type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
             value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-              .serialize_with_transaction_isolation_level(type, bind.value, :mutation)
+                    .serialize_with_transaction_isolation_level(type, bind.value, :mutation)
 
             ["p#{i + 1}", value]
           end.to_h

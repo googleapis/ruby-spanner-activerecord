@@ -11,10 +11,10 @@ module ActiveRecord
     module Spanner
       class SpannerActiveRecordConverter
         def self.serialize_with_transaction_isolation_level type, value, isolation_level
-          if type.respond_to?(:serialize_with_isolation_level)
-            type.serialize_with_isolation_level(value, isolation_level)
+          if type.respond_to? :serialize_with_isolation_level
+            type.serialize_with_isolation_level value, isolation_level
           else
-            type.serialize(value)
+            type.serialize value
           end
         end
 

@@ -230,7 +230,9 @@ module ActiveRecord
       columns = []
       values.each_pair do |k, v|
         serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-          .serialize_with_transaction_isolation_level(metadata.type(k), unwrap_attribute(v), :mutation)
+                             .serialize_with_transaction_isolation_level(metadata.type(k),
+                                                                         unwrap_attribute(v),
+                                                                         :mutation)
         columns << metadata.arel_table[k].name
       end
       [columns, Google::Protobuf::Value.new(list_value:
@@ -280,7 +282,9 @@ module ActiveRecord
       all_values.each do |h|
         h.each_pair do |k, v|
           all_serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-            .serialize_with_transaction_isolation_level(metadata.type(k), self.class.unwrap_attribute(v), :mutation)
+                                   .serialize_with_transaction_isolation_level(metadata.type(k),
+                                                                               self.class.unwrap_attribute(v),
+                                                                               :mutation)
           all_columns << metadata.arel_table[k].name
         end
       end
@@ -326,7 +330,9 @@ module ActiveRecord
       serialized_values = []
       keys.each do |key|
         serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-          .serialize_with_transaction_isolation_level(metadata.type(key), attribute_in_database(key), :mutation)
+                             .serialize_with_transaction_isolation_level(metadata.type(key),
+                                                                         attribute_in_database(key),
+                                                                         :mutation)
       end
       serialized_values
     end
