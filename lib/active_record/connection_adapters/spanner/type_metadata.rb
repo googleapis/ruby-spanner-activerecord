@@ -39,8 +39,8 @@ module ActiveRecord
 
         private
 
-        def deduplcated
-          __setobj__ __getobj__.deduplcate
+        def deduplicated
+          __setobj__ __getobj__.deduplicate
           super
         end
       end
