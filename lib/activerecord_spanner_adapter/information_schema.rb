@@ -249,7 +249,7 @@ module ActiveRecordSpannerAdapter
         INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
         WHERE tc.TABLE_NAME = %<table_name>s
           AND tc.CONSTRAINT_TYPE = 'CHECK'
-          AND tc.CONSTRAINT_NAME LIKE 'chk_rails_%%'
+          AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%%' AND cc.CHECK_CLAUSE LIKE '%%IS NOT NULL')
       SQL
 
       rows = execute_query(sql, table_name: table_name)

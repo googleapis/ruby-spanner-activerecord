@@ -44,7 +44,7 @@ class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[6.0]
         t.string :title
         t.numeric :duration
 
-        t.check_constraint 'duration > 0', name: :chk_rails_tracks_duration
+        t.check_constraint 'duration > 0', name: :chk_tracks_duration
       end
 
       # Add a unique index to the trackid column to prevent full table scans when a single track record is queried.
