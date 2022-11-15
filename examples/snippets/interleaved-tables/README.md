@@ -85,7 +85,7 @@ end
 
 ## Models for Interleaved Tables
 The model definition for an interleaved table (a child table) must use the `primary_keys=col1, col2, ...`
-function from the `composite_primary_key` gem.
+function from the `composite_primary_keys` gem.
 
 An interleaved table parent/child relationship must be modelled as a `belongs_to`/`has_many` association in
 ActiveRecord. As the columns that are used to reference a parent record use a custom column name, it is required to also
