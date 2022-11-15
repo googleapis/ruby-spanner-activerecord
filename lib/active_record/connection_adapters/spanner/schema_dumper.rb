@@ -14,6 +14,25 @@ module ActiveRecord
           schema_type(column) == :integer
         end
 
+        def header stream
+          str = StringIO.new
+          super str
+          stream.puts <<~HEADER
+            #{str.string.rstrip}
+            connection.start_batch_ddl
+          HEADER
+        end
+
+        def trailer stream
+          stream.puts <<~TRAILER
+              connection.run_batch
+            rescue
+              abort_batch
+              raise
+          TRAILER
+          super
+        end
+
         def index_parts index
           index_parts = super
           index_parts << "null_filtered: #{index.null_filtered.inspect}" if index.null_filtered

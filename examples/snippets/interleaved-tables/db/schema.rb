@@ -11,6 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema.define(version: 1) do
+  connection.start_batch_ddl
 
   create_table "albums", primary_key: "albumid", id: { limit: 8 }, force: :cascade do |t|
     t.integer "singerid", limit: 8, null: false
@@ -29,4 +30,8 @@ ActiveRecord::Schema.define(version: 1) do
     t.decimal "duration"
   end
 
+  connection.run_batch
+rescue
+  abort_batch
+  raise
 end
