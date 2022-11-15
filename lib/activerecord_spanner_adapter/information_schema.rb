@@ -252,11 +252,11 @@ module ActiveRecordSpannerAdapter
           AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%%' AND cc.CHECK_CLAUSE LIKE '%%IS NOT NULL')
       SQL
 
-      rows = execute_query(sql, table_name: table_name)
+      rows = execute_query sql, table_name: table_name
 
       rows.map do |row|
         ActiveRecord::ConnectionAdapters::CheckConstraintDefinition.new(
-          table_name, row['CHECK_CLAUSE'], name: row['CONSTRAINT_NAME']
+          table_name, row["CHECK_CLAUSE"], name: row["CONSTRAINT_NAME"]
         )
       end
     end

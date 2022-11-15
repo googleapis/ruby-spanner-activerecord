@@ -334,26 +334,28 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal index.columns.any?{ |c| c.name == "user_id"}, true
   end
 
-  def test_empty_check_contraints
-    set_mocked_result []
-    results = info_schema.check_constraints "accounts"
-    assert_empty results
-  end
+  if ActiveRecord.gem_version >= Gem::Version.create("6.1.0")
+    def test_empty_check_contraints
+      set_mocked_result []
+      results = info_schema.check_constraints "accounts"
+      assert_empty results
+    end
 
-  def test_check_constraints
-    set_mocked_result check_constraints_result
-    results = info_schema.check_constraints "accounts"
-    assert_equal results.length, 1
+    def test_check_constraints
+      set_mocked_result check_constraints_result
+      results = info_schema.check_constraints "accounts"
+      assert_equal results.length, 1
 
-    assert_sql_equal(
-      "SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME WHERE tc.TABLE_NAME = 'accounts' AND tc.CONSTRAINT_TYPE = 'CHECK' AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')",
-      last_executed_sql
-    )
+      assert_sql_equal(
+        "SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME WHERE tc.TABLE_NAME = 'accounts' AND tc.CONSTRAINT_TYPE = 'CHECK' AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')",
+        last_executed_sql
+      )
 
-    cc = results.first
-    assert_instance_of ActiveRecord::ConnectionAdapters::CheckConstraintDefinition, cc
-    assert_equal cc.table_name, "accounts"
-    assert_equal cc.name, "chk_accounts_name"
-    assert_equal cc.expression, "name IN ('bob')"
+      cc = results.first
+      assert_instance_of ActiveRecord::ConnectionAdapters::CheckConstraintDefinition, cc
+      assert_equal cc.table_name, "accounts"
+      assert_equal cc.name, "chk_accounts_name"
+      assert_equal cc.expression, "name IN ('bob')"
+    end
   end
 end
