@@ -31,7 +31,7 @@ module ActiveRecord
       def purge
         begin
           drop
-        rescue ActiveRecord::NoDatabaseError
+        rescue ActiveRecord::NoDatabaseError # rubocop:disable Lint/HandleExceptions
           # ignored; create the database
         end
 
