@@ -9,7 +9,8 @@ require "test_helper"
 class InformationSchemaTest < TestHelper::MockActiveRecordTest
   attr_reader :info_schema, :tables_schema_result,
     :table_columns_result, :indexes_result,
-    :index_columns_result
+    :index_columns_result,
+    :check_constraints_result
 
   def setup
     super
@@ -75,6 +76,13 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
         "COLUMN_ORDERING" => "ASC",
         "IS_NULLABLE" => "YES",
         "SPANNER_TYPE" => "INT64"
+      }
+    ]
+    @check_constraints_result = [
+      {
+        "TABLE_NAME" => "accounts",
+        "CONSTRAINT_NAME" => "chk_accounts_name",
+        "CHECK_CLAUSE" => "name IN ('bob')"
       }
     ]
   end
@@ -324,5 +332,30 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     index = result.first
     assert_equal index.name, "index_orders_on_user_id"
     assert_equal index.columns.any?{ |c| c.name == "user_id"}, true
+  end
+
+  if ActiveRecord.gem_version >= Gem::Version.create("6.1.0")
+    def test_empty_check_contraints
+      set_mocked_result []
+      results = info_schema.check_constraints "accounts"
+      assert_empty results
+    end
+
+    def test_check_constraints
+      set_mocked_result check_constraints_result
+      results = info_schema.check_constraints "accounts"
+      assert_equal results.length, 1
+
+      assert_sql_equal(
+        "SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME WHERE tc.TABLE_NAME = 'accounts' AND tc.CONSTRAINT_TYPE = 'CHECK' AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')",
+        last_executed_sql
+      )
+
+      cc = results.first
+      assert_instance_of ActiveRecord::ConnectionAdapters::CheckConstraintDefinition, cc
+      assert_equal cc.table_name, "accounts"
+      assert_equal cc.name, "chk_accounts_name"
+      assert_equal cc.expression, "name IN ('bob')"
+    end
   end
 end

@@ -10,7 +10,8 @@ module ActiveRecord
       class SchemaCreation < SchemaCreation
         private
 
-        # rubocop:disable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity
+        # rubocop:disable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
+        # rubocop:disable Metrics/MethodLength
 
         def visit_TableDefinition o
           create_sql = +"CREATE TABLE #{quote_table_name o.name} "
@@ -24,6 +25,14 @@ module ActiveRecord
             o.foreign_keys.each do |to_table, options|
               statements << foreign_key_in_create(o.name, to_table, options)
             end
+          end
+
+          if ActiveRecord::VERSION::MAJOR >= 7
+            statements.concat(o.check_constraints.map { |chk| accept chk })
+          elsif ActiveRecord::VERSION::MAJOR == 6 && ActiveRecord::VERSION::MINOR >= 1
+            statements.concat(
+              o.check_constraints.map { |expression, options| check_constraint_in_create o.name, expression, options }
+            )
           end
 
           create_sql << "(#{statements.join ', '}) " if statements.any?
@@ -112,7 +121,8 @@ module ActiveRecord
           sql
         end
 
-        # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity
+        # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
+        # rubocop:enable Metrics/MethodLength
 
         def add_column_options! column, sql, options
           if options[:null] == false || options[:primary_key] == true

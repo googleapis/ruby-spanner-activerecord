@@ -240,6 +240,27 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def check_constraints table_name
+      sql = <<~SQL.squish
+        SELECT tc.TABLE_NAME,
+               tc.CONSTRAINT_NAME,
+               cc.CHECK_CLAUSE
+        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+        INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+        WHERE tc.TABLE_NAME = %<table_name>s
+          AND tc.CONSTRAINT_TYPE = 'CHECK'
+          AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%%' AND cc.CHECK_CLAUSE LIKE '%%IS NOT NULL')
+      SQL
+
+      rows = execute_query sql, table_name: table_name
+
+      rows.map do |row|
+        ActiveRecord::ConnectionAdapters::CheckConstraintDefinition.new(
+          table_name, row["CHECK_CLAUSE"], name: row["CONSTRAINT_NAME"]
+        )
+      end
+    end
+
     def parse_type_and_limit value
       matched = /^([A-Z]*)\((.*)\)/.match value
       return [value] unless matched
