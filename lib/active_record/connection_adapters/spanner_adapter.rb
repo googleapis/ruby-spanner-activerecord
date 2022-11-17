@@ -74,6 +74,9 @@ module ActiveRecord
       include Spanner::DatabaseStatements
       include Spanner::SchemaStatements
 
+      # Determines whether or not to log query binds when executing statements
+      class_attribute :log_statement_binds, instance_writer: false, default: false
+
       def initialize connection, logger, connection_options, config
         super connection, logger, config
         @connection_options = connection_options
