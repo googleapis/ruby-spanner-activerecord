@@ -11,6 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema.define(version: 1) do
+  connection.start_batch_ddl
 
   create_table "entity_with_array_types", id: { limit: 8 }, force: :cascade do |t|
     t.string "col_array_string"
@@ -23,4 +24,8 @@ ActiveRecord::Schema.define(version: 1) do
     t.time "col_array_timestamp"
   end
 
+  connection.run_batch
+rescue
+  abort_batch
+  raise
 end

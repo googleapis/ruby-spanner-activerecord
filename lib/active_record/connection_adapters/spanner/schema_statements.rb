@@ -377,6 +377,12 @@ module ActiveRecord
         end
         alias add_belongs_to add_reference
 
+        # Check Contraints
+
+        def check_constraints table_name
+          information_schema { |i| i.check_constraints table_name }
+        end
+
         def quoted_scope name = nil, type: nil
           scope = { schema: quote("") }
           scope[:name] = quote name if name

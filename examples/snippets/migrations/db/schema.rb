@@ -11,6 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema.define(version: 1) do
+  connection.start_batch_ddl
 
   create_table "albums", id: { limit: 8 }, force: :cascade do |t|
     t.string "title"
@@ -30,4 +31,8 @@ ActiveRecord::Schema.define(version: 1) do
     t.index ["albums_id"], name: "index_tracks_on_albums_id", order: { albums_id: :asc }
   end
 
+  connection.run_batch
+rescue
+  abort_batch
+  raise
 end

@@ -43,6 +43,10 @@ class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[6.0]
         t.parent_key :albumid
         t.string :title
         t.numeric :duration
+
+        if ActiveRecord.gem_version >= Gem::Version.create("6.1.0")
+          t.check_constraint 'duration > 0', name: :chk_tracks_duration
+        end
       end
 
       # Add a unique index to the trackid column to prevent full table scans when a single track record is queried.

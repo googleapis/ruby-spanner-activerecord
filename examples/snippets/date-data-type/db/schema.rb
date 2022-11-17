@@ -11,6 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema.define(version: 1) do
+  connection.start_batch_ddl
 
   create_table "singers", id: { limit: 8 }, force: :cascade do |t|
     t.string "first_name"
@@ -18,4 +19,8 @@ ActiveRecord::Schema.define(version: 1) do
     t.date "birth_date"
   end
 
+  connection.run_batch
+rescue
+  abort_batch
+  raise
 end

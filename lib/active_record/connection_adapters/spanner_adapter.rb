@@ -170,6 +170,10 @@ module ActiveRecord
         true
       end
 
+      def supports_check_constraints?
+        true
+      end
+
       # Generate next sequence number for primary key
       def next_sequence_value _sequence_name
         SecureRandom.uuid.gsub("-", "").hex & 0x7FFFFFFFFFFFFFFF
