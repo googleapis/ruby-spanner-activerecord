@@ -670,7 +670,7 @@ module MockServerTests
       # could represent both 4th of July and 7th of April. This test verifies that it is encoded to the
       # same value as ::Time.parse(..) would encode it to.
       timestamp_string = "04/07/2017 2:19pm"
-      timestamp = ::Time.parse(timestamp_string)
+      timestamp = Time.find_zone('UTC').parse(timestamp_string)
 
       Singer.transaction do
         Singer.create(first_name: "Dave", last_name: "Allison", last_performance: timestamp_string)
@@ -689,12 +689,12 @@ module MockServerTests
       # could represent both 4th of July and 7th of April. This test verifies that it is encoded to the
       # same value as ::Time.parse(..) would encode it to.
       timestamp_string = "04/07/2017 2:19pm"
-      timestamp = ::Time.parse(timestamp_string)
+      timestamp = Time.find_zone('UTC').parse(timestamp_string)
       Singer.find_by(last_performance: timestamp_string)
 
       request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
       assert_equal :TIMESTAMP, request.param_types["p1"].code
-      assert_equal timestamp.utc.rfc3339(9), request.params["p1"]
+      assert_equal timestamp.rfc3339(9), request.params["p1"]
     end
 
     def test_create_singer_with_picture

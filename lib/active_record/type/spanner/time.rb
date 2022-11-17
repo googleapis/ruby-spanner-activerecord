@@ -9,7 +9,7 @@
 module ActiveRecord
   module Type
     module Spanner
-      class Time < ActiveRecord::Type::Time
+      class Time < ActiveRecord::Type::DateTime
         def serialize_with_isolation_level value, isolation_level
           if value == :commit_timestamp
             return "PENDING_COMMIT_TIMESTAMP()" if isolation_level == :dml
@@ -22,21 +22,6 @@ module ActiveRecord
         def serialize value
           val = super value
           val.acts_like?(:time) ? val.utc.rfc3339(9) : val
-        end
-
-        def user_input_in_time_zone value
-          return value.in_time_zone if value.is_a? ::Time
-          super value
-        end
-
-        private
-
-        def cast_value value
-          if value.is_a? ::String
-            value = value.empty? ? nil : ::Time.parse(value)
-          end
-
-          value
         end
       end
     end
