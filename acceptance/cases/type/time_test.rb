@@ -44,10 +44,28 @@ module ActiveRecord
         assert_equal expected_time, record.start_time
       end
 
-      def test_date_time_string_value_with_subsecond_precision
-        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 897761
+      def test_date_time_string_value_with_timezone_aware_attributes
+        TestTypeModel.time_zone_aware_attributes = true
+        TestTypeModel.reset_column_information
 
         string_value = "2017-07-04 14:19:10.897761"
+        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 897761
+
+        record = TestTypeModel.new start_time: string_value
+        assert_equal expected_time, record.start_time.utc
+
+        record.save!
+        assert_equal expected_time, record.start_time.utc
+
+        assert_equal record, TestTypeModel.find_by(start_time: string_value)
+      ensure
+        TestTypeModel.time_zone_aware_attributes = false
+        TestTypeModel.reset_column_information
+      end
+
+      def test_date_time_string_value_with_subsecond_precision
+        string_value = "2017-07-04 14:19:10.897761"
+        expected_time = ::Time.local 2017, 07, 4, 14, 19, 10, 897761
 
         record = TestTypeModel.new start_time: string_value
         assert_equal expected_time, record.start_time.utc
@@ -71,9 +89,21 @@ module ActiveRecord
         assert_equal record, TestTypeModel.find_by(start_time: string_value)
       end
 
-      def test_default_year_is_correct
+      def test_multiparameter_time
         expected_time = ::Time.utc(2000, 1, 1, 10, 30, 0)
         record = TestTypeModel.new start_time: { 4 => 10, 5 => 30 }
+
+        assert_equal expected_time, record.start_time
+
+        record.save!
+        record.reload
+
+        assert_equal expected_time, record.start_time
+      end
+
+      def test_multiparameter_datetime
+        expected_time = ::Time.utc(2020, 12, 25, 10, 30, 0)
+        record = TestTypeModel.new start_time: { 1 => 2020, 2 => 12, 3 => 25, 4 => 10, 5 => 30 }
 
         assert_equal expected_time, record.start_time
 

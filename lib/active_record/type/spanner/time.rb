@@ -25,7 +25,7 @@ module ActiveRecord
         end
 
         def user_input_in_time_zone value
-          return value.in_time_zone if value.is_a? ::Time
+          return value.in_time_zone if value.respond_to?(:in_time_zone)
           super value
         end
 
