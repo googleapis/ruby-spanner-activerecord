@@ -89,9 +89,7 @@ module ActiveRecordSpannerAdapter
       @database ||= begin
         database = spanner.database instance_id, database_id
         unless database
-          raise ActiveRecord::NoDatabaseError(
-            "#{spanner.project}/#{instance_id}/#{database_id}"
-          )
+          raise ActiveRecord::NoDatabaseError, "#{spanner.project}/#{instance_id}/#{database_id}"
         end
         database
       end
