@@ -43,6 +43,13 @@ module ActiveRecord
         ActiveRecord::SchemaDumper.dump connection, schema
         assert schema.string.include?("t.index [\"singerid\", \"albumid\", \"title\"], name: \"index_tracks_on_singerid_and_albumid_and_title\", order: { singerid: :asc, albumid: :asc, title: :asc }, null_filtered: true, interleave_in: \"albums\""), schema.string
       end
+
+      def test_dump_schema_contains_commit_timestamp
+        connection = ActiveRecord::Base.connection
+        schema = StringIO.new
+        ActiveRecord::SchemaDumper.dump connection, schema
+        assert schema.string.include?("t.time \"last_updated\", allow_commit_timestamp: true"), schema.string
+      end
     end
   end
 end
