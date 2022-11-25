@@ -40,6 +40,14 @@ module ActiveRecord
           index_parts << "storing: #{format_index_parts index.storing}" if index.storing.present?
           index_parts
         end
+
+        private
+
+        def column_spec_for_primary_key column
+          spec = super
+          spec.except! :limit if default_primary_key? column
+          spec
+        end
       end
     end
   end
