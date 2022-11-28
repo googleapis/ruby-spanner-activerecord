@@ -24,17 +24,17 @@ def connector_config
   {
     "adapter" => "spanner",
     "emulator_host" => ENV["SPANNER_EMULATOR_HOST"],
-    "project" => ENV["SPANNER_TEST_PROJECT"],
+    "project" => ENV["SPANNER_PROJECT"],
     "instance" => ENV["SPANNER_TEST_INSTANCE"],
-    "credentials" => ENV["SPANNER_TEST_KEYFILE"],
+    "credentials" => ENV["SPANNER_KEYFILE_JSON"],
     "database" => $spanner_test_database
   }
 end
 
 def spanner
   $spanner ||= Google::Cloud::Spanner.new(
-    project_id: ENV["SPANNER_TEST_PROJECT"],
-    credentials: ENV["SPANNER_TEST_KEYFILE"]
+    project_id: ENV["SPANNER_PROJECT"],
+    credentials: ENV["SPANNER_KEYFILE_JSON"]
   )
 end
 
