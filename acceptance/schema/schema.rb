@@ -141,5 +141,8 @@ ActiveRecord::Schema.define do
       t.numeric :duration
       t.integer :lock_version
     end
+
+    add_index :tracks, [:singerid, :albumid, :title], interleave_in: :albums, null_filtered: true, unique: false
+
   end
 end
