@@ -1,5 +1,21 @@
 # Changelog
 
+### 1.3.0 (2022-12-08)
+
+#### Features
+
+* add check constraint support to migrations ([#205](https://github.com/googleapis/ruby-spanner-activerecord/issues/205)) 
+* allows passing of type parameter when creating parent_key column ([#195](https://github.com/googleapis/ruby-spanner-activerecord/issues/195)) 
+* include index options in the output of SchemaDumper ([#203](https://github.com/googleapis/ruby-spanner-activerecord/issues/203)) 
+* schema_dumper should use DDL batch ([#207](https://github.com/googleapis/ruby-spanner-activerecord/issues/207)) 
+* support column DEFAULT expressions in migrations ([#196](https://github.com/googleapis/ruby-spanner-activerecord/issues/196)) 
+#### Bug Fixes
+
+* ignore no database when recreating ([#208](https://github.com/googleapis/ruby-spanner-activerecord/issues/208)) 
+#### Documentation
+
+* fix typo in example of interleaved-tables ([#209](https://github.com/googleapis/ruby-spanner-activerecord/issues/209)) 
+
 ### 1.2.2 (2022-08-29)
 
 #### Documentation
