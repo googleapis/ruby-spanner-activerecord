@@ -143,6 +143,8 @@ module MockServerTests
   end
 
   def self.register_singers_columns_result_with_options spanner_mock_server, table_name, with_version_column
+    register_commit_timestamps_result spanner_mock_server, table_name
+
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='#{table_name}' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -255,6 +257,8 @@ module MockServerTests
   end
 
   def self.register_albums_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "albums"
+
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -309,6 +313,8 @@ module MockServerTests
   end
 
   def self.register_all_types_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "all_types"
+
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='all_types' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -508,6 +514,8 @@ module MockServerTests
   end
 
   def self.register_table_with_commit_timestamps_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "table_with_commit_timestamps", nil, "last_updated"
+
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='table_with_commit_timestamps' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -577,6 +585,29 @@ module MockServerTests
   end
 
   private
+
+  def self.register_commit_timestamps_result spanner_mock_server, table_name, column_name = nil, commit_timestamps_col = nil
+    option_sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='#{table_name}'"
+    option_sql << " AND COLUMN_NAME='#{column_name}'" if column_name
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_value = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_VALUE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push column_name, option_name, option_type, option_value
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+    row = Google::Protobuf::ListValue.new
+    if commit_timestamps_col
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: commit_timestamps_col),
+        Google::Protobuf::Value.new(string_value: "allow_commit_timestamp"),
+        Google::Protobuf::Value.new(string_value: "BOOL"),
+        Google::Protobuf::Value.new(string_value: "TRUE"),
+      )
+    end
+    result_set.rows.push row
+    spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)
+  end
 
   def self.register_key_columns_result spanner_mock_server, sql
     index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
