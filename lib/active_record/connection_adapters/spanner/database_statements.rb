@@ -35,7 +35,10 @@ module ActiveRecord
               binds.delete staleness_hint
             end
 
-            log sql, name do
+            log_args = [sql, name]
+            log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
+
+            log(*log_args) do
               types, params = to_types_and_params binds
               ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
                 if transaction_required
