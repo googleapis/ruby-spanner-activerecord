@@ -17,13 +17,13 @@ ActiveRecord::Schema.define(version: 1) do
     t.string "title"
     t.decimal "marketing_budget"
     t.integer "singer_id", limit: 8
-    t.time "last_updated"
+    t.time "last_updated", allow_commit_timestamp: true
   end
 
   create_table "singers", force: :cascade do |t|
     t.string "first_name"
     t.string "last_name"
-    t.time "last_updated"
+    t.time "last_updated", allow_commit_timestamp: true
   end
 
   add_foreign_key "albums", "singers"

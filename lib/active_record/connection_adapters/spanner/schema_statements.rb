@@ -111,13 +111,13 @@ module ActiveRecord
           ConnectionAdapters::Column.new \
             field.name,
             field.default,
-            fetch_type_metadata(field.spanner_type, field.ordinal_position),
+            fetch_type_metadata(field.spanner_type, field.ordinal_position, field.allow_commit_timestamp),
             field.nullable
         end
 
-        def fetch_type_metadata sql_type, ordinal_position = nil
+        def fetch_type_metadata sql_type, ordinal_position = nil, allow_commit_timestamp = nil
           Spanner::TypeMetadata.new \
-            super(sql_type), ordinal_position: ordinal_position
+            super(sql_type), ordinal_position: ordinal_position, allow_commit_timestamp: allow_commit_timestamp
         end
 
         def add_column table_name, column_name, type, **options
