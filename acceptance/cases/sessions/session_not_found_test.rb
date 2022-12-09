@@ -37,7 +37,7 @@ module ActiveRecord
         @client ||= Google::Cloud::Spanner::V1::Spanner::Client.new do |config|
           config.credentials = ENV["SPANNER_EMULATOR_HOST"] \
             ? :this_channel_is_insecure \
-            : ENV["SPANNER_TEST_KEYFILE"] || ENV["GCLOUD_TEST_KEYFILE"]
+            : ENV["SPANNER_KEYFILE_JSON"]
           config.endpoint = ENV["SPANNER_EMULATOR_HOST"] if ENV["SPANNER_EMULATOR_HOST"]
         end
       end
@@ -45,7 +45,7 @@ module ActiveRecord
       def delete_all_sessions
         sessions = client.list_sessions(
           Google::Cloud::Spanner::V1::ListSessionsRequest.new(
-            database: "projects/#{ENV["SPANNER_TEST_PROJECT"]}/instances/#{ENV["SPANNER_TEST_INSTANCE"]}/databases/#{$spanner_test_database}"
+            database: "projects/#{ENV["SPANNER_PROJECT"]}/instances/#{ENV["SPANNER_TEST_INSTANCE"]}/databases/#{$spanner_test_database}"
           )
         )
         sessions.each do |session|
