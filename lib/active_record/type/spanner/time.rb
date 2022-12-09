@@ -10,9 +10,16 @@ module ActiveRecord
   module Type
     module Spanner
       class Time < ActiveRecord::Type::Time
-        def serialize value, *options
-          return "PENDING_COMMIT_TIMESTAMP()" if value == :commit_timestamp && options.length && options[0] == :dml
-          return "spanner.commit_timestamp()" if value == :commit_timestamp && options.length && options[0] == :mutation
+        def serialize_with_isolation_level value, isolation_level
+          if value == :commit_timestamp
+            return "PENDING_COMMIT_TIMESTAMP()" if isolation_level == :dml
+            return "spanner.commit_timestamp()" if isolation_level == :mutation
+          end
+
+          serialize value
+        end
+
+        def serialize value
           val = super value
           val.acts_like?(:time) ? val.utc.rfc3339(9) : val
         end

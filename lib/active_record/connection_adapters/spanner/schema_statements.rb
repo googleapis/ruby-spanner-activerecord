@@ -39,18 +39,19 @@ module ActiveRecord
         end
         alias data_source_exists? table_exists?
 
-        def create_table table_name, **options
+        def create_table table_name, id: :primary_key, **options
           td = create_table_definition table_name, options
 
-          if options[:id] != false
+          if id
             pk = options.fetch :primary_key do
               Base.get_primary_key table_name.to_s.singularize
             end
+            id = id.fetch :type, :primary_key if id.is_a? Hash
 
             if pk.is_a? Array
               td.primary_keys pk
             else
-              td.primary_key pk, options.fetch(:id, :primary_key), **{}
+              td.primary_key pk, id, **{}
             end
           end
 
@@ -111,13 +112,13 @@ module ActiveRecord
           ConnectionAdapters::Column.new \
             field.name,
             field.default,
-            fetch_type_metadata(field.spanner_type, field.ordinal_position),
+            fetch_type_metadata(field.spanner_type, field.ordinal_position, field.allow_commit_timestamp),
             field.nullable
         end
 
-        def fetch_type_metadata sql_type, ordinal_position = nil
+        def fetch_type_metadata sql_type, ordinal_position = nil, allow_commit_timestamp = nil
           Spanner::TypeMetadata.new \
-            super(sql_type), ordinal_position: ordinal_position
+            super(sql_type), ordinal_position: ordinal_position, allow_commit_timestamp: allow_commit_timestamp
         end
 
         def add_column table_name, column_name, type, **options
