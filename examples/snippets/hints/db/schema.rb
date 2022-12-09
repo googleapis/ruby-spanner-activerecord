@@ -11,7 +11,8 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema.define(version: 1) do
-connection.start_batch_ddl
+  connection.start_batch_ddl
+
   create_table "albums", id: { limit: 8 }, force: :cascade do |t|
     t.string "title"
     t.integer "singer_id", limit: 8

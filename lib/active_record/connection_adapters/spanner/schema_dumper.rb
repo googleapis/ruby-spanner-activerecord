@@ -35,7 +35,8 @@ module ActiveRecord
           super str
           stream.puts <<~HEADER
             #{str.string.rstrip}
-            connection.start_batch_ddl
+              connection.start_batch_ddl
+
           HEADER
         end
 
