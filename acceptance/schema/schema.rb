@@ -8,7 +8,7 @@
 
 ActiveRecord::Schema.define do
   ActiveRecord::Base.connection.ddl_batch do
-    create_table :all_types do |t|
+    create_table :all_types, id: { limit: 8 } do |t|
       t.column :col_string, :string
       t.column :col_int64, :bigint
       t.column :col_float64, :float
