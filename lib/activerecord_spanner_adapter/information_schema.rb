@@ -69,17 +69,22 @@ module ActiveRecordSpannerAdapter
       sql << " AND COLUMN_NAME=%<column_name>s" if column_name
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
+      column_options = column_options table_name, column_name
       execute_query(
         sql,
         table_name: table_name,
         column_name: column_name
       ).map do |row|
         type, limit = parse_type_and_limit row["SPANNER_TYPE"]
+        column_name = row["COLUMN_NAME"]
+        options = column_options[column_name]
+
         Table::Column.new \
           table_name,
-          row["COLUMN_NAME"],
+          column_name,
           type,
           limit: limit,
+          allow_commit_timestamp: options["allow_commit_timestamp"],
           ordinal_position: row["ORDINAL_POSITION"],
           nullable: row["IS_NULLABLE"] == "YES",
           default: row["COLUMN_DEFAULT"]
@@ -272,6 +277,27 @@ module ActiveRecordSpannerAdapter
     end
 
     private
+
+    def column_options table_name, column_name
+      sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE"
+      sql << " FROM INFORMATION_SCHEMA.COLUMN_OPTIONS"
+      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " AND COLUMN_NAME=%<column_name>s" if column_name
+
+      column_options = Hash.new { |h, k| h[k] = {} }
+      execute_query(
+        sql,
+        table_name: table_name,
+        column_name: column_name
+      ).each_with_object(column_options) do |row, options|
+        next unless row["OPTION_TYPE"] == "BOOL"
+
+        col = row["COLUMN_NAME"]
+        opt = row["OPTION_NAME"]
+        value = row["OPTION_VALUE"] == "TRUE"
+        options[col][opt] = value
+      end
+    end
 
     def execute_query sql, params = {}
       params = params.transform_values { |v| quote v }

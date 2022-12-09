@@ -229,9 +229,10 @@ module ActiveRecord
       serialized_values = []
       columns = []
       values.each_pair do |k, v|
-        v = unwrap_attribute v
-        type = metadata.type k
-        serialized_values << (type.method(:serialize).arity < 0 ? type.serialize(v, :mutation) : type.serialize(v))
+        serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                             .serialize_with_transaction_isolation_level(metadata.type(k),
+                                                                         unwrap_attribute(v),
+                                                                         :mutation)
         columns << metadata.arel_table[k].name
       end
       [columns, Google::Protobuf::Value.new(list_value:
@@ -280,10 +281,10 @@ module ActiveRecord
       all_columns = []
       all_values.each do |h|
         h.each_pair do |k, v|
-          type = metadata.type k
-          v = self.class.unwrap_attribute v
-          has_serialize_options = type.method(:serialize).arity < 0
-          all_serialized_values << (has_serialize_options ? type.serialize(v, :mutation) : type.serialize(v))
+          all_serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                                   .serialize_with_transaction_isolation_level(metadata.type(k),
+                                                                               self.class.unwrap_attribute(v),
+                                                                               :mutation)
           all_columns << metadata.arel_table[k].name
         end
       end
@@ -328,10 +329,10 @@ module ActiveRecord
     def serialize_keys metadata, keys
       serialized_values = []
       keys.each do |key|
-        type = metadata.type key
-        has_serialize_options = type.method(:serialize).arity < 0
-        serialized_values << type.serialize(attribute_in_database(key), :mutation) if has_serialize_options
-        serialized_values << type.serialize(attribute_in_database(key)) unless has_serialize_options
+        serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                             .serialize_with_transaction_isolation_level(metadata.type(key),
+                                                                         attribute_in_database(key),
+                                                                         :mutation)
       end
       serialized_values
     end
