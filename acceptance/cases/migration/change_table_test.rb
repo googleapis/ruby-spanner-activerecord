@@ -37,7 +37,7 @@ module ActiveRecord
 
       def test_references_column_type_with_polymorphic_and_options_null_is_false_adds_table_flag
         with_change_table do |t|
-          @connection.expect :add_reference, nil, [:delete_me, :taggable, polymorphic: true, null: false]
+          @connection.expect :add_reference, nil, [:delete_me, :taggable], polymorphic: true, null: false
           t.references :taggable, polymorphic: true, null: false
         end
       end
