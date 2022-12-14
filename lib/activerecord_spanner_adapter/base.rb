@@ -143,7 +143,7 @@ module ActiveRecord
       primary_key.each do |col|
         value = values[col]
 
-        if !value && prefetch_primary_key?
+        if (value.nil? || value.is_a?(ActiveModel::Attribute) && value.value.nil?) && prefetch_primary_key?
           value =
             if ActiveRecord::VERSION::MAJOR >= 7
               ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
