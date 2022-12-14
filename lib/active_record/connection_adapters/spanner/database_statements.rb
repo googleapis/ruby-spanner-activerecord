@@ -222,8 +222,9 @@ module ActiveRecord
           end.to_h
           params = binds.enum_for(:each_with_index).map do |bind, i|
             type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
+            bind_value = bind.respond_to?(:value) ? bind.value : bind
             value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                    .serialize_with_transaction_isolation_level(type, bind.value, :dml)
+                    .serialize_with_transaction_isolation_level(type, bind_value, :dml)
 
             ["p#{i + 1}", value]
           end.to_h
