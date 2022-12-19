@@ -59,15 +59,24 @@ module ActiveRecord
           next if ignore_tables.any? &&
                   (table_regx =~ statement || index_regx =~ statement)
           file.write statement
-          file.write "\n"
+          file.write ";\n"
         end
       ensure
         file.close
       end
 
       def structure_load filename, _extra_flags
-        statements = File.read(filename).split(/(?=^CREATE)/)
-        @connection.execute_ddl statements
+        statements = File.read(filename).split(/;/).map(&:strip).reject(&:empty?)
+        ddls = statements.select { |s| s =~ /^CREATE/ }
+        @connection.execute_ddl ddls
+
+        client = @connection.spanner.client @connection.instance_id,
+                                            @connection.database_id
+        dmls = statements.reject { |s| s =~ /^CREATE/ }
+
+        client.transaction do |tx|
+          dmls.each { |dml| tx.execute_query dml }
+        end
       end
     end
 
