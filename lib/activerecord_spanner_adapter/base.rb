@@ -141,29 +141,41 @@ module ActiveRecord
     def self._set_composite_primary_key_values primary_key, values
       primary_key_value = []
       primary_key.each do |col|
-        value = values[col]
-
-        if !value && prefetch_primary_key?
-          value =
-            if ActiveRecord::VERSION::MAJOR >= 7
-              ActiveModel::Attribute.from_database col, next_sequence_value, ActiveModel::Type::BigInteger.new
-            else
-              next_sequence_value
-            end
-          values[col] = value
-        end
-        if value.is_a? ActiveModel::Attribute
-          value = value.value
-        end
-        primary_key_value.append value
+        primary_key_value.append _set_composite_primary_key_value col, values
       end
       primary_key_value
+    end
+
+    def self._set_composite_primary_key_value primary_key, values
+      value = values[primary_key]
+
+      if value.is_a? ActiveModel::Attribute
+        value = value.value
+      end
+
+      return value unless prefetch_primary_key?
+
+      if value.nil?
+        value = next_sequence_value
+      end
+
+      values[primary_key] =
+        if ActiveRecord::VERSION::MAJOR >= 7
+          ActiveModel::Attribute.from_database primary_key, value,
+                                               ActiveModel::Type::BigInteger.new
+        else
+          value
+        end
+
+      value
     end
 
     def self._set_single_primary_key_value primary_key, values
       primary_key_value = values[primary_key] || values[primary_key.to_sym]
 
-      if !primary_key_value && prefetch_primary_key?
+      return primary_key_value unless prefetch_primary_key?
+
+      if primary_key_value.nil?
         primary_key_value = next_sequence_value
         if ActiveRecord::VERSION::MAJOR >= 7
           values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value,
@@ -172,6 +184,7 @@ module ActiveRecord
           values[primary_key] = primary_key_value
         end
       end
+
       primary_key_value
     end
 
