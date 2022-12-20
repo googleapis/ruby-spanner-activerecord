@@ -77,11 +77,9 @@ module ActiveRecord
           end
 
         tables = connection.tables.sort
-        if db_config.respond_to?(:name)
-          filename = ActiveRecord::Tasks::DatabaseTasks.dump_filename(db_config.name, :sql)
-        else
-          filename = ActiveRecord::Tasks::DatabaseTasks.dump_filename(:sql)
-        end
+        config_name = "primary"
+        config_name = db_config.name if db_config.respond_to?(:name)
+        filename = ActiveRecord::Tasks::DatabaseTasks.dump_filename(config_name, :sql)
         ActiveRecord::Tasks::DatabaseTasks.dump_schema db_config, :sql
         sql = File.read(filename)
         assert_equal expected_schema_sql, sql
