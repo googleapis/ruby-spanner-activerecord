@@ -9,42 +9,6 @@
 require "test_helper"
 require "active_record/tasks/spanner_database_tasks"
 
-# TODO: Delete this patch after https://github.com/rails/rails/pull/46747 is merged
-#       or Spanner Adapter patches this on itself.
-module ActiveRecord::ConnectionAdapters::SchemaStatements
-  def assume_migrated_upto_version(version)
-    version = version.to_i
-    sm_table = quote_table_name(schema_migration.table_name)
-
-    migrated = migration_context.get_all_versions
-    versions = migration_context.migrations.map(&:version)
-
-    execute "INSERT INTO #{sm_table} (version) VALUES (#{quote(version.to_s)})" unless migrated.include?(version)
-
-    inserting = (versions - migrated).select { |v| v < version }
-    if inserting.any?
-      if (duplicate = inserting.detect { |v| inserting.count(v) > 1 })
-        raise "Duplicate migration #{duplicate}. Please renumber your migrations to resolve the conflict."
-      end
-
-      execute insert_versions_sql(inserting)
-    end
-  end
-
-  def insert_versions_sql(versions)
-    sm_table = quote_table_name(schema_migration.table_name)
-
-    if versions.is_a?(Array)
-      sql = +"INSERT INTO #{sm_table} (version) VALUES\n"
-      sql << versions.reverse.map { |v| "(#{quote(v.to_s)})" }.join(",\n")
-      sql << ';'
-      sql
-    else
-      "INSERT INTO #{sm_table} (version) VALUES (#{quote(versions.to_s)});"
-    end
-  end
-end
-
 module ActiveRecord
   module Tasks
     class DatabaseTasksTest < SpannerAdapter::TestCase
@@ -100,11 +64,8 @@ module ActiveRecord
       end
 
       def test_structure_dump_and_load
-        ActiveRecord::Schema.define(version: 1) do
-          create_table :tasks_table do |t|
-            t.string :body
-          end
-        end
+        require_relative "../../schema/schema"
+        create_tables_in_test_schema
 
         db_config =
           if ActiveRecord.version >= Gem::Version.new("6.1")
@@ -116,12 +77,168 @@ module ActiveRecord
           end
 
         tables = connection.tables.sort
+        filename = ActiveRecord::Tasks::DatabaseTasks.dump_filename(db_config.name, :sql)
         ActiveRecord::Tasks::DatabaseTasks.dump_schema db_config, :sql
+        sql = File.read(filename)
+        assert_equal expected_schema_sql, sql
         drop_database
         create_database
         ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
         assert_equal tables, connection.tables.sort
       end
+
+      def expected_schema_sql
+        "CREATE TABLE all_types (
+  id INT64 NOT NULL,
+  col_string STRING(MAX),
+  col_int64 INT64,
+  col_float64 FLOAT64,
+  col_numeric NUMERIC,
+  col_bool BOOL,
+  col_bytes BYTES(MAX),
+  col_date DATE,
+  col_timestamp TIMESTAMP,
+  col_json JSON,
+  col_array_string ARRAY<STRING(MAX)>,
+  col_array_int64 ARRAY<INT64>,
+  col_array_float64 ARRAY<FLOAT64>,
+  col_array_numeric ARRAY<NUMERIC>,
+  col_array_bool ARRAY<BOOL>,
+  col_array_bytes ARRAY<BYTES(MAX)>,
+  col_array_date ARRAY<DATE>,
+  col_array_timestamp ARRAY<TIMESTAMP>,
+  col_array_json ARRAY<JSON>,
+) PRIMARY KEY(id);
+CREATE TABLE firms (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  rating INT64,
+  description STRING(MAX),
+  account_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_firms_on_account_id ON firms(account_id);
+CREATE TABLE customers (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE accounts (
+  id INT64 NOT NULL,
+  customer_id INT64,
+  firm_id INT64,
+  name STRING(MAX),
+  credit_limit INT64,
+  transactions_count INT64,
+) PRIMARY KEY(id);
+CREATE TABLE transactions (
+  id INT64 NOT NULL,
+  amount FLOAT64,
+  account_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE departments (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  resource_type STRING(255),
+  resource_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_departments_on_resource ON departments(resource_type, resource_id);
+CREATE TABLE member_types (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE members (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  member_type_id INT64,
+  admittable_type STRING(255),
+  admittable_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE memberships (
+  id INT64 NOT NULL,
+  joined_on TIMESTAMP,
+  club_id INT64,
+  member_id INT64,
+  favourite BOOL,
+) PRIMARY KEY(id);
+CREATE TABLE clubs (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE authors (
+  id INT64 NOT NULL,
+  name STRING(MAX) NOT NULL,
+  registered_date DATE,
+  organization_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE posts (
+  id INT64 NOT NULL,
+  title STRING(MAX),
+  content STRING(MAX),
+  author_id INT64,
+  comments_count INT64,
+  post_date DATE,
+  published_time TIMESTAMP,
+) PRIMARY KEY(id);
+CREATE INDEX index_posts_on_author_id ON posts(author_id);
+CREATE TABLE comments (
+  id INT64 NOT NULL,
+  comment STRING(MAX),
+  post_id INT64,
+  CONSTRAINT fk_rails_2fd19c0db7 FOREIGN KEY(post_id) REFERENCES posts(id),
+) PRIMARY KEY(id);
+CREATE TABLE addresses (
+  id INT64 NOT NULL,
+  line1 STRING(MAX),
+  postal_code STRING(MAX),
+  city STRING(MAX),
+  author_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE organizations (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  last_updated TIMESTAMP OPTIONS (
+    allow_commit_timestamp = true
+  ),
+) PRIMARY KEY(id);
+CREATE TABLE singers (
+  singerid INT64 NOT NULL,
+  first_name STRING(200),
+  last_name STRING(MAX),
+  tracks_count INT64,
+  lock_version INT64,
+  full_name STRING(MAX) AS (COALESCE(first_name || ' ', '') || last_name) STORED,
+) PRIMARY KEY(singerid);
+CREATE TABLE albums (
+  albumid INT64 NOT NULL,
+  singerid INT64 NOT NULL,
+  title STRING(MAX),
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid),
+  INTERLEAVE IN PARENT singers ON DELETE NO ACTION;
+CREATE TABLE tracks (
+  trackid INT64 NOT NULL,
+  singerid INT64 NOT NULL,
+  albumid INT64 NOT NULL,
+  title STRING(MAX),
+  duration NUMERIC,
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid, trackid),
+  INTERLEAVE IN PARENT albums ON DELETE CASCADE;
+CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE schema_migrations (
+  version STRING(MAX) NOT NULL,
+) PRIMARY KEY(version);
+CREATE TABLE ar_internal_metadata (
+  key STRING(MAX) NOT NULL,
+  value STRING(MAX),
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+) PRIMARY KEY(key);
+INSERT INTO `schema_migrations` (version) VALUES
+('1');
+
+"
+      end
     end
   end
 end
+

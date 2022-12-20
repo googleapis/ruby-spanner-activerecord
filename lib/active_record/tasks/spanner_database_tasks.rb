@@ -67,12 +67,12 @@ module ActiveRecord
 
       def structure_load filename, _extra_flags
         statements = File.read(filename).split(/;/).map(&:strip).reject(&:empty?)
-        ddls = statements.select { |s| s =~ /^CREATE/ }
+        ddls = statements.select { |s| s =~ /^[CREATE|ALTER|DROP|GRANT|REVOKE|ANALYZE]/ }
         @connection.execute_ddl ddls
 
         client = @connection.spanner.client @connection.instance_id,
                                             @connection.database_id
-        dmls = statements.reject { |s| s =~ /^CREATE/ }
+        dmls = statements.reject { |s| s =~ /^[CREATE|ALTER|DROP|GRANT|REVOKE|ANALYZE]/ }
 
         client.transaction do |tx|
           dmls.each { |dml| tx.execute_query dml }

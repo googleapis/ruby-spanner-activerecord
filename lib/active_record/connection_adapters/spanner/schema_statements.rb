@@ -383,6 +383,38 @@ module ActiveRecord
           information_schema { |i| i.check_constraints table_name }
         end
 
+        def assume_migrated_upto_version(version)
+          version = version.to_i
+          sm_table = quote_table_name(schema_migration.table_name)
+
+          migrated = migration_context.get_all_versions
+          versions = migration_context.migrations.map(&:version)
+
+          execute "INSERT INTO #{sm_table} (version) VALUES (#{quote(version.to_s)})" unless migrated.include?(version)
+
+          inserting = (versions - migrated).select { |v| v < version }
+          if inserting.any?
+            if (duplicate = inserting.detect { |v| inserting.count(v) > 1 })
+              raise "Duplicate migration #{duplicate}. Please renumber your migrations to resolve the conflict."
+            end
+
+            execute insert_versions_sql(inserting)
+          end
+        end
+
+        def insert_versions_sql(versions)
+          sm_table = quote_table_name(schema_migration.table_name)
+
+          if versions.is_a?(Array)
+            sql = +"INSERT INTO #{sm_table} (version) VALUES\n"
+            sql << versions.reverse.map { |v| "(#{quote(v.to_s)})" }.join(",\n")
+            sql << ';'
+            sql
+          else
+            "INSERT INTO #{sm_table} (version) VALUES (#{quote(versions.to_s)});"
+          end
+        end
+
         def quoted_scope name = nil, type: nil
           scope = { schema: quote("") }
           scope[:name] = quote name if name
