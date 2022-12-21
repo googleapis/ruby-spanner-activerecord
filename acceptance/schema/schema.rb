@@ -57,7 +57,7 @@ def create_tables_in_test_schema
 
       create_table :departments do |t|
         t.string :name
-        t.references :resource, polymorphic: true
+        t.references :resource, polymorphic: true, index: { name: "index_departments_on_resource" }
       end
 
       create_table :member_types do |t|
