@@ -94,7 +94,7 @@ module ActiveRecord
       def test_index_exists_with_options
         with_change_table do |t|
           @connection.expect :index_exists?, nil, [:delete_me, :bar, {unique: true}]
-          t.index_exists?(:bar, {unique: true})
+          t.index_exists?(:bar, unique: true)
         end
       end
 
