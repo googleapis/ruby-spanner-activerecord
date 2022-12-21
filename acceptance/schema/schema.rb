@@ -57,7 +57,7 @@ def create_tables_in_test_schema
 
       create_table :departments do |t|
         t.string :name
-        t.references :resource, polymorphic: true, index: { name: "index_departments_on_resource" }
+        t.references :resource, polymorphic: true
       end
 
       create_table :member_types do |t|
@@ -119,7 +119,7 @@ def create_tables_in_test_schema
         t.string :last_name
         t.integer :tracks_count
         t.integer :lock_version
-        t.string :full_name, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
+        t.virtual :full_name, type: :string, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
       end
 
       create_table :albums, id: false do |t|

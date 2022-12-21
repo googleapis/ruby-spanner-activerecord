@@ -33,6 +33,15 @@ module ActiveRecord
           end
         end
         alias belongs_to references
+
+        def new_column_definition name, type, **options
+          case type
+          when :virtual
+            type = options[:type]
+          end
+
+          super
+        end
       end
 
       class Table < ActiveRecord::ConnectionAdapters::Table

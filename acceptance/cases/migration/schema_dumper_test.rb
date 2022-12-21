@@ -50,6 +50,13 @@ module ActiveRecord
         ActiveRecord::SchemaDumper.dump connection, schema
         assert schema.string.include?("t.time \"last_updated\", allow_commit_timestamp: true"), schema.string
       end
+
+      def test_dump_schema_contains_virtual_column
+        connection = ActiveRecord::Base.connection
+        schema = StringIO.new
+        ActiveRecord::SchemaDumper.dump connection, schema
+        assert schema.string.include?("t.virtual \"full_name\", type: :string, as: \"COALESCE(first_name || ' ', '') || last_name\", stored: true"), schema.string
+      end
     end
   end
 end

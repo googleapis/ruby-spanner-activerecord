@@ -14,19 +14,21 @@ module ActiveRecord
 
         include Deduplicable if defined?(Deduplicable)
 
-        attr_reader :ordinal_position, :allow_commit_timestamp
+        attr_reader :ordinal_position, :allow_commit_timestamp, :generated
 
-        def initialize type_metadata, ordinal_position: nil, allow_commit_timestamp: nil
+        def initialize type_metadata, ordinal_position: nil, allow_commit_timestamp: nil, generated: nil
           super type_metadata
           @ordinal_position = ordinal_position
           @allow_commit_timestamp = allow_commit_timestamp
+          @generated = generated
         end
 
         def == other
           other.is_a?(TypeMetadata) &&
             __getobj__ == other.__getobj__ &&
             ordinal_position == other.ordinal_position &&
-            allow_commit_timestamp == other.allow_commit_timestamp
+            allow_commit_timestamp == other.allow_commit_timestamp &&
+            generated == other.generated
         end
         alias eql? ==
 
@@ -34,7 +36,8 @@ module ActiveRecord
           TypeMetadata.hash ^
             __getobj__.hash ^
             ordinal_position.hash ^
-            allow_commit_timestamp.hash
+            allow_commit_timestamp.hash ^
+            generated.hash
         end
 
         private

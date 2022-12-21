@@ -145,16 +145,17 @@ module MockServerTests
   def self.register_singers_columns_result_with_options spanner_mock_server, table_name, with_version_column
     register_commit_timestamps_result spanner_mock_server, table_name
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='#{table_name}' ORDER BY ORDINAL_POSITION ASC"
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='#{table_name}' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -162,6 +163,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "id"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -172,6 +174,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -180,6 +183,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "last_name"),
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -190,6 +194,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "4")
     )
     result_set.rows.push row
@@ -198,6 +203,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "picture"),
       Google::Protobuf::Value.new(string_value: "BYTES(MAX)"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "5")
     )
@@ -208,6 +214,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "NUMERIC"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "6")
     )
     result_set.rows.push row
@@ -217,6 +224,7 @@ module MockServerTests
         Google::Protobuf::Value.new(string_value: "lock_version"),
         Google::Protobuf::Value.new(string_value: "INT64"),
         Google::Protobuf::Value.new(string_value: "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "7")
       )
@@ -259,16 +267,17 @@ module MockServerTests
   def self.register_albums_columns_result spanner_mock_server
     register_commit_timestamps_result spanner_mock_server, "albums"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -276,6 +285,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "id"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -286,6 +296,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -294,6 +305,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "singer_id"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -315,16 +327,17 @@ module MockServerTests
   def self.register_all_types_columns_result spanner_mock_server
     register_commit_timestamps_result spanner_mock_server, "all_types"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='all_types' ORDER BY ORDINAL_POSITION ASC"
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='all_types' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -332,6 +345,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "id"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -342,6 +356,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -350,6 +365,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_int64"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -360,6 +376,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "FLOAT64"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "4")
     )
     result_set.rows.push row
@@ -368,6 +385,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_numeric"),
       Google::Protobuf::Value.new(string_value: "NUMERIC"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "5")
     )
@@ -378,6 +396,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "BOOL"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "6")
     )
     result_set.rows.push row
@@ -386,6 +405,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_bytes"),
       Google::Protobuf::Value.new(string_value: "BYTES(MAX)"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "7")
     )
@@ -396,6 +416,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "DATE"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "8")
     )
     result_set.rows.push row
@@ -405,6 +426,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "9")
     )
     result_set.rows.push row
@@ -413,6 +435,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_json"),
       Google::Protobuf::Value.new(string_value: "JSON"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "10")
     )
@@ -424,6 +447,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<STRING(MAX)>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "11")
     )
     result_set.rows.push row
@@ -432,6 +456,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_array_int64"),
       Google::Protobuf::Value.new(string_value: "ARRAY<INT64>"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "12")
     )
@@ -442,6 +467,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<FLOAT64>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "13")
     )
     result_set.rows.push row
@@ -450,6 +476,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_array_numeric"),
       Google::Protobuf::Value.new(string_value: "ARRAY<NUMERIC>"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "14")
     )
@@ -460,6 +487,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<BOOL>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "15")
     )
     result_set.rows.push row
@@ -468,6 +496,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_array_bytes"),
       Google::Protobuf::Value.new(string_value: "ARRAY<BYTES(MAX)>"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "16")
     )
@@ -478,6 +507,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<DATE>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "17")
     )
     result_set.rows.push row
@@ -487,6 +517,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "ARRAY<TIMESTAMP>"),
       Google::Protobuf::Value.new(string_value: "YES"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "18")
     )
     result_set.rows.push row
@@ -495,6 +526,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "col_array_json"),
       Google::Protobuf::Value.new(string_value: "ARRAY<JSON>"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "19")
     )
@@ -516,16 +548,17 @@ module MockServerTests
   def self.register_table_with_commit_timestamps_columns_result spanner_mock_server
     register_commit_timestamps_result spanner_mock_server, "table_with_commit_timestamps", nil, "last_updated"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='table_with_commit_timestamps' ORDER BY ORDINAL_POSITION ASC"
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='table_with_commit_timestamps' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -533,6 +566,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "id"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -543,6 +577,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -551,6 +586,7 @@ module MockServerTests
       Google::Protobuf::Value.new(string_value: "last_updated"),
       Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
