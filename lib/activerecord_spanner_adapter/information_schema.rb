@@ -62,7 +62,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def table_columns table_name, column_name: nil
-      sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE,"
+      sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION,"
       sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION"
       sql << " FROM INFORMATION_SCHEMA.COLUMNS"
       sql << " WHERE TABLE_NAME=%<table_name>s"
@@ -87,7 +87,9 @@ module ActiveRecordSpannerAdapter
           allow_commit_timestamp: options["allow_commit_timestamp"],
           ordinal_position: row["ORDINAL_POSITION"],
           nullable: row["IS_NULLABLE"] == "YES",
-          default: row["COLUMN_DEFAULT"]
+          default: row["COLUMN_DEFAULT"],
+          default_function: row["GENERATION_EXPRESSION"],
+          generated: row["GENERATION_EXPRESSION"].present?
       end
     end
 

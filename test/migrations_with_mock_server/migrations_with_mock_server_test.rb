@@ -363,7 +363,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
       register_empty_select_index_columns_result select_index_columns_sql
@@ -381,7 +381,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_add_not_null
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
       register_empty_select_index_columns_result select_index_columns_sql
@@ -399,7 +399,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_remove_not_null
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
       register_empty_select_index_columns_result select_index_columns_sql
@@ -419,7 +419,7 @@ module TestMigrationsWithMockServer
     def test_rename_column
       # Cloud Spanner does not support renaming a column, so instead the migration will create a new column, copy the
       # data from the old column to the new column, and then drop the old column.
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
       register_empty_select_index_columns_result select_index_columns_sql
@@ -943,7 +943,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
       MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
@@ -960,7 +960,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column_with_options
-      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
+      select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
       MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
@@ -1039,16 +1039,17 @@ module TestMigrationsWithMockServer
       # CREATE TABLE `schema_migrations` (`version` STRING(MAX) NOT NULL) PRIMARY KEY (`version`)
       MockServerTests::register_commit_timestamps_result @mock, "schema_migrations"
 
-      sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='schema_migrations' ORDER BY ORDINAL_POSITION ASC"
+      sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='schema_migrations' ORDER BY ORDINAL_POSITION ASC"
 
       column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-      metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+      metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
       row = Google::Protobuf::ListValue.new
@@ -1056,6 +1057,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: "version"),
         Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
         Google::Protobuf::Value.new(string_value: "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "1")
       )
@@ -1073,16 +1075,17 @@ module TestMigrationsWithMockServer
       # CREATE TABLE `ar_internal_metadata` (`key` STRING(MAX) NOT NULL, `value` STRING(MAX), `created_at` TIMESTAMP NOT NULL, `updated_at` TIMESTAMP NOT NULL) PRIMARY KEY (`key`)
       MockServerTests::register_commit_timestamps_result @mock, "ar_internal_metadata"
 
-      sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ar_internal_metadata' ORDER BY ORDINAL_POSITION ASC"
+      sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ar_internal_metadata' ORDER BY ORDINAL_POSITION ASC"
 
       column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-      metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+      metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
       row = Google::Protobuf::ListValue.new
@@ -1090,6 +1093,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: "key"),
         Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
         Google::Protobuf::Value.new(string_value: "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "1")
       )
@@ -1100,6 +1104,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
         Google::Protobuf::Value.new(string_value: "YES"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "2")
       )
       result_set.rows.push row
@@ -1109,6 +1114,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
         Google::Protobuf::Value.new(string_value: "NO"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "3")
       )
       result_set.rows.push row
@@ -1117,6 +1123,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: "updated_at"),
         Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
         Google::Protobuf::Value.new(string_value: "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "4")
       )
@@ -1197,11 +1204,12 @@ module TestMigrationsWithMockServer
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-      metadata.row_type.fields.push col_column_name, col_spanner_type, col_is_nullable, col_column_default, col_ordinal_position
+      metadata.row_type.fields.push col_column_name, col_spanner_type, col_is_nullable, col_generation_expression, col_column_default, col_ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
       row = Google::Protobuf::ListValue.new
@@ -1209,6 +1217,7 @@ module TestMigrationsWithMockServer
         Google::Protobuf::Value.new(string_value: column_name),
         Google::Protobuf::Value.new(string_value: spanner_type),
         Google::Protobuf::Value.new(string_value: is_nullable ? "YES" : "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: "1")
       )
@@ -1278,21 +1287,23 @@ module TestMigrationsWithMockServer
 
     def register_select_single_column_result sql, column_name, spanner_type, is_nullable = true
       MockServerTests::register_commit_timestamps_result @mock, "singers", column_name
-      # "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
+      # "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+      col_generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-      metadata.row_type.fields.push col_column_name, col_spanner_type, col_is_nullable, col_column_default, col_ordinal_position
+      metadata.row_type.fields.push col_column_name, col_spanner_type, col_is_nullable, col_generation_expression, col_column_default, col_ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
       row = Google::Protobuf::ListValue.new
       row.values.push(
         Google::Protobuf::Value.new(string_value: column_name),
         Google::Protobuf::Value.new(string_value: spanner_type),
         Google::Protobuf::Value.new(string_value: is_nullable ? "YES" : "NO"),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
         Google::Protobuf::Value.new(string_value: ""),
         Google::Protobuf::Value.new(string_value: "1")
       )
