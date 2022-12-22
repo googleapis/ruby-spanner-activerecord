@@ -86,15 +86,25 @@ module ActiveRecord
 
       def test_index_exists
         with_change_table do |t|
-          @connection.expect :index_exists?, nil, [:delete_me, :bar, {}]
-          t.index_exists?(:bar, {})
+          if RUBY_VERSION.split(".").first.to_i >= 3
+            @connection.expect :index_exists?, nil, [:delete_me, :bar, {}]
+            t.index_exists?(:bar, {})
+          else
+            @connection.expect :index_exists?, nil, [:delete_me, :bar]
+            t.index_exists?(:bar)
+          end
         end
       end
 
       def test_index_exists_with_options
         with_change_table do |t|
-          @connection.expect :index_exists?, nil, [:delete_me, :bar, {unique: true}]
-          t.index_exists?(:bar, {unique: true})
+          if RUBY_VERSION.split(".").first.to_i >= 3
+            @connection.expect :index_exists?, nil, [:delete_me, :bar, {unique: true}]
+            t.index_exists?(:bar, {unique: true})
+          else
+            @connection.expect :index_exists?, nil, [:delete_me, :bar], unique: true
+            t.index_exists?(:bar, unique: true)
+          end
         end
       end
 
