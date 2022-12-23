@@ -84,6 +84,8 @@ Table names CANNOT have spaces within them whether back-ticked or not|Cloud Span
 Table names CANNOT have punctuation marks and MUST contain valid UTF-8|Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names|Ensure that your table names don't contain punctuation marks.
 Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not support index with fields length | Ensure that your database definition does not include index definitions with field lengths.
 
+Also, Cloud Spanner doesn't have an interactive command-line client, so command `rails dbconsole` won't work.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/googleapis/ruby-spanner-activerecord. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
