@@ -72,6 +72,7 @@ module ActiveRecordSpannerAdapter
 
     def reset!
       disconnect!
+      @information_schemas = {}
       session
       true
     end
