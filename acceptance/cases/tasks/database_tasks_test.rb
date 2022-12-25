@@ -60,6 +60,7 @@ module ActiveRecord
 
       def drop_database
         ActiveRecord::Base.connection_pool.disconnect!
+        ActiveRecordSpannerAdapter::Connection.reset_information_schema!
         spanner_instance.database(@database_id)&.drop
       end
 
@@ -93,7 +94,6 @@ module ActiveRecord
         end
         drop_database
         create_database
-        # ActiveRecord::Tasks::DatabaseTasks.reset!
         ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
         assert_equal tables, connection.tables.sort
       end

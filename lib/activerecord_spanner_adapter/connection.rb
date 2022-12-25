@@ -36,6 +36,10 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def self.reset_information_schema!
+      @information_schemas = {}
+    end
+
     def self.information_schema config
       @information_schemas ||= {}
       @information_schemas[database_path(config)] ||= \
