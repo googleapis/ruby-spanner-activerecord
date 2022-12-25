@@ -8,7 +8,8 @@ module ActiveRecordSpannerAdapter
   class Table
     class Column
       attr_accessor :table_name, :name, :type, :limit, :ordinal_position,
-                    :allow_commit_timestamp, :default, :primary_key
+                    :allow_commit_timestamp, :default, :default_function, :generated,
+                    :primary_key
       attr_writer :nullable
 
       def initialize \
@@ -19,7 +20,9 @@ module ActiveRecordSpannerAdapter
           ordinal_position: nil,
           nullable: true,
           allow_commit_timestamp: nil,
-          default: nil
+          default: nil,
+          default_function: nil,
+          generated: nil
         @table_name = table_name.to_s
         @name = name.to_s
         @type = type
@@ -28,6 +31,8 @@ module ActiveRecordSpannerAdapter
         @ordinal_position = ordinal_position
         @allow_commit_timestamp = allow_commit_timestamp
         @default = default
+        @default_function = default_function
+        @generated = generated == true
         @primary_key = false
       end
 

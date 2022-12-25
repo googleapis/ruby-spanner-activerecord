@@ -246,6 +246,23 @@ module TestInterleavedTables
       assert_equal album.albumid.to_s, delete_request.params["p2"]
     end
 
+    def test_create_album_from_singer
+      select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
+      insert_album_sql = "INSERT INTO `albums` (`singerid`, `title`, `albumid`) VALUES (@p1, @p2, @p3)"
+
+      @mock.put_statement_result select_singer_sql, TestInterleavedTables::create_random_singers_result(1)
+      @mock.put_statement_result insert_album_sql, StatementResult.new(1)
+
+      singer = Singer.find_by id: 1
+      singer.albums.create title: 'My title'
+
+      request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_album_sql }.first
+      assert_equal :INT64, request.param_types["p1"].code
+      assert_equal :STRING, request.param_types["p2"].code
+      assert_equal 'My title', request.params["p2"]
+      assert_equal :INT64, request.param_types["p3"].code
+    end
+
     def test_select_all_tracks
       sql = "SELECT `tracks`.* FROM `tracks`"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(4)

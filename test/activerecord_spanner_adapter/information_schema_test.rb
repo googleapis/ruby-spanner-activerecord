@@ -8,8 +8,8 @@ require "test_helper"
 
 class InformationSchemaTest < TestHelper::MockActiveRecordTest
   attr_reader :info_schema, :tables_schema_result,
-    :table_columns_result, :indexes_result,
-    :index_columns_result,
+    :table_column_option_result, :table_columns_result,
+    :indexes_result, :index_columns_result,
     :check_constraints_result
 
   def setup
@@ -25,6 +25,14 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
         "SPANNER_STATE" => "COMMITTED"
       }
     ]
+    @table_column_option_result = [
+      {
+        "COLUMN_NAME" => "name",
+        "OPTION_NAME" => "allow_commit_timestamp",
+        "OPTION_TYPE" => "BOOL",
+        "OPTION_VALUE" => "TRUE"
+      }
+    ]
     @table_columns_result = [
       {
         "TABLE_CATALOG" => "",
@@ -32,6 +40,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
         "TABLE_NAME" => "accounts",
         "COLUMN_NAME" => "account_id",
         "ORDINAL_POSITION" => 1,
+        "GENERATION_EXPRESSION" => nil,
         "COLUMN_DEFAULT" => nil,
         "DATA_TYPE" => nil,
         "IS_NULLABLE" => "NO",
@@ -43,6 +52,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
         "TABLE_NAME" => "accounts",
         "COLUMN_NAME" => "name",
         "ORDINAL_POSITION" => 2,
+        "GENERATION_EXPRESSION" => nil,
         "COLUMN_DEFAULT" => nil,
         "DATA_TYPE" => nil,
         "IS_NULLABLE" => "YES",
@@ -117,7 +127,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
@@ -144,7 +155,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
         "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
       ],
@@ -170,7 +182,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
@@ -197,7 +210,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
         "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
         "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
       ],
@@ -206,13 +220,17 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
   end
 
   def test_list_table_columns
+    set_mocked_result []
     set_mocked_result table_columns_result
     result = info_schema.table_columns "accounts"
     assert_equal result.length, 2
 
     assert_sql_equal(
-      "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC",
-      last_executed_sql
+      [
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+      ],
+      last_executed_sqls
     )
 
     result.each do |column|
@@ -225,6 +243,7 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal column1.type, "INT64"
     assert_nil column1.limit
     assert_equal column1.nullable, false
+    assert_nil column1.allow_commit_timestamp
 
     column2 = result[1]
     assert_equal column2.table_name, "accounts"
@@ -232,16 +251,52 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal column2.type, "STRING"
     assert_equal column2.limit, 32
     assert_equal column2.nullable, true
+    assert_nil column1.allow_commit_timestamp
+  end
+
+  def test_get_table_column_with_options
+    set_mocked_result table_column_option_result
+    set_mocked_result table_columns_result
+    result = info_schema.table_columns "accounts"
+    assert_equal result.length, 2
+
+    assert_sql_equal(
+      [
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' ORDER BY ORDINAL_POSITION ASC"
+      ],
+      last_executed_sqls
+    )
+
+    column1 = result[0]
+    assert_equal column1.table_name, "accounts"
+    assert_equal column1.name, "account_id"
+    assert_equal column1.type, "INT64"
+    assert_nil column1.limit
+    assert_equal column1.nullable, false
+    assert_nil column1.allow_commit_timestamp
+
+    column2 = result[1]
+    assert_equal column2.table_name, "accounts"
+    assert_equal column2.name, "name"
+    assert_equal column2.type, "STRING"
+    assert_equal column2.limit, 32
+    assert_equal column2.nullable, true
+    assert_equal column2.allow_commit_timestamp, true
   end
 
   def test_get_table_column
+    set_mocked_result []
     set_mocked_result table_columns_result
     column = info_schema.table_column "accounts", "account_id"
     assert_instance_of ActiveRecordSpannerAdapter::Table::Column, column
 
     assert_sql_equal(
-      "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND COLUMN_NAME='account_id' ORDER BY ORDINAL_POSITION ASC",
-      last_executed_sql
+      [
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND COLUMN_NAME='account_id'",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND COLUMN_NAME='account_id' ORDER BY ORDINAL_POSITION ASC"
+      ],
+      last_executed_sqls
     )
   end
 

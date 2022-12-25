@@ -12,24 +12,39 @@ module ActiveRecord
       class TypeMetadata < DelegateClass(SqlTypeMetadata)
         undef to_yaml if method_defined? :to_yaml
 
-        attr_reader :ordinal_position
+        include Deduplicable if defined?(Deduplicable)
 
-        def initialize type_metadata, ordinal_position: nil
+        attr_reader :ordinal_position, :allow_commit_timestamp, :generated
+
+        def initialize type_metadata, ordinal_position: nil, allow_commit_timestamp: nil, generated: nil
           super type_metadata
           @ordinal_position = ordinal_position
+          @allow_commit_timestamp = allow_commit_timestamp
+          @generated = generated
         end
 
         def == other
           other.is_a?(TypeMetadata) &&
             __getobj__ == other.__getobj__ &&
-            ordinal_position == other.ordinal_position
+            ordinal_position == other.ordinal_position &&
+            allow_commit_timestamp == other.allow_commit_timestamp &&
+            generated == other.generated
         end
         alias eql? ==
 
         def hash
           TypeMetadata.hash ^
             __getobj__.hash ^
-            ordinal_position.hash
+            ordinal_position.hash ^
+            allow_commit_timestamp.hash ^
+            generated.hash
+        end
+
+        private
+
+        def deduplicated
+          __setobj__ __getobj__.deduplicate
+          super
         end
       end
     end

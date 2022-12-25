@@ -14,12 +14,29 @@ module ActiveRecord
           schema_type(column) == :integer
         end
 
+        def prepare_column_options column
+          spec = super
+
+          unless column.sql_type_metadata.allow_commit_timestamp.nil?
+            spec[:allow_commit_timestamp] = column.sql_type_metadata.allow_commit_timestamp
+          end
+
+          if column.virtual?
+            spec[:as] = extract_expression_for_virtual_column column
+            spec[:stored] = true
+            spec = { type: schema_type(column).inspect }.merge! spec
+          end
+
+          spec
+        end
+
         def header stream
           str = StringIO.new
           super str
           stream.puts <<~HEADER
             #{str.string.rstrip}
-            connection.start_batch_ddl
+              connection.start_batch_ddl
+
           HEADER
         end
 
@@ -47,6 +64,10 @@ module ActiveRecord
           spec = super
           spec.except! :limit if default_primary_key? column
           spec
+        end
+
+        def extract_expression_for_virtual_column column
+          column.default_function.inspect
         end
       end
     end

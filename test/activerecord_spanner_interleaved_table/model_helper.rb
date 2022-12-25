@@ -137,16 +137,19 @@ module TestInterleavedTables
   end
 
   def self.register_singers_columns_result spanner_mock_server
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' ORDER BY ORDINAL_POSITION ASC"
+    MockServerTests::register_commit_timestamps_result spanner_mock_server, "singers"
+
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -154,6 +157,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "singerid"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -164,6 +168,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -172,6 +177,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "last_name"),
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -213,16 +219,19 @@ module TestInterleavedTables
   end
 
   def self.register_albums_columns_result spanner_mock_server
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
+    MockServerTests::register_commit_timestamps_result spanner_mock_server, "albums"
+
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -230,6 +239,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "albumid"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -240,6 +250,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -248,6 +259,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "title"),
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -299,16 +311,19 @@ module TestInterleavedTables
   end
 
   def self.register_tracks_columns_result spanner_mock_server
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tracks' ORDER BY ORDINAL_POSITION ASC"
+    MockServerTests::register_commit_timestamps_result spanner_mock_server, "tracks"
+
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tracks' ORDER BY ORDINAL_POSITION ASC"
 
     column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
     ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
     metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, column_default, ordinal_position
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
     result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
     row = Google::Protobuf::ListValue.new
@@ -316,6 +331,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "trackid"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "1")
     )
@@ -326,6 +342,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "2")
     )
     result_set.rows.push row
@@ -334,6 +351,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "albumid"),
       Google::Protobuf::Value.new(string_value: "INT64"),
       Google::Protobuf::Value.new(string_value: "NO"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "3")
     )
@@ -344,6 +362,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
       Google::Protobuf::Value.new(string_value: "NO"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "4")
     )
     result_set.rows.push row
@@ -352,6 +371,7 @@ module TestInterleavedTables
       Google::Protobuf::Value.new(string_value: "duration"),
       Google::Protobuf::Value.new(string_value: "NUMERIC"),
       Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
       Google::Protobuf::Value.new(string_value: "5")
     )
