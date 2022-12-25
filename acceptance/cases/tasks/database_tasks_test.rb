@@ -86,14 +86,18 @@ module ActiveRecord
         end
         ActiveRecord::Tasks::DatabaseTasks.dump_schema db_config, :sql
         sql = File.read(filename)
-        assert_equal expected_schema_sql, sql
+        if ENV["SPANNER_EMULATOR_HOST"]
+          assert_equal expected_schema_sql_on_emulator, sql, msg = sql
+        else
+          assert_equal expected_schema_sql_on_emulator, sql, msg = sql
+        end
         drop_database
         create_database
         ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
         assert_equal tables, connection.tables.sort
       end
 
-      def expected_schema_sql
+      def expected_schema_sql_on_emulator
         "CREATE TABLE all_types (
   id INT64 NOT NULL,
   col_string STRING(MAX),
