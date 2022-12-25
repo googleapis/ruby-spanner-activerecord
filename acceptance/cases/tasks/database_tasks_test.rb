@@ -59,7 +59,7 @@ module ActiveRecord
       end
 
       def drop_database
-        ActiveRecord::Base.connection_pool.disconnect!
+        ActiveRecord::Base.connection_handler.clear_all_connections!
         spanner_instance.database(@database_id)&.drop
       end
 
