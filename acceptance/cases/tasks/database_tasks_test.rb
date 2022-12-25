@@ -93,7 +93,6 @@ module ActiveRecord
         end
         drop_database
         create_database
-        ActiveRecord::Base.connection.reset!
         # ActiveRecord::Tasks::DatabaseTasks.reset!
         ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
         assert_equal tables, connection.tables.sort
