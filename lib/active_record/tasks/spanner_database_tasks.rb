@@ -38,6 +38,10 @@ module ActiveRecord
         create
       end
 
+      def reset!
+        @connection.reset!
+      end
+
       def charset
         nil
       end

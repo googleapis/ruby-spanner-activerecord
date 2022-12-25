@@ -65,6 +65,7 @@ module ActiveRecordSpannerAdapter
 
     def disconnect!
       session.release!
+      @information_schemas = {}
       true
     ensure
       @session = nil
