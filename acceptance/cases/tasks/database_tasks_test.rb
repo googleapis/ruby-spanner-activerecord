@@ -60,6 +60,7 @@ module ActiveRecord
 
       def drop_database
         ActiveRecord::Base.connection_handler.clear_all_connections!
+        ActiveRecord::Base.connection_pool.disconnect!
         spanner_instance.database(@database_id)&.drop
       end
 
@@ -93,6 +94,8 @@ module ActiveRecord
         end
         drop_database
         create_database
+        ActiveRecord::Base.connection_handler.clear_all_connections!
+        ActiveRecord::Base.connection_pool.disconnect!
         ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
         assert_equal tables, connection.tables.sort
       end
