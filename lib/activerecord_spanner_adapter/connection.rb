@@ -36,7 +36,10 @@ module ActiveRecordSpannerAdapter
       end
     end
 
-    def self.reset_information_schema!
+    # Clears the cached information about the underlying information schemas.
+    # Call this method if you drop and recreate a database with the same name
+    # to prevent the cached information to be used for the new database.
+    def self.reset_information_schemas!
       @information_schemas = {}
     end
 
@@ -69,7 +72,6 @@ module ActiveRecordSpannerAdapter
 
     def disconnect!
       session.release!
-      @information_schemas = {}
       true
     ensure
       @session = nil
@@ -77,7 +79,6 @@ module ActiveRecordSpannerAdapter
 
     def reset!
       disconnect!
-      @information_schemas = {}
       session
       true
     end

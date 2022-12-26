@@ -60,7 +60,7 @@ module ActiveRecord
 
       def drop_database
         ActiveRecord::Base.connection_pool.disconnect!
-        ActiveRecordSpannerAdapter::Connection.reset_information_schema!
+        ActiveRecordSpannerAdapter::Connection.reset_information_schemas!
         spanner_instance.database(@database_id)&.drop
       end
 

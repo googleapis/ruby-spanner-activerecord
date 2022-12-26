@@ -38,10 +38,6 @@ module ActiveRecord
         create
       end
 
-      def reset!
-        @connection.reset!
-      end
-
       def charset
         nil
       end
@@ -70,7 +66,6 @@ module ActiveRecord
       end
 
       def structure_load filename, _extra_flags
-        reset!
         statements = File.read(filename).split(/;/).map(&:strip).reject(&:empty?)
         ddls = statements.select { |s| s =~ /^(CREATE|ALTER|DROP|GRANT|REVOKE|ANALYZE)/ }
         @connection.execute_ddl ddls
