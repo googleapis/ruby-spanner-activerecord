@@ -17,8 +17,6 @@ module ActiveRecord
 
       setup do
         @old_logger = ActiveRecord::Base.logger
-        ActiveRecord::Base.logger = Logger.new('/dev/null')
-        ActiveRecord::Base.logger.level = Logger::DEBUG
       end
 
       teardown do
@@ -29,6 +27,7 @@ module ActiveRecord
         published_time = Time.new(2016, 05, 11, 19, 0, 0)
         Post.where(published_time: published_time, title: 'Title - 1').first
 
+        wait
         assert_equal 1, @logger.logged(:debug).length
         assert_no_match "[[\"published_time\", \"#{published_time.utc.iso8601(9)}\"], [\"title\", \"Title - 1\"]",
                         @logger.logged(:debug).last
@@ -40,6 +39,7 @@ module ActiveRecord
         published_time = Time.new(2016, 05, 11, 19, 0, 0)
         Post.where(published_time: published_time, title: 'Title - 1').first
 
+        wait
         assert_equal 1, @logger.logged(:debug).length
         assert_match "[[\"published_time\", \"#{published_time.utc.iso8601(9)}\"], [\"title\", \"Title - 1\"]",
                      @logger.logged(:debug).last
