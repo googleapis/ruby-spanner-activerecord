@@ -17,6 +17,8 @@ module ActiveRecord
 
       setup do
         @old_logger = ActiveRecord::Base.logger
+        ActiveRecord::Base.logger = Logger.new('/dev/null')
+        ActiveRecord::Base.logger.level = Logger::DEBUG
       end
 
       teardown do
