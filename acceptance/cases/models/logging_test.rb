@@ -15,17 +15,9 @@ module ActiveRecord
     class LoggingTest < SpannerAdapter::TestCase
       include ActiveSupport::LogSubscriber::TestHelper
 
-      # setup do
-      #   @old_logger = ActiveRecord::Base.logger
-      # end
-
       setup do
         ActiveRecord::LogSubscriber.attach_to(:active_record)
       end
-
-      # teardown do
-      #   set_logger(@old_logger)
-      # end
 
       def test_logs_without_binds
         published_time = Time.new(2016, 05, 11, 19, 0, 0)
