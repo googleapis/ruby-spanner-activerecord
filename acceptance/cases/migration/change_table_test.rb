@@ -86,7 +86,7 @@ module ActiveRecord
 
       def test_index_exists
         with_change_table do |t|
-          if RUBY_VERSION.split(".").first.to_i >= 3
+          if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3")
             @connection.expect :index_exists?, nil, [:delete_me, :bar, {}]
             t.index_exists?(:bar, {})
           else
