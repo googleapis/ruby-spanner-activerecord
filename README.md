@@ -13,6 +13,9 @@ This project provides a Cloud Spanner adapter for ActiveRecord. It supports the 
 Known limitations are listed in the [Limitations](#limitations) section.
 Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
 
+This adapter only supports GoogleSQL-dialect Cloud Spanner databases. PostgreSQL-dialect
+databases are not supported.
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -83,6 +86,7 @@ Table without Primary Key| Cloud Spanner support does not support tables without
 Table names CANNOT have spaces within them whether back-ticked or not|Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`|Ensure that your table names don't contain spaces.
 Table names CANNOT have punctuation marks and MUST contain valid UTF-8|Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names|Ensure that your table names don't contain punctuation marks.
 Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not support index with fields length | Ensure that your database definition does not include index definitions with field lengths.
+Only GoogleSQL-dialect databases| Cloud Spanner supports both GoogleSQL- and PostgreSQL-dialect databases. This adapter only supports GoogleSQL-dialect databases. | Ensure that your database uses the GoogleSQL dialect.
 
 ## Contributing
 
