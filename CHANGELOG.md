@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.3.1 (2022-12-15)
+
+#### Bug Fixes
+
+* build error for ruby 2.5 ([#216](https://github.com/googleapis/ruby-spanner-activerecord/issues/216)) 
+
 ### 1.3.0 (2022-12-08)
 
 #### Features

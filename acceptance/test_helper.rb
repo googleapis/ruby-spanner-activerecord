@@ -64,6 +64,7 @@ def create_test_database
   puts "Loading test schema..."
   ActiveRecord::Base.establish_connection connector_config
   require_relative "schema/schema"
+  create_tables_in_test_schema
 end
 
 def drop_test_database
@@ -83,6 +84,7 @@ def load_test_schema
   ActiveRecord::Base.establish_connection connector_config
 
   require_relative "schema/schema"
+  create_tables_in_test_schema
 end
 
 module SpannerAdapter

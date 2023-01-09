@@ -36,6 +36,13 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    # Clears the cached information about the underlying information schemas.
+    # Call this method if you drop and recreate a database with the same name
+    # to prevent the cached information to be used for the new database.
+    def self.reset_information_schemas!
+      @information_schemas = {}
+    end
+
     def self.information_schema config
       @information_schemas ||= {}
       @information_schemas[database_path(config)] ||= \
