@@ -129,7 +129,7 @@ module ActiveRecord
             sql << " NOT NULL"
           end
           if options.key? :default
-            sql << " DEFAULT #{quote_default_expression options[:default], column}"
+            sql << " DEFAULT (#{quote_default_expression options[:default], column})"
           end
 
           if !options[:allow_commit_timestamp].nil? &&
