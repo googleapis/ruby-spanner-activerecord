@@ -4,6 +4,9 @@
 
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
 
+__This adapter only supports GoogleSQL-dialect Cloud Spanner databases. PostgreSQL-dialect
+databases are not supported.__
+
 This project provides a Cloud Spanner adapter for ActiveRecord. It supports the following versions:
 
 - ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
@@ -12,9 +15,6 @@ This project provides a Cloud Spanner adapter for ActiveRecord. It supports the 
 
 Known limitations are listed in the [Limitations](#limitations) section.
 Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
-
-This adapter only supports GoogleSQL-dialect Cloud Spanner databases. PostgreSQL-dialect
-databases are not supported.
 
 ## Installation
 
@@ -35,6 +35,14 @@ And then execute:
     $ bundle
 
 ## Usage
+
+### Migrations
+__Use DDL batching when executing migrations for the best possible performance.__
+
+Executing multiple schema changes on Cloud Spanner can take a long time. It is therefore
+strongly recommended that you limit the number of schema change operations. You can do
+this by using DDL batching in your migrations. See [the migrations examples](examples/snippets/migrations)
+for how to do this.
 
 ### Database Connection
 In Rails application `config/database.yml`, make the change as the following:
