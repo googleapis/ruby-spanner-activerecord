@@ -1025,7 +1025,7 @@ module TestMigrationsWithMockServer
       assert_equal 1, ddl_requests[2].statements.length
 
       expectedDdl = "CREATE TABLE `singers` "
-      expectedDdl << "(`id` INT64 NOT NULL, `name` STRING(MAX) NOT NULL DEFAULT 'no name', `age` INT64 NOT NULL DEFAULT 0) "
+      expectedDdl << "(`id` INT64 NOT NULL, `name` STRING(MAX) NOT NULL DEFAULT ('no name'), `age` INT64 NOT NULL DEFAULT (0)) "
       expectedDdl << "PRIMARY KEY (`id`)"
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
