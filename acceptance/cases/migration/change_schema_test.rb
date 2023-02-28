@@ -120,6 +120,27 @@ module ActiveRecord
         end
       end
 
+      def test_create_table_with_column_default
+        testings_klass = Class.new ActiveRecord::Base
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.string :name, null: false, default: "no name"
+            t.integer :age, null: false, default: 10
+          end
+          testings_klass.table_name = "testings"
+        end
+
+        testings_klass.reset_column_information
+        assert_equal false, testings_klass.columns_hash["name"].null
+        assert_equal false, testings_klass.columns_hash["age"].null
+
+        assert_nothing_raised {
+          testings_klass.connection.transaction {
+            testings_klass.connection.execute("insert into testings (id, name, age) values (#{generate_id}, DEFAULT, DEFAULT)")
+          }
+        }
+      end
+
       def test_create_table_with_limits
         connection.ddl_batch do
           connection.create_table :testings do |t|
