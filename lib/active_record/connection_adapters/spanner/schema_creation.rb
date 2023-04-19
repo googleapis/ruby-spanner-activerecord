@@ -74,7 +74,7 @@ module ActiveRecord
             end
           end
 
-          "PRIMARY KEY (#{keys.join(', ')}"
+          "PRIMARY KEY (#{keys.join(', ')})"
         end
 
         def visit_DropTableDefinition o
