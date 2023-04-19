@@ -1,5 +1,14 @@
 # Changelog
 
+### 1.4.1 (2023-03-01)
+
+#### Bug Fixes
+
+* wrap default values in () as required ([#238](https://github.com/googleapis/ruby-spanner-activerecord/issues/238)) 
+#### Documentation
+
+* call out best practices and dialect compatibility ([#240](https://github.com/googleapis/ruby-spanner-activerecord/issues/240)) 
+
 ### 1.4.0 (2023-01-18)
 
 #### Features
