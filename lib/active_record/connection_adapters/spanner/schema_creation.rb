@@ -42,7 +42,7 @@ module ActiveRecord
                          else
                            pk_names = o.columns.each_with_object [] do |c, r|
                              if c.type == :primary_key || c.primary_key?
-                               r << c.name
+                               r << (c.options[:primary_key].is_a?(Hash) ? c.options[:primary_key] : c.name)
                              end
                            end
                            PrimaryKeyDefinition.new pk_names
@@ -63,6 +63,18 @@ module ActiveRecord
           end
 
           create_sql
+        end
+
+        def visit_PrimaryKeyDefinition(o)
+          keys = o.name.map do |name|
+            if name.is_a?(Hash)
+              name.map { |col, sort| "#{quote_column_name(col)} #{sort.upcase}" }.join(', ')
+            else
+              quote_column_name(name)
+            end
+          end
+
+          "PRIMARY KEY (#{keys.join(', ')}"
         end
 
         def visit_DropTableDefinition o
