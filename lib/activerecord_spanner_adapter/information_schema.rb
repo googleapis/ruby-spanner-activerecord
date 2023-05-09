@@ -79,6 +79,14 @@ module ActiveRecordSpannerAdapter
         column_name = row["COLUMN_NAME"]
         options = column_options[column_name]
 
+        default = row["COLUMN_DEFAULT"]
+        default_function = row["GENERATION_EXPRESSION"]
+
+        if /\w+\(.*\)/.match?(default)
+          default_function ||= default
+          default = nil
+        end
+
         Table::Column.new \
           table_name,
           column_name,
@@ -87,8 +95,8 @@ module ActiveRecordSpannerAdapter
           allow_commit_timestamp: options["allow_commit_timestamp"],
           ordinal_position: row["ORDINAL_POSITION"],
           nullable: row["IS_NULLABLE"] == "YES",
-          default: row["COLUMN_DEFAULT"],
-          default_function: row["GENERATION_EXPRESSION"],
+          default: default,
+          default_function: default_function,
           generated: row["GENERATION_EXPRESSION"].present?
       end
     end
