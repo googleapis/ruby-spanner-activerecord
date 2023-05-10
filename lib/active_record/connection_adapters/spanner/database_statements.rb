@@ -110,10 +110,10 @@ module ActiveRecord
           sql_statement_type(sql) == :dml
         end
 
-        def execute_ddl statements
+        def execute_ddl statements, **options
           log "MIGRATION", "SCHEMA" do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-              @connection.execute_ddl statements
+              @connection.execute_ddl statements, **options
             end
           end
         rescue Google::Cloud::Error => error

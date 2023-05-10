@@ -257,7 +257,7 @@ module ActiveRecord
           information_schema { |i| i.index table_name, index_name }.present?
         end
 
-        def add_index table_name, column_name, options = {}
+        def add_index table_name, column_name, wait_until_done: true, **options
           id = create_index_definition table_name, column_name, **options
 
           if data_source_exists?(table_name) &&
@@ -266,7 +266,7 @@ module ActiveRecord
                                  "'#{table_name}' already exists"
           end
 
-          execute_schema_statements schema_creation.accept(id)
+          execute_schema_statements schema_creation.accept(id), wait_until_done: wait_until_done
         end
 
         if ActiveRecord.gem_version < VERSION_6_1_0
@@ -616,8 +616,8 @@ module ActiveRecord
           statements
         end
 
-        def execute_schema_statements statements
-          execute_ddl statements
+        def execute_schema_statements statements, **options
+          execute_ddl statements, **options
         end
 
         def information_schema
