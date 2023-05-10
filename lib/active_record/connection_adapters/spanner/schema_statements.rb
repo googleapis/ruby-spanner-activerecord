@@ -276,6 +276,8 @@ module ActiveRecord
           end
         else
           def remove_index table_name, column_name = nil, **options
+            return if options[:if_exists] && !index_exists?(table_name, column_name, **options)
+
             index_name = index_name_for_remove table_name, column_name, options
             execute "DROP INDEX #{quote_table_name index_name}"
           end
