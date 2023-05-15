@@ -76,11 +76,30 @@ module ActiveRecord
               t.string :title, null: false
             end
           end
+
+          @singer = Singer.create!(id: SecureRandom.uuid, name: "a singer")
         end
 
         def test_create_album
-          singer = Singer.create!(id: SecureRandom.uuid, name: "a singer")
-          Album.create!(singer: singer, title: "an album")
+          Album.create!(singer: @singer, title: "an album")
+        end
+
+        def test_update_album
+          album = Album.create!(singer: @singer, title: "an album")
+          album.update!(title: "an album 2")
+        end
+
+        def test_get_album
+          album = Album.create!(singer: @singer, title: "an album")
+          got_album = Album.find([@singer.singer_id, album.album_id])
+          assert_equal(album, got_album)
+        end
+
+        def test_get_albums_as_children
+          album1 = Album.create!(singer: @singer, title: "album1")
+          album2 = Album.create!(singer: @singer, title: "album2")
+          albums = @singer.albums.order(:title)
+          assert_equal([album1, album2], albums)
         end
       end
     end
