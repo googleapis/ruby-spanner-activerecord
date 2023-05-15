@@ -6,31 +6,47 @@
 
 # frozen_string_literal: true
 
+require "composite_primary_keys"
 require "test_helper"
 require "test_helpers/with_separate_database"
-require "models/singer"
-require "models/album_partial_disabled"
 
 module ActiveRecord
   module Model
-    class InterleaveTest < SpannerAdapter::TestCase
-      include SpannerAdapter::Associations::TestHelper
+    class InterleaveTest
+      class WithPartialInsertsDisabledTest < SpannerAdapter::TestCase
+        include SpannerAdapter::Associations::TestHelper
 
-      attr_accessor :singer
+        class Singer < ActiveRecord::Base
+          has_many :albums, foreign_key: :singerid, dependent: :delete_all
+          has_many :tracks, foreign_key: :singerid
+        end
 
-      def setup
-        super
+        class Album < ActiveRecord::Base
+          self.primary_keys = :singerid, :albumid
 
-        @singer = Singer.create first_name: "FirstName", last_name: "LastName"
-      end
+          belongs_to :singer, foreign_key: :singerid
 
-      def teardown
-        Album.destroy_all
-        Singer.destroy_all
-      end
+          if ActiveRecord::VERSION::MAJOR >= 7
+            self.partial_inserts = false
+          end
+        end
 
-      def test_with_partial_inserts_disabled
-        AlbumPartialDisabled.create! title: "Title3", singer: singer
+        attr_accessor :singer
+
+        def setup
+          super
+
+          @singer = Singer.create first_name: "FirstName", last_name: "LastName"
+        end
+
+        def teardown
+          Album.destroy_all
+          Singer.destroy_all
+        end
+
+        def test_with_partial_inserts_disabled
+          Album.create! title: "Title3", singer: singer
+        end
       end
 
       class StringParentKeyTest < SpannerAdapter::TestCase
