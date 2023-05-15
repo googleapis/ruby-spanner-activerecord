@@ -6,7 +6,6 @@
 
 # frozen_string_literal: true
 
-require "composite_primary_keys"
 require "test_helper"
 require "test_helpers/with_separate_database"
 
