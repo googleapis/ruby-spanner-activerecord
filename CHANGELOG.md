@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.4.2 (2023-05-15)
+
+#### Bug Fixes
+
+* use original types for composite primary keys ([#246](https://github.com/googleapis/ruby-spanner-activerecord/issues/246)) 
+
 ### 1.4.1 (2023-03-01)
 
 #### Bug Fixes
