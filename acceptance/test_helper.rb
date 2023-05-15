@@ -15,6 +15,7 @@ require "active_support/testing/stream"
 require "activerecord-spanner-adapter"
 require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
+require "composite_primary_keys"
 
 # rubocop:disable Style/GlobalVars
 

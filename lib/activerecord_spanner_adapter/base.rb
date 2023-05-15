@@ -148,8 +148,10 @@ module ActiveRecord
 
     def self._set_composite_primary_key_value primary_key, values
       value = values[primary_key]
+      type = ActiveModel::Type::BigInteger.new
 
       if value.is_a? ActiveModel::Attribute
+        type = value.type
         value = value.value
       end
 
@@ -161,8 +163,7 @@ module ActiveRecord
 
       values[primary_key] =
         if ActiveRecord::VERSION::MAJOR >= 7
-          ActiveModel::Attribute.from_database primary_key, value,
-                                               ActiveModel::Type::BigInteger.new
+          ActiveModel::Attribute.from_database primary_key, value, type
         else
           value
         end
