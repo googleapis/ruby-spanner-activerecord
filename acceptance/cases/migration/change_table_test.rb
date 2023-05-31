@@ -86,15 +86,25 @@ module ActiveRecord
 
       def test_index_exists
         with_change_table do |t|
-          @connection.expect :index_exists?, nil, [:delete_me, :bar]
-          t.index_exists?(:bar)
+          if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3") && ActiveRecord::gem_version <= Gem::Version.create('7.0.4')
+            @connection.expect :index_exists?, nil, [:delete_me, :bar, {}]
+            t.index_exists?(:bar, {})
+          else
+            @connection.expect :index_exists?, nil, [:delete_me, :bar]
+            t.index_exists?(:bar)
+          end
         end
       end
 
       def test_index_exists_with_options
         with_change_table do |t|
-          @connection.expect :index_exists?, nil, [:delete_me, :bar], unique: true
-          t.index_exists?(:bar, unique: true)
+          if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3") && ActiveRecord::gem_version <= Gem::Version.create('7.0.4')
+            @connection.expect :index_exists?, nil, [:delete_me, :bar, {unique: true}]
+            t.index_exists?(:bar, {unique: true})
+          else
+            @connection.expect :index_exists?, nil, [:delete_me, :bar], unique: true
+            t.index_exists?(:bar, unique: true)
+          end
         end
       end
 
