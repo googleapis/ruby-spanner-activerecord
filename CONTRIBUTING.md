@@ -53,7 +53,7 @@ Variable|Description|Comment
 bundle exec rake acceptance[appdev-soda-spanner-staging,/home/Downloads/creds.json,activerecord_tests]
 ```
 
-You can also use [Cloud Spanner emulator](https://cloud.google.com/spanner/docs/emulator).
+You can also use the [Cloud Spanner emulator](https://cloud.google.com/spanner/docs/emulator).
 
 ```shell
 docker run -d --rm -p 9010:9010 gcr.io/cloud-spanner-emulator/emulator
@@ -61,7 +61,7 @@ export SPANNER_EMULATOR_HOST=localhost:9010
 bundle exec rake "acceptance[dummy-project,,dummy-instance,]"
 ```
 
-If you want to run only a test, you can specify a test file.
+If you want to run only one test, you can specify a test file.
 
 ```shell
 bundle exec rake "acceptance[dummy-project,,dummy-instance,]" \
