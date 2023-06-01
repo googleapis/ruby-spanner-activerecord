@@ -1,5 +1,12 @@
 # Changelog
 
+### 1.4.2 (2023-06-01)
+
+#### Bug Fixes
+
+* allow functions to be default values ([#252](https://github.com/googleapis/ruby-spanner-activerecord/issues/252)) 
+* use original types for composite primary keys ([#246](https://github.com/googleapis/ruby-spanner-activerecord/issues/246)) 
+
 ### 1.4.1 (2023-03-01)
 
 #### Bug Fixes
