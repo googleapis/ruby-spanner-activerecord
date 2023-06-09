@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.4.3 (2023-06-09)
+
+#### Bug Fixes
+
+* unquote string default value ([#253](https://github.com/googleapis/ruby-spanner-activerecord/issues/253)) 
+
 ### 1.4.2 (2023-06-01)
 
 #### Bug Fixes
