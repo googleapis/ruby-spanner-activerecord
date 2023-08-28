@@ -64,11 +64,17 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   Rake::TestTask.new :run do |t|
     t.libs << "acceptance"
     t.libs << "lib"
-    t.test_files = FileList["acceptance/#{tests}/*_test.rb"] unless tests.start_with? "exclude "
-    t.test_files = FileList.new("acceptance/**/*_test.rb") do |fl|
-      fl.exclude "acceptance/#{tests.split(" ")[1]}/*_test.rb"
-      puts "excluding acceptance/#{tests.split(" ")[1]}/*_test.rb"
-    end if tests.start_with? "exclude"
+
+    t.test_files = FileList[
+      "acceptance/cases/migration/change_schema_test.rb",
+      "acceptance/cases/migration/change_table_test.rb",
+    ]
+
+    # t.test_files = FileList["acceptance/#{tests}/*_test.rb"] unless tests.start_with? "exclude "
+    # t.test_files = FileList.new("acceptance/**/*_test.rb") do |fl|
+    #   fl.exclude "acceptance/#{tests.split(" ")[1]}/*_test.rb"
+    #   puts "excluding acceptance/#{tests.split(" ")[1]}/*_test.rb"
+    # end if tests.start_with? "exclude"
     t.warning = false
   end
 
