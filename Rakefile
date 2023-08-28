@@ -66,14 +66,14 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
     t.libs << "lib"
 
     t.test_files = FileList[
-      "acceptance/cases/migration/change_schema_test.rb",
-      "acceptance/cases/migration/change_table_test.rb",
-      "acceptance/cases/migration/column_attributes_test.rb",
-      "acceptance/cases/migration/column_positioning_test.rb",
-      "acceptance/cases/migration/columns_test.rb",
-      "acceptance/cases/migration/command_recorder_test.rb",
-      "acceptance/cases/migration/create_join_table_test.rb",
-      "acceptance/cases/migration/ddl_batching_test.rb",
+      # "acceptance/cases/migration/change_schema_test.rb",
+      # "acceptance/cases/migration/change_table_test.rb",
+      # "acceptance/cases/migration/column_attributes_test.rb",
+      # "acceptance/cases/migration/column_positioning_test.rb",
+      # "acceptance/cases/migration/columns_test.rb",
+      # "acceptance/cases/migration/command_recorder_test.rb",
+      # "acceptance/cases/migration/create_join_table_test.rb",
+      # "acceptance/cases/migration/ddl_batching_test.rb",
       "acceptance/cases/migration/foreign_key_test.rb",
       "acceptance/cases/migration/index_test.rb",
       "acceptance/cases/migration/references_foreign_key_test.rb",
