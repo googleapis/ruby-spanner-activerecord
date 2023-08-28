@@ -48,60 +48,60 @@ module ActiveRecord
         end
       end
 
-    #   class StringParentKeyTest < SpannerAdapter::TestCase
-    #     include TestHelpers::WithSeparateDatabase
-    #
-    #     class Singer < ActiveRecord::Base
-    #       has_many :albums, foreign_key: :singer_id
-    #     end
-    #
-    #     class Album < ActiveRecord::Base
-    #       self.primary_keys = [:singer_id, :album_id]
-    #       belongs_to :singer, foreign_key: :singer_id
-    #     end
-    #
-    #     def setup
-    #       super
-    #
-    #       connection.ddl_batch do
-    #         connection.create_table :singers, id: false do |t|
-    #           t.string :singer_id, limit: 36, primary_key: true, null: false
-    #           t.string :name, null: false
-    #         end
-    #
-    #         connection.create_table :albums, id: false do |t|
-    #           t.interleave_in :singers
-    #           t.string :singer_id, limit: 36, parent_key: true, primary_key: true, null: false
-    #           t.integer :album_id, primary_key: true, null: false
-    #           t.string :title, null: false
-    #         end
-    #       end
-    #
-    #       @singer = Singer.create!(id: SecureRandom.uuid, name: "a singer")
-    #     end
-    #
-    #     def test_create_album
-    #       Album.create!(singer: @singer, title: "an album")
-    #     end
-    #
-    #     def test_update_album
-    #       album = Album.create!(singer: @singer, title: "an album")
-    #       album.update!(title: "an album 2")
-    #     end
-    #
-    #     def test_get_album
-    #       album = Album.create!(singer: @singer, title: "an album")
-    #       got_album = Album.find([@singer.singer_id, album.album_id])
-    #       assert_equal(album, got_album)
-    #     end
-    #
-    #     def test_get_albums_as_children
-    #       album1 = Album.create!(singer: @singer, title: "album1")
-    #       album2 = Album.create!(singer: @singer, title: "album2")
-    #       albums = @singer.albums.order(:title)
-    #       assert_equal([album1, album2], albums)
-    #     end
-    #   end
+      class StringParentKeyTest < SpannerAdapter::TestCase
+        include TestHelpers::WithSeparateDatabase
+
+        class Singer < ActiveRecord::Base
+          has_many :albums, foreign_key: :singer_id
+        end
+
+        class Album < ActiveRecord::Base
+          self.primary_keys = [:singer_id, :album_id]
+          belongs_to :singer, foreign_key: :singer_id
+        end
+
+        def setup
+          super
+
+          connection.ddl_batch do
+            connection.create_table :singers, id: false do |t|
+              t.string :singer_id, limit: 36, primary_key: true, null: false
+              t.string :name, null: false
+            end
+
+            connection.create_table :albums, id: false do |t|
+              t.interleave_in :singers
+              t.string :singer_id, limit: 36, parent_key: true, primary_key: true, null: false
+              t.integer :album_id, primary_key: true, null: false
+              t.string :title, null: false
+            end
+          end
+
+          @singer = Singer.create!(id: SecureRandom.uuid, name: "a singer")
+        end
+
+        def test_create_album
+          Album.create!(singer: @singer, title: "an album")
+        end
+
+        def test_update_album
+          album = Album.create!(singer: @singer, title: "an album")
+          album.update!(title: "an album 2")
+        end
+
+        def test_get_album
+          album = Album.create!(singer: @singer, title: "an album")
+          got_album = Album.find([@singer.singer_id, album.album_id])
+          assert_equal(album, got_album)
+        end
+
+        def test_get_albums_as_children
+          album1 = Album.create!(singer: @singer, title: "album1")
+          album2 = Album.create!(singer: @singer, title: "album2")
+          albums = @singer.albums.order(:title)
+          assert_equal([album1, album2], albums)
+        end
+      end
     end
   end
 end
