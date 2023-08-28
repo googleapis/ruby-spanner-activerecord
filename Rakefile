@@ -71,6 +71,9 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
       "acceptance/cases/migration/column_attributes_test.rb",
       "acceptance/cases/migration/column_positioning_test.rb",
       "acceptance/cases/migration/columns_test.rb",
+      "acceptance/cases/migration/command_recorder_test.rb",
+      "acceptance/cases/migration/create_join_table_test.rb",
+      "acceptance/cases/migration/ddl_batching_test.rb",
     ]
 
     # t.test_files = FileList["acceptance/#{tests}/*_test.rb"] unless tests.start_with? "exclude "
