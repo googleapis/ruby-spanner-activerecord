@@ -74,8 +74,8 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
       # "acceptance/cases/migration/command_recorder_test.rb",
       # "acceptance/cases/migration/create_join_table_test.rb",
       # "acceptance/cases/migration/ddl_batching_test.rb",
-      # "acceptance/cases/migration/foreign_key_test.rb",
-      "acceptance/cases/migration/index_test.rb",
+      "acceptance/cases/migration/foreign_key_test.rb",
+      # "acceptance/cases/migration/index_test.rb",
       # "acceptance/cases/migration/references_foreign_key_test.rb",
     ]
 
