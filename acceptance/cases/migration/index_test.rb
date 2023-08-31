@@ -161,6 +161,8 @@ module ActiveRecord
       end
 
       def test_add_index
+        skip "only run this on the emulator" if (ENV["SPANNER_EMULATOR_HOST"] || "") == ""
+
         connection.add_index("testings", "last_name")
         connection.remove_index("testings", "last_name")
 
