@@ -16,6 +16,8 @@ module ActiveRecord
       attr_reader :table_name
 
       def setup
+        skip "only run this on the emulator" if (ENV["SPANNER_EMULATOR_HOST"] || "") == ""
+
         skip_test_table_create!
         super
 
@@ -161,8 +163,6 @@ module ActiveRecord
       end
 
       def test_add_index
-        skip "only run this on the emulator" if (ENV["SPANNER_EMULATOR_HOST"] || "") == ""
-
         connection.add_index("testings", "last_name")
         connection.remove_index("testings", "last_name")
 

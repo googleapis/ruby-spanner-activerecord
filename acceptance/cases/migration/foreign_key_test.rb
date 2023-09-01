@@ -21,6 +21,8 @@ module ActiveRecord
       end
 
       def setup
+        skip "only run this on the emulator" if (ENV["SPANNER_EMULATOR_HOST"] || "") == ""
+
         skip_test_table_create!
         super
 
