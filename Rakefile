@@ -65,20 +65,6 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
     t.libs << "acceptance"
     t.libs << "lib"
 
-    # t.test_files = FileList[
-    #   # "acceptance/cases/migration/change_schema_test.rb",
-    #   # "acceptance/cases/migration/change_table_test.rb",
-    #   # "acceptance/cases/migration/column_attributes_test.rb",
-    #   # "acceptance/cases/migration/column_positioning_test.rb",
-    #   # "acceptance/cases/migration/columns_test.rb",
-    #   # "acceptance/cases/migration/command_recorder_test.rb",
-    #   # "acceptance/cases/migration/create_join_table_test.rb",
-    #   # "acceptance/cases/migration/ddl_batching_test.rb",
-    #   "acceptance/cases/migration/foreign_key_test.rb",
-    #   "acceptance/cases/migration/index_test.rb",
-    #   # "acceptance/cases/migration/references_foreign_key_test.rb",
-    # ]
-
     t.test_files = FileList["acceptance/#{tests}/*_test.rb"] unless tests.start_with? "exclude "
     t.test_files = FileList.new("acceptance/**/*_test.rb") do |fl|
       fl.exclude "acceptance/#{tests.split(" ")[1]}/*_test.rb"
