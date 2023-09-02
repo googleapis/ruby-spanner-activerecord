@@ -43,7 +43,8 @@ jobs:
     - name: Install dependencies
       run: bundle install
     - name: Run acceptance tests on production
-      run: bundle exec rake acceptance\[,,,"exclude cases/migration"\]
+      run: bundle exec rake acceptance
+      # run: bundle exec rake acceptance\[,,,"exclude cases/migration"\]
       env:
         SPANNER_TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
         SPANNER_TEST_INSTANCE: ruby-activerecord-test
