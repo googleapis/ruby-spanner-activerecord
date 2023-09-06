@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.4.4 (2023-09-06)
+
+#### Bug Fixes
+
+* Support for changes in Rails 7.0.7. ([#260](https://github.com/googleapis/ruby-spanner-activerecord/issues/260)) 
+
 ### 1.4.3 (2023-06-09)
 
 #### Bug Fixes
