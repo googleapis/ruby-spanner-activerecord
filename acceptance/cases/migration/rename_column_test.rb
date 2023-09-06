@@ -23,21 +23,23 @@ module ActiveRecord
         skip_test_table_create!
         super
 
-        connection.drop_table :rename_column_comments, if_exists: true
-        connection.drop_table :rename_column_posts, if_exists: true
+        connection.ddl_batch do
+          connection.drop_table :rename_column_comments, if_exists: true
+          connection.drop_table :rename_column_posts, if_exists: true
 
-        connection.create_table(:rename_column_posts) do |t|
-          t.string :name, limit: 128
-          t.integer :comment_count
-        end
+          connection.create_table(:rename_column_posts) do |t|
+            t.string :name, limit: 128
+            t.integer :comment_count
+          end
 
-        connection.create_table(:rename_column_comments) do |t|
-          t.string :comment
-          # The Spanner ActiveRecord adapter does not support creating an index on a column that also has a foreign key,
-          # as Cloud Spanner automatically creates a managed index for the foreign key. The index is therefore created
-          # separately.
-          t.references :rename_column_post, foreign_key: true
-          t.index :rename_column_post_id
+          connection.create_table(:rename_column_comments) do |t|
+            t.string :comment
+            # The Spanner ActiveRecord adapter does not support creating an index on a column that also has a foreign key,
+            # as Cloud Spanner automatically creates a managed index for the foreign key. The index is therefore created
+            # separately.
+            t.references :rename_column_post, foreign_key: true
+            t.index :rename_column_post_id
+          end
         end
 
         RenameColumnPost.reset_column_information

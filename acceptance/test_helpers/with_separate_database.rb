@@ -20,6 +20,7 @@ module TestHelpers
 
     def teardown
       spanner_adapter_connection.database.drop
+      ActiveRecord::Base.connection_pool.disconnect!
     end
 
     def connection_config
