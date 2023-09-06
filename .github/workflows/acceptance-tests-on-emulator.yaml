@@ -33,7 +33,7 @@ jobs:
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Ruby
     # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby
     # (see https://github.com/ruby/setup-ruby#versioning):
