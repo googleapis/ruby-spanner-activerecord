@@ -389,6 +389,51 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal index.columns.any?{ |c| c.name == "user_id"}, true
   end
 
+  def test_unquote_string
+    # These test cases come from the official reference
+    # https://cloud.google.com/spanner/docs/reference/standard-sql/lexical#string_and_bytes_literals
+    [
+      # Quoted string
+      [%q<"abc">, %q<abc>],
+      [%q<"it's">, %q<it's>],
+      [%q<'it\\'s'>, %q<it's>],
+      [%q<'Title: "Boy"'>, %q<Title: "Boy">],
+      # Triple-quoted string
+      [%q<"""abc""">, %q<abc>],
+      [%q<'''it's'''>, %q<it's>],
+      [%q<'''Title:"Boy"'''>, %q<Title:"Boy">],
+      [%q<'''two
+lines'''>, %q<two
+lines>],
+      [%q<'''why\\?'''>, %q<why?>],
+      # Raw string
+      [%q<r"abc+">, %q<abc+>],
+      [%q<r"abc+">, %q<abc+>],
+      [%q<r'''abc+'''>, %q<abc+>],
+      [%q<r"""abc+""">, %q<abc+>],
+      [%q<r'f\(abc,
+(.*),def\)'>, %q<f\(abc,
+(.*),def\)>],
+      # Escape sequence
+      [%q<"""\\a""">, %Q<\a>],
+      [%q<"""\\b""">, %Q<\b>],
+      [%q<"""\\f""">, %Q<\f>],
+      [%q<"""\\n""">, %Q<\n>],
+      [%q<"""\\r""">, %Q<\r>],
+      [%q<"""\\t""">, %Q<\t>],
+      [%q<"""\\v""">, %Q<\v>],
+      [%q<"""\\\\""">, %Q<\\>],
+      [%q<"""\\?""">, %q<?>],
+      [%q<"""\\`""">, %q<`>],
+      [%q<"""a\\142c""">, %q<abc>],
+      [%q<"""\\x41B""">, %q<AB>],
+      [%q<"""\\u30eb\\u30d3\\u30fc""">, %q<ルビー>],
+      [%q<"""\\U0001f436\\U0001f43e""">, %q<🐶🐾>],
+    ].each do |quoted, expected|
+      assert_equal(expected, info_schema.unquote_string(quoted))
+    end
+  end
+
   if ActiveRecord.gem_version >= Gem::Version.create("6.1.0")
     def test_empty_check_contraints
       set_mocked_result []
