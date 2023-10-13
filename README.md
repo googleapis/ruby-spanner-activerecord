@@ -5,7 +5,9 @@
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
 
 __This adapter only supports GoogleSQL-dialect Cloud Spanner databases. PostgreSQL-dialect
-databases are not supported.__
+databases are not supported. You can use the standard PostgreSQL ActiveRecord adapter in
+[combination with PGAdapter](https://github.com/GoogleCloudPlatform/pgadapter/blob/-/samples/ruby/activerecord)
+for Cloud Spanner PostgreSQL-dialect databases.__
 
 This project provides a Cloud Spanner adapter for ActiveRecord. It supports the following versions:
 
