@@ -36,6 +36,7 @@ module Arel # :nodoc: all
 
         if binds
           binds << collector.hints[:staleness] if collector.hints[:staleness]
+          binds << collector.hints[:request_options] if collector.hints[:request_options]
           [sql, binds]
         else
           sql
@@ -92,6 +93,26 @@ module Arel # :nodoc: all
             StalenessHint.new read_timestamp: time
         end
         collector
+      end
+
+      def visit_Arel_Nodes_Comment(o, collector)
+        o.values.each do |v|
+          if v.start_with?("request_tag:") || v.start_with?("transaction_tag:")
+            collector.hints[:request_options] ||= \
+              Google::Cloud::Spanner::V1::RequestOptions.new
+          end
+
+          if v.start_with? "request_tag:"
+            collector.hints[:request_options].request_tag = v.delete_prefix("request_tag:").strip
+            next
+          end
+          if v.start_with? "transaction_tag:"
+            collector.hints[:request_options].transaction_tag = v.delete_prefix("transaction_tag:").strip
+            next
+          end
+        end
+        # Also include the annotations as comments by calling the super implementation.
+        super
       end
 
       def visit_Arel_Table o, collector
