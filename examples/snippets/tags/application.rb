@@ -10,7 +10,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize
+  def self.run
     # Query all albums and include a request tag for the statement.
     puts ""
     puts "Query all Albums and include a request tag"

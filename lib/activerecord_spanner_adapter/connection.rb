@@ -214,7 +214,7 @@ module ActiveRecordSpannerAdapter
       end
 
       selector = transaction_selector || single_use_selector
-      execute_sql_request sql, converted_params, types, selector, request_options = request_options
+      execute_sql_request sql, converted_params, types, selector, request_options
     end
 
     def execute_sql_request sql, converted_params, types, selector, request_options = nil

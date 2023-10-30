@@ -50,7 +50,8 @@ module ActiveRecord
                     @connection.execute_query sql, params: params, types: types, request_options: request_options
                   end
                 else
-                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector, request_options: request_options
+                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                                            request_options: request_options
                 end
               end
             end

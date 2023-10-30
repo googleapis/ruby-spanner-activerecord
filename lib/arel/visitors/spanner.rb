@@ -95,7 +95,7 @@ module Arel # :nodoc: all
         collector
       end
 
-      def visit_Arel_Nodes_Comment(o, collector)
+      def visit_Arel_Nodes_Comment o, collector
         o.values.each do |v|
           if v.start_with?("request_tag:") || v.start_with?("transaction_tag:")
             collector.hints[:request_options] ||= \
