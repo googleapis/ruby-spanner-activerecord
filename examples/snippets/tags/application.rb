@@ -11,13 +11,11 @@ require_relative "models/album"
 
 class Application
   def self.run
-    # Query all albums and include a request tag for the statement.
     puts ""
     puts "Query all Albums and include a request tag"
     albums = Album.annotate("request_tag: query-all-albums").all
     puts "Queried #{albums.length} albums using a request tag"
 
-    # Query all albums in a transaction and include both a request tag and a transaction tag.
     puts ""
     puts "Query all Albums in a transaction and include a request tag and a transaction tag"
     Album.transaction do
