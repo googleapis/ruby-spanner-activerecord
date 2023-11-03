@@ -145,6 +145,12 @@ module MockServerTests
       end
     end
 
+    def test_save_with_sequence
+      record = TableWithSequence.transaction do
+        TableWithSequence.create(name: "Foo")
+      end
+    end
+
     def test_after_save
       singer = Singer.create(first_name: "Dave", last_name: "Allison")
 

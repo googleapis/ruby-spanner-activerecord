@@ -174,6 +174,7 @@ module ActiveRecord
     def self._set_single_primary_key_value primary_key, values
       primary_key_value = values[primary_key] || values[primary_key.to_sym]
 
+      return primary_key_value if sequence_name
       return primary_key_value unless prefetch_primary_key?
 
       if primary_key_value.nil?
