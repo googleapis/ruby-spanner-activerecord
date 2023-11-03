@@ -34,6 +34,10 @@ module ActiveRecord
               selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
               binds.delete staleness_hint
             end
+            request_options = binds.find { |b| b.is_a? Google::Cloud::Spanner::V1::RequestOptions }
+            if request_options
+              binds.delete request_options
+            end
 
             log_args = [sql, name]
             log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
@@ -43,10 +47,11 @@ module ActiveRecord
               ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
                 if transaction_required
                   transaction do
-                    @connection.execute_query sql, params: params, types: types
+                    @connection.execute_query sql, params: params, types: types, request_options: request_options
                   end
                 else
-                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector
+                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                                            request_options: request_options
                 end
               end
             end

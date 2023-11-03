@@ -831,6 +831,65 @@ module MockServerTests
       assert_equal sql, execute_sql_request.sql
     end
 
+    def test_query_annotate_request_tag
+      sql = "SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("request_tag: selecting all singers").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "selecting all singers", request.request_options.request_tag
+      end
+    end
+
+    def test_query_annotate_transaction_tag
+      sql = "SELECT `singers`.* FROM `singers` /* transaction_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("transaction_tag: selecting all singers").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "selecting all singers", request.request_options.transaction_tag
+      end
+    end
+
+    def test_query_annotate_request_and_transaction_tag
+      sql = "SELECT `singers`.* FROM `singers` /* transaction_tag: tx tag */ /* request_tag: req tag */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("transaction_tag: tx tag", "request_tag: req tag").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "req tag", request.request_options.request_tag
+        assert_equal "tx tag", request.request_options.transaction_tag
+      end
+    end
+
+    def test_query_annotate_request_and_transaction_tag_and_binds
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 /* transaction_tag: tx tag */ /* request_tag: req tag */ LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+      singer = Singer.annotate("transaction_tag: tx tag", "request_tag: req tag").find_by id: 1
+      assert singer
+
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "req tag", request.request_options.request_tag
+        assert_equal "tx tag", request.request_options.transaction_tag
+        assert_equal 2, request.params.fields.length
+        assert_equal "1", request.params["p2"]
+        assert_equal "1", request.params["p1"]
+        assert_equal :INT64, request.param_types["p2"].code
+        assert_equal :INT64, request.param_types["p1"].code
+      end
+    end
+
     def test_insert_all
       values = [
         {id: 1, first_name: "Dave", last_name: "Allison"},
