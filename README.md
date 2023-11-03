@@ -11,8 +11,8 @@ for Cloud Spanner PostgreSQL-dialect databases.__
 
 This project provides a Cloud Spanner adapter for ActiveRecord. It supports the following versions:
 
-- ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
-- ActiveRecord 6.1.x with Ruby 2.6 and higher.
+- ActiveRecord 6.0.x with Ruby 2.7.
+- ActiveRecord 6.1.x with Ruby 2.7 and higher.
 - ActiveRecord 7.0.x with Ruby 2.7 and higher.
 
 Known limitations are listed in the [Limitations](#limitations) section.
