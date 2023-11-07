@@ -192,11 +192,12 @@ module MockGoogleSpanner
     end
 
     def execute_query sql, params: nil, types: nil, transaction: nil,
-                      partition_token: nil, seqno: nil
+                      partition_token: nil, request_options: nil, seqno: nil
       MockGoogleSpanner.last_executed_sqls OpenStruct.new(
         sql: sql, options: {
           params: params, types: types, transaction: transaction,
-          partition_token: partition_token, seqno: seqno
+          partition_token: partition_token, request_options: request_options,
+          seqno: seqno
         }
       )
       OpenStruct.new(rows: MockGoogleSpanner.mocked_result || [])
