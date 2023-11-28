@@ -13,6 +13,21 @@ module ActiveRecord
         # DDL, DML and DQL Statements
 
         def execute sql, name = nil, binds = []
+          internal_execute sql, name, binds
+        end
+
+        def query sql, name = nil
+          exec_query sql, name
+        end
+
+        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
+          result = internal_execute sql, name, binds, prepare: prepare, async: async
+          ActiveRecord::Result.new(
+            result.fields.keys.map(&:to_s), result.rows.map(&:values)
+          )
+        end
+
+        def internal_execute sql, name = "SQL", binds = [], prepare: false, async: false
           statement_type = sql_statement_type sql
 
           if preventing_writes? && [:dml, :ddl].include?(statement_type)
@@ -56,17 +71,6 @@ module ActiveRecord
               end
             end
           end
-        end
-
-        def query sql, name = nil
-          exec_query sql, name
-        end
-
-        def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
-          result = execute sql, name, binds
-          ActiveRecord::Result.new(
-            result.fields.keys.map(&:to_s), result.rows.map(&:values)
-          )
         end
 
         def exec_mutation mutation

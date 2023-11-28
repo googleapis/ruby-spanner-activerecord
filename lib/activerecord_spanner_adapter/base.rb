@@ -43,7 +43,7 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values
+    def self._insert_record values, returning = []
       return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
 
       return _buffer_record values, :insert if buffered_mutations?
@@ -135,7 +135,7 @@ module ActiveRecord
 
       connection.current_spanner_transaction.buffer mutation
 
-      primary_key_value
+      [primary_key_value]
     end
 
     def self._set_composite_primary_key_values primary_key, values

@@ -12,6 +12,8 @@ module MockServerTests
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
 
     def test_selects_all_singers_without_transaction
+      Google::Cloud::Spanner::Results
+
       sql = "SELECT `singers`.* FROM `singers`"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
       Singer.all.each do |singer|

@@ -78,8 +78,9 @@ module ActiveRecord
       class_attribute :log_statement_binds, instance_writer: false, default: false
 
       def initialize connection, logger, connection_options, config
-        super connection, logger, config
+        @connection = connection
         @connection_options = connection_options
+        super connection, logger, config
       end
 
       def max_identifier_length

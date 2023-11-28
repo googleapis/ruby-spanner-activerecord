@@ -109,7 +109,7 @@ module ActiveRecord
           information_schema { |i| i.table_columns table_name }
         end
 
-        def new_column_from_field _table_name, field
+        def new_column_from_field _table_name, field, definitions = nil
           Spanner::Column.new \
             field.name,
             field.default,
