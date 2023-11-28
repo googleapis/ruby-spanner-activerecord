@@ -200,7 +200,7 @@ module ActiveRecordSpannerAdapter
 
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, types: nil, single_use_selector: nil
+    def execute_query sql, params: nil, types: nil, single_use_selector: nil, request_options: nil
       if params
         converted_params, types = \
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
@@ -214,15 +214,16 @@ module ActiveRecordSpannerAdapter
       end
 
       selector = transaction_selector || single_use_selector
-      execute_sql_request sql, converted_params, types, selector
+      execute_sql_request sql, converted_params, types, selector, request_options
     end
 
-    def execute_sql_request sql, converted_params, types, selector
+    def execute_sql_request sql, converted_params, types, selector, request_options = nil
       res = session.execute_query \
         sql,
         params: converted_params,
         types: types,
         transaction: selector,
+        request_options: request_options,
         seqno: (current_transaction&.next_sequence_number)
       current_transaction.grpc_transaction = res.metadata.transaction \
           if current_transaction && res&.metadata&.transaction
