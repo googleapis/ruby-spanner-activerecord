@@ -10,7 +10,7 @@ require_relative "./model_helper"
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
 
-return if ActiveRecord::gem_version >= VERSION_7_1_0
+return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
 
 require_relative "models/singer"
 require_relative "models/album"

@@ -14,6 +14,8 @@ module ActiveRecord
   end
 
   class Base
+    VERSION_7_1 = Gem::Version.create('7.1.0')
+
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
@@ -60,7 +62,10 @@ module ActiveRecord
       else
         im = arel_table.compile_insert _substitute_values(values)
       end
-      [connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)]
+      result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+
+      return result if ActiveRecord::gem_version < VERSION_7_1
+      [result]
     end
 
     def self._upsert_record values
@@ -135,6 +140,7 @@ module ActiveRecord
 
       connection.current_spanner_transaction.buffer mutation
 
+      return primary_key_value if ActiveRecord::gem_version < VERSION_7_1
       [primary_key_value]
     end
 

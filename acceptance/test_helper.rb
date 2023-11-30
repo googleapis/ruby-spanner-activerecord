@@ -4,8 +4,6 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-VERSION_7_1_0 = Gem::Version.create('7.1.0')
-
 gem "minitest"
 require "minitest/autorun"
 require "minitest/focus"
@@ -17,7 +15,7 @@ require "active_support/testing/stream"
 require "activerecord-spanner-adapter"
 require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
-require "composite_primary_keys" if ActiveRecord::gem_version < VERSION_7_1_0
+require "composite_primary_keys" if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
 # rubocop:disable Style/GlobalVars
 
