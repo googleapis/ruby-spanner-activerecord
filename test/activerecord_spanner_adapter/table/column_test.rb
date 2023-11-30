@@ -42,8 +42,8 @@ class InformationSchemaTableColumnTest < TestHelper::MockActiveRecordTest
   def test_set_default_not_nullable_for_primary_key_column
     column = new_table_column
     column.primary_key = true
-    assert_equal column.primary_key, true
-    assert_equal column.nullable, false
+    assert_equal true, column.primary_key
+    assert_equal true, column.nullable
   end
 
   def test_spanner_type_for_integer

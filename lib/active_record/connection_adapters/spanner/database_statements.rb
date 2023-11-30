@@ -10,24 +10,23 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
+        VERSION_7_1_0 = Gem::Version.create "7.1.0"
+
         # DDL, DML and DQL Statements
 
         def execute sql, name = nil, binds = []
           internal_execute sql, name, binds
         end
 
-        def query sql, name = nil
-          exec_query sql, name
-        end
-
-        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
+        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false
           result = internal_execute sql, name, binds, prepare: prepare, async: async
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)
           )
         end
 
-        def internal_execute sql, name = "SQL", binds = [], prepare: false, async: false
+        def internal_execute sql, name = "SQL", binds = [],
+                             prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
           statement_type = sql_statement_type sql
 
           if preventing_writes? && [:dml, :ddl].include?(statement_type)
@@ -70,6 +69,39 @@ module ActiveRecord
                 end
               end
             end
+          end
+        end
+
+        if ActiveRecord::gem_version >= VERSION_7_1_0 # rubocop:disable Style/ColonMethodCall
+          def sql_for_insert sql, _pk, binds, returning
+            if supports_insert_returning?
+              # TODO: Add primary key to returning columns when supporting sequences.
+              returning_columns = returning
+
+              if returning_columns&.any?
+                returning_columns_statement = returning_columns.map { |c| quote_column_name c }.join(", ")
+                # rubocop:disable Metrics/BlockNesting
+                sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns.any?
+                # rubocop:enable Metrics/BlockNesting
+              end
+            end
+
+            [sql, binds]
+          end
+
+          def query sql, name = nil
+            exec_query sql, name
+          end
+        else
+          def query sql, name = nil
+            exec_query sql, name
+          end
+
+          def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
+            result = execute sql, name, binds
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
           end
         end
 
@@ -223,6 +255,8 @@ module ActiveRecord
             if bind.respond_to? :type
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                      .convert_active_model_type_to_spanner(bind.type)
+            elsif bind.class == Symbol
+              type = :STRING
             end
             [
               # Generates binds for named parameters in the format `@p1, @p2, ...`
@@ -230,7 +264,13 @@ module ActiveRecord
             ]
           end.to_h
           params = binds.enum_for(:each_with_index).map do |bind, i|
-            type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
+            type = if bind.respond_to? :type
+                     bind.type
+                   elsif bind.class == Symbol
+                     :STRING
+                   else
+                     ActiveModel::Type::Integer
+                   end
             bind_value = bind.respond_to?(:value) ? bind.value : bind
             value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                     .serialize_with_transaction_isolation_level(type, bind_value, :dml)

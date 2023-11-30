@@ -14,6 +14,21 @@ require_relative "models/album"
 require "securerandom"
 
 module MockServerTests
+
+  def self.create_id_returning_result_set id, update_count
+    col_id = Google::Cloud::Spanner::V1::StructType::Field.new name: "id", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push col_id
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+    row = Google::Protobuf::ListValue.new
+    row.values.push Google::Protobuf::Value.new(string_value: id.to_s)
+    result_set.rows.push row
+    result_set.stats = Google::Cloud::Spanner::V1::ResultSetStats.new
+    result_set.stats.row_count_exact = update_count
+
+    StatementResult.new result_set
+  end
+
   def self.create_random_singers_result(row_count, lock_version = false)
     first_names = %w[Pete Alice John Ethel Trudy Naomi Wendy]
     last_names = %w[Wendelson Allison Peterson Johnson Henderson Ericsson]
@@ -241,6 +256,11 @@ module MockServerTests
 
   def self.register_singers_indexes_result spanner_mock_server
     sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_TYPE='INDEX' AND SPANNER_IS_MANAGED=FALSE"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_singers_primary_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
     register_key_columns_result spanner_mock_server, sql
   end
 
@@ -666,4 +686,79 @@ module MockServerTests
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
+
+  def self.register_join_table_key_columns_result spanner_mock_server, table, col1, col2
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = '#{table}' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+
+    index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    column_ordering = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_ORDERING", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push index_name, column_name, column_ordering, ordinal_position
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "PRIMARY_KEY"),
+      Google::Protobuf::Value.new(string_value: col1),
+      Google::Protobuf::Value.new(string_value: "ASC"),
+      Google::Protobuf::Value.new(string_value: "1"),
+    )
+    result_set.rows.push row
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: "PRIMARY_KEY"),
+      Google::Protobuf::Value.new(string_value: col2),
+      Google::Protobuf::Value.new(string_value: "ASC"),
+      Google::Protobuf::Value.new(string_value: "2"),
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_join_table_columns_result spanner_mock_server, table_name, col1, col2
+    register_commit_timestamps_result spanner_mock_server, table_name
+
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='#{table_name}' ORDER BY ORDINAL_POSITION ASC"
+
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: col1),
+      Google::Protobuf::Value.new(string_value: "INT64"),
+      Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "1")
+    )
+    result_set.rows.push row
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Google::Protobuf::Value.new(string_value: col2),
+      Google::Protobuf::Value.new(string_value: "INT64"),
+      Google::Protobuf::Value.new(string_value: "YES"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Google::Protobuf::Value.new(string_value: "2")
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
 end

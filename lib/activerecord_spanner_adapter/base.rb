@@ -60,7 +60,7 @@ module ActiveRecord
       else
         im = arel_table.compile_insert _substitute_values(values)
       end
-      connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+      [connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)]
     end
 
     def self._upsert_record values

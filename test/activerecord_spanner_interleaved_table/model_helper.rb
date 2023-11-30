@@ -6,8 +6,13 @@
 #
 # frozen_string_literal: true
 
+VERSION_7_1_0 = Gem::Version.create('7.1.0')
+
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
+
+return if ActiveRecord::gem_version >= VERSION_7_1_0
+
 require_relative "models/singer"
 require_relative "models/album"
 
@@ -137,7 +142,7 @@ module TestInterleavedTables
   end
 
   def self.register_singers_columns_result spanner_mock_server
-    MockServerTests::register_commit_timestamps_result spanner_mock_server, "singers"
+    register_commit_timestamps_result spanner_mock_server, "singers"
 
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' ORDER BY ORDINAL_POSITION ASC"
 
@@ -186,6 +191,29 @@ module TestInterleavedTables
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
 
+  def self.register_commit_timestamps_result spanner_mock_server, table_name, column_name = nil, commit_timestamps_col = nil
+    option_sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='#{table_name}'"
+    option_sql << " AND COLUMN_NAME='#{column_name}'" if column_name
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    option_value = Google::Cloud::Spanner::V1::StructType::Field.new name: "OPTION_VALUE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push column_name, option_name, option_type, option_value
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+    row = Google::Protobuf::ListValue.new
+    if commit_timestamps_col
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: commit_timestamps_col),
+        Google::Protobuf::Value.new(string_value: "allow_commit_timestamp"),
+        Google::Protobuf::Value.new(string_value: "BOOL"),
+        Google::Protobuf::Value.new(string_value: "TRUE"),
+        )
+    end
+    result_set.rows.push row
+    spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)
+  end
+
   def self.register_singers_primary_key_columns_result spanner_mock_server
     sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
     register_singers_key_columns_result spanner_mock_server, sql
@@ -219,7 +247,7 @@ module TestInterleavedTables
   end
 
   def self.register_albums_columns_result spanner_mock_server
-    MockServerTests::register_commit_timestamps_result spanner_mock_server, "albums"
+    register_commit_timestamps_result spanner_mock_server, "albums"
 
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
 
@@ -311,7 +339,7 @@ module TestInterleavedTables
   end
 
   def self.register_tracks_columns_result spanner_mock_server
-    MockServerTests::register_commit_timestamps_result spanner_mock_server, "tracks"
+    register_commit_timestamps_result spanner_mock_server, "tracks"
 
     sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tracks' ORDER BY ORDINAL_POSITION ASC"
 

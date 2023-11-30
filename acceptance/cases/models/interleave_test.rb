@@ -6,6 +6,8 @@
 
 # frozen_string_literal: true
 
+return if ActiveRecord::gem_version >= VERSION_7_1_0
+
 require "test_helper"
 require "test_helpers/with_separate_database"
 
