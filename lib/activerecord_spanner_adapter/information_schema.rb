@@ -89,7 +89,7 @@ module ActiveRecordSpannerAdapter
       default = row["COLUMN_DEFAULT"]
       default_function = row["GENERATION_EXPRESSION"]
 
-      if /\w+\(.*\)/.match?(default)
+      if default && default.length < 200 && /\w+\(.*\)/.match?(default)
         default_function ||= default
         default = nil
       end

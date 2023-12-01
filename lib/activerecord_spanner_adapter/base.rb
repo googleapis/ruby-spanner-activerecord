@@ -69,6 +69,8 @@ module ActiveRecord
     end
 
     def self._convert_primary_key primary_key_value
+      # Rails 7.1 and higher supports composite primary keys, and therefore require the provider to return an array
+      # instead of a single value in all cases.
       return primary_key_value if ActiveRecord.gem_version < VERSION_7_1
       [primary_key_value]
     end

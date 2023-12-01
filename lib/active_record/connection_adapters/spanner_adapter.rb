@@ -111,10 +111,6 @@ module ActiveRecord
       end
       alias reconnect! reset!
 
-      def schema_cache
-        super
-      end
-
       def spanner_schema_cache
         @spanner_schema_cache ||= SpannerSchemaCache.new self
       end
@@ -265,6 +261,7 @@ module ActiveRecord
         include TypeMapBuilder
       end
 
+      # Overwrite the standard log method to be able to translate exceptions.
       def log sql, name = "SQL", binds = [], type_casted_binds = [], statement_name = nil, *args
         super
       rescue ActiveRecord::StatementInvalid

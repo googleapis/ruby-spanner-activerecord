@@ -206,7 +206,7 @@ module TestInterleavedTables
         Google::Protobuf::Value.new(string_value: "allow_commit_timestamp"),
         Google::Protobuf::Value.new(string_value: "BOOL"),
         Google::Protobuf::Value.new(string_value: "TRUE"),
-        )
+      )
     end
     result_set.rows.push row
     spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)

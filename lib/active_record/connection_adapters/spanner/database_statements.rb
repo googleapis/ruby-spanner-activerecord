@@ -6,6 +6,8 @@
 
 # frozen_string_literal: true
 
+require "active_record/gem_version"
+
 module ActiveRecord
   module ConnectionAdapters
     module Spanner
@@ -72,10 +74,12 @@ module ActiveRecord
           end
         end
 
-        if ActiveRecord::gem_version >= VERSION_7_1_0 # rubocop:disable Style/ColonMethodCall
+        # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
+
+        if ActiveRecord.gem_version >= VERSION_7_1_0
           def sql_for_insert sql, _pk, binds, returning
             if supports_insert_returning?
-              # TODO: Add primary key to returning columns when supporting sequences.
+              # TODO: Add primary key to returning columns when support for bit-reversed sequences has been added.
               returning_columns = returning
 
               if returning_columns&.any?
@@ -92,7 +96,7 @@ module ActiveRecord
           def query sql, name = nil
             exec_query sql, name
           end
-        else
+        else # ActiveRecord.gem_version < VERSION_7_1_0
           def query sql, name = nil
             exec_query sql, name
           end
@@ -256,6 +260,7 @@ module ActiveRecord
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                      .convert_active_model_type_to_spanner(bind.type)
             elsif bind.class == Symbol
+              # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
               type = :STRING
             end
             [
@@ -267,8 +272,10 @@ module ActiveRecord
             type = if bind.respond_to? :type
                      bind.type
                    elsif bind.class == Symbol
+                     # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
                      :STRING
                    else
+                     # The Cloud Spanner default type is INT64 if no other type is known.
                      ActiveModel::Type::Integer
                    end
             bind_value = bind.respond_to?(:value) ? bind.value : bind
