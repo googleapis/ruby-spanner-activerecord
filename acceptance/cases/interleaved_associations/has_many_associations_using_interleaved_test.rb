@@ -6,7 +6,7 @@
 
 # frozen_string_literal: true
 
-return if ActiveRecord::gem_version >= VERSION_7_1_0
+return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
 
 require "test_helper"
 require "models/singer"

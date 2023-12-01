@@ -196,7 +196,7 @@ module ActiveRecord
             end
           end
         end
-        expected = if ActiveRecord::gem_version < VERSION_7_1_0
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
           "you can't redefine the primary key column 'id'. To define a custom primary key, pass { id: false } to create_table."
         else
           "you can't redefine the primary key column 'id' on 'testings'. To define a custom primary key, pass { id: false } to create_table."
@@ -215,7 +215,7 @@ module ActiveRecord
           end
         end
 
-        expected = if ActiveRecord::gem_version < VERSION_7_1_0
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
           "you can't redefine the primary key column 'testing_id'. To define a custom primary key, pass { id: false } to create_table."
         else
           "you can't redefine the primary key column 'testing_id' on 'testings'. To define a custom primary key, pass { id: false } to create_table."
@@ -233,7 +233,7 @@ module ActiveRecord
           end
         end
 
-        expected = if ActiveRecord::gem_version < VERSION_7_1_0
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
           "you can't define an already defined column 'testing_column'."
         else
           "you can't define an already defined column 'testing_column' on 'testings'."
