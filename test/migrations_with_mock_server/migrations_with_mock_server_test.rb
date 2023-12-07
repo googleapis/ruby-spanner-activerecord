@@ -62,6 +62,10 @@ module TestMigrationsWithMockServer
       super
     end
 
+    def is_7_1_or_higher?
+      ActiveRecord::gem_version >= VERSION_7_1_0
+    end
+
     def with_change_table table_name
       yield ActiveRecord::Base.connection.update_table_definition(table_name, ActiveRecord::Base.connection)
     end
@@ -359,7 +363,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
@@ -378,7 +383,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_add_not_null
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
 
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
@@ -398,7 +404,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_remove_not_null
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
@@ -417,7 +424,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_rename_column
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
       # Cloud Spanner does not support renaming a column, so instead the migration will create a new column, copy the
       # data from the old column to the new column, and then drop the old column.
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
@@ -935,7 +943,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
@@ -953,7 +962,8 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column_with_options
-      MockServerTests::register_singers_primary_key_columns_result @mock
+      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
       select_column_sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='picture' ORDER BY ORDINAL_POSITION ASC"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
@@ -1022,6 +1032,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_create_join_table_with_column_options
+      MockServerTests::register_join_table_primary_key_result @mock if is_7_1_or_higher?
       MockServerTests::register_join_table_key_columns_result @mock, "artists_musics", "artist_id", "music_id"
       MockServerTests::register_join_table_columns_result @mock, "artists_musics", "artist_id", "music_id"
 
