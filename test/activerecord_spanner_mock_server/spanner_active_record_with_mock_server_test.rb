@@ -23,6 +23,8 @@ module MockServerTests
     def test_insert!
       singer = { first_name: "Alice", last_name: "Ecila" }
       singer = Singer.insert! singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
 
       commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
       assert_equal 1, commit_requests.length
@@ -36,7 +38,7 @@ module MockServerTests
       assert_equal 3, mutation.insert.values[0].length
       assert_equal "Alice", mutation.insert.values[0][0]
       assert_equal "Ecila", mutation.insert.values[0][1]
-      assert_equal singer[0]["id"], mutation.insert.values[0][2].to_i
+      assert_equal id, mutation.insert.values[0][2].to_i
 
       assert_equal 3, mutation.insert.columns.length
       assert_equal "first_name", mutation.insert.columns[0]
@@ -47,6 +49,8 @@ module MockServerTests
     def test_upsert
       singer = { first_name: "Alice", last_name: "Ecila" }
       singer = Singer.upsert singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
 
       commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
       assert_equal 1, commit_requests.length
@@ -60,7 +64,7 @@ module MockServerTests
       assert_equal 3, mutation.insert_or_update.values[0].length
       assert_equal "Alice", mutation.insert_or_update.values[0][0]
       assert_equal "Ecila", mutation.insert_or_update.values[0][1]
-      assert_equal singer[0]["id"], mutation.insert_or_update.values[0][2].to_i
+      assert_equal id, mutation.insert_or_update.values[0][2].to_i
 
       assert_equal 3, mutation.insert_or_update.columns.length
       assert_equal "first_name", mutation.insert_or_update.columns[0]
