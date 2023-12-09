@@ -84,13 +84,13 @@ Some noteworthy examples in the snippets directory:
   for inserting, updating and deleting data in a Cloud Spanner database. Mutations can have a significant performance
   advantage compared to DML statements, but do not allow read-your-writes semantics during a transaction.
 - [array-data-type](examples/snippets/array-data-type): Shows how to work with `ARRAY` data types.
-- [interleaved-tables](examples/snippets/interleaved-tables): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
+- [interleaved-tables](examples/snippets/interleaved-tables-before-7.1): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
 
 ## Limitations
 
 Limitation|Comment|Resolution
 ---|---|---
-Interleaved tables require composite primary keys| Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables/README.md) for an example on how to use interleaved tables with ActiveRecord |Use composite primary keys.
+Interleaved tables require composite primary keys| Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables-before-7.1/README.md) for an example on how to use interleaved tables with ActiveRecord |Use composite primary keys.
 Lack of sequential and auto-assigned IDs|Cloud Spanner doesn't autogenerate IDs and this integration instead creates UUID4 to avoid [hotspotting](https://cloud.google.com/spanner/docs/schema-design#uuid_primary_key) so you SHOULD NOT rely on IDs being sorted| UUID4s are automatically generated for primary keys.
 Table without Primary Key| Cloud Spanner support does not support tables without a primary key.| Always define a primary key for your table.
 Table names CANNOT have spaces within them whether back-ticked or not|Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`|Ensure that your table names don't contain spaces.
