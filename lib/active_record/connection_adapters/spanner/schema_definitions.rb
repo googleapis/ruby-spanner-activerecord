@@ -42,6 +42,10 @@ module ActiveRecord
 
           super
         end
+
+        def valid_column_definition_options
+          super + [:type, :array, :allow_commit_timestamp, :as, :stored, :parent_key, :passed_type, :index]
+        end
       end
 
       class Table < ActiveRecord::ConnectionAdapters::Table

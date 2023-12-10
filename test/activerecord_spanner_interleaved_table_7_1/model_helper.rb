@@ -1,4 +1,4 @@
-# Copyright 2021 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
@@ -9,14 +9,14 @@
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
 
-return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+return if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
 require_relative "models/singer"
 require_relative "models/album"
 
 require "securerandom"
 
-module TestInterleavedTables
+module TestInterleavedTables_7_1
   StructType = Google::Cloud::Spanner::V1::StructType
   Field = Google::Cloud::Spanner::V1::StructType::Field
   ResultSetMetadata = Google::Cloud::Spanner::V1::ResultSetMetadata
@@ -126,7 +126,7 @@ module TestInterleavedTables
       Value.new(string_value: "singers"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-    )
+      )
     result_set.rows.push row
     row = ListValue.new
     row.values.push(
@@ -135,7 +135,7 @@ module TestInterleavedTables
       Value.new(string_value: "albums"),
       Value.new(string_value: "singers"),
       Value.new(string_value: "NO ACTION"),
-    )
+      )
     result_set.rows.push row
     row = ListValue.new
     row.values.push(
@@ -217,7 +217,7 @@ module TestInterleavedTables
         Value.new(string_value: "allow_commit_timestamp"),
         Value.new(string_value: "BOOL"),
         Value.new(string_value: "TRUE"),
-      )
+        )
     end
     result_set.rows.push row
     spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)
@@ -332,7 +332,7 @@ module TestInterleavedTables
         Value.new(string_value: "singerid"),
         Value.new(string_value: "ASC"),
         Value.new(string_value: "1"),
-      )
+        )
       result_set.rows.push row
     end
     row = ListValue.new
@@ -341,7 +341,7 @@ module TestInterleavedTables
       Value.new(string_value: "albumid"),
       Value.new(string_value: "ASC"),
       Value.new(string_value: "2"),
-    )
+      )
     result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)

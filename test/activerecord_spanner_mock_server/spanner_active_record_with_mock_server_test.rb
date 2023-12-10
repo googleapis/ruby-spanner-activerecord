@@ -10,6 +10,7 @@ require_relative "./base_spanner_mock_server_test"
 
 module MockServerTests
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
+    VERSION_7_1_0 = Gem::Version.create('7.1.0')
 
     def test_selects_all_singers_without_transaction
       sql = "SELECT `singers`.* FROM `singers`"
@@ -146,14 +147,19 @@ module MockServerTests
     end
 
     def test_save_with_sequence
+      insert_sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
       record = TableWithSequence.transaction do
         TableWithSequence.create(name: "Foo")
       end
+      assert_equal 1, record.id
     end
 
     def test_after_save
       singer = Singer.create(first_name: "Dave", last_name: "Allison")
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -162,6 +168,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -173,6 +180,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -703,7 +711,9 @@ module MockServerTests
       @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
       singer = Singer.find_by id: 1
 
-      update_albums_sql = "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 \
+                     ? "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+                     : "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND (`albums`.`id` = @p3 OR `albums`.`id` = @p4)"
       @mock.put_statement_result update_albums_sql, StatementResult.new(2)
 
       singer.albums = []

@@ -6,13 +6,29 @@
 
 # frozen_string_literal: true
 
+require "active_record/gem_version"
+
 module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
+        VERSION_7_1_0 = Gem::Version.create "7.1.0"
+
         # DDL, DML and DQL Statements
 
         def execute sql, name = nil, binds = []
+          internal_execute sql, name, binds
+        end
+
+        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false
+          result = internal_execute sql, name, binds, prepare: prepare, async: async
+          ActiveRecord::Result.new(
+            result.fields.keys.map(&:to_s), result.rows.map(&:values)
+          )
+        end
+
+        def internal_execute sql, name = "SQL", binds = [],
+                             prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
           statement_type = sql_statement_type sql
 
           if preventing_writes? && [:dml, :ddl].include?(statement_type)
@@ -58,15 +74,61 @@ module ActiveRecord
           end
         end
 
-        def query sql, name = nil
-          exec_query sql, name
-        end
+        # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
 
-        def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
-          result = execute sql, name, binds
-          ActiveRecord::Result.new(
-            result.fields.keys.map(&:to_s), result.rows.map(&:values)
-          )
+        if ActiveRecord.gem_version >= VERSION_7_1_0
+          def sql_for_insert sql, _pk, binds, returning
+            if supports_insert_returning?
+              # TODO: Add primary key to returning columns when support for bit-reversed sequences has been added.
+              returning_columns = returning
+
+              if returning_columns&.any?
+                returning_columns_statement = returning_columns.map { |c| quote_column_name c }.join(", ")
+                # rubocop:disable Metrics/BlockNesting
+                sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns.any?
+                # rubocop:enable Metrics/BlockNesting
+              end
+            end
+
+            [sql, binds]
+          end
+
+          def query sql, name = nil
+            exec_query sql, name
+          end
+        else # ActiveRecord.gem_version < VERSION_7_1_0
+          def query sql, name = nil
+            exec_query sql, name
+          end
+
+          def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
+            result = execute sql, name, binds
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
+          end
+
+          def sql_for_insert sql, pk, binds
+            if pk && !_has_pk_binding(pk, binds)
+              returning_columns_statement = if pk.respond_to? :each
+                                              pk.map { |c| quote_column_name c }.join(", ")
+                                            else
+                                              quote_column_name pk
+                                            end
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns_statement
+            end
+            super
+          end
+
+          def _has_pk_binding pk, binds
+            if pk.respond_to? :each
+              has_value = true
+              pk.each { |col| has_value &&= binds.any? { |bind| bind.name == col } }
+              has_value
+            else
+              binds.any? { |bind| bind.name == pk }
+            end
+          end
         end
 
         def exec_mutation mutation
@@ -109,25 +171,6 @@ module ActiveRecord
               @connection.truncate t
             end
           end
-        end
-
-        def sql_for_insert(sql, pk, binds) # :nodoc:
-          if pk.nil?
-            # Extract the table from the insert sql. Yuck.
-            table_ref = extract_table_ref_from_insert_sql(sql)
-            pk = primary_key(table_ref) if table_ref
-          end
-
-          # CPK
-          # if pk = suppress_composite_primary_key(pk)
-          #  sql = "#{sql} RETURNING #{quote_column_name(pk)}"
-          #end
-          # NOTE pk can be false.
-          if pk
-            sql = "#{sql} RETURNING #{quote_column_names(pk)}"
-          end
-
-          super
         end
 
         def write_query? sql
@@ -238,6 +281,9 @@ module ActiveRecord
             if bind.respond_to? :type
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                      .convert_active_model_type_to_spanner(bind.type)
+            elsif bind.class == Symbol
+              # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
+              type = :STRING
             end
             [
               # Generates binds for named parameters in the format `@p1, @p2, ...`
@@ -245,7 +291,15 @@ module ActiveRecord
             ]
           end.to_h
           params = binds.enum_for(:each_with_index).map do |bind, i|
-            type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
+            type = if bind.respond_to? :type
+                     bind.type
+                   elsif bind.class == Symbol
+                     # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
+                     :STRING
+                   else
+                     # The Cloud Spanner default type is INT64 if no other type is known.
+                     ActiveModel::Type::Integer
+                   end
             bind_value = bind.respond_to?(:value) ? bind.value : bind
             value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                     .serialize_with_transaction_isolation_level(type, bind_value, :dml)

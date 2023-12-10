@@ -84,10 +84,11 @@ Some noteworthy examples in the snippets directory:
   for inserting, updating and deleting data in a Cloud Spanner database. Mutations can have a significant performance
   advantage compared to DML statements, but do not allow read-your-writes semantics during a transaction.
 - [array-data-type](examples/snippets/array-data-type): Shows how to work with `ARRAY` data types.
-- [interleaved-tables](examples/snippets/interleaved-tables): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
+- [interleaved-tables](examples/snippets/interleaved-tables-before-7.1): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
 
 ## Limitations
 
+<<<<<<< HEAD
 | Limitation                                                                                                                        | Comment                                                                                                                                                                                                                           | Resolution                                                                                  |
 |-----------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Interleaved tables require composite primary keys                                                                                 | Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables/README.md) for an example on how to use interleaved tables with ActiveRecord                        | Use composite primary keys.                                                                 |

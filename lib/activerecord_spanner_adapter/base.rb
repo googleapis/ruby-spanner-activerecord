@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "active_record/gem_version"
 require "activerecord_spanner_adapter/relation"
 
 module ActiveRecord
@@ -14,6 +15,8 @@ module ActiveRecord
   end
 
   class Base
+    VERSION_7_1 = Gem::Version.create "7.1.0"
+
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
@@ -43,10 +46,10 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values
+    def self._insert_record values, returning = []
       return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
 
-      return _buffer_record values, :insert if buffered_mutations?
+      return _buffer_record values, :insert, returning if buffered_mutations?
 
       primary_key_value =
         if primary_key.is_a? Array
@@ -60,11 +63,34 @@ module ActiveRecord
       else
         im = arel_table.compile_insert _substitute_values(values)
       end
-      connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+      result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+
+      _convert_primary_key result, returning
     end
 
-    def self._upsert_record values
-      _buffer_record values, :insert_or_update
+    def self._convert_primary_key primary_key_value, returning
+      # Rails 7.1 and higher supports composite primary keys, and therefore require the provider to return an array
+      # instead of a single value in all cases. The order of the values should be equal to the order of the returning
+      # columns (or the primary key if no returning columns were specified).
+      return primary_key_value if ActiveRecord.gem_version < VERSION_7_1
+      return primary_key_value if primary_key_value.is_a?(Array) && primary_key_value.length == 1
+      return [primary_key_value] unless primary_key_value.is_a? Array
+
+      # Re-order the returned values according to the returning columns if it is not equal to the primary key of the
+      # table.
+      keys = returning || primary_key
+      return primary_key_value if keys == primary_key
+
+      primary_key_values_hash = Hash[primary_key.zip(primary_key_value)]
+      values = []
+      keys.each do |column|
+        values.append primary_key_values_hash[column]
+      end
+      values
+    end
+
+    def self._upsert_record values, returning
+      _buffer_record values, :insert_or_update, returning
     end
 
     def self.insert_all _attributes, _returning: nil, _unique_by: nil
@@ -102,18 +128,18 @@ module ActiveRecord
       # The mutations will be sent as one batch when the transaction is committed.
       if active_transaction?
         attributes.each do |record|
-          _upsert_record record
+          _upsert_record record, returning
         end
       else
         transaction isolation: :buffered_mutations do
           attributes.each do |record|
-            _upsert_record record
+            _upsert_record record, returning
           end
         end
       end
     end
 
-    def self._buffer_record values, method
+    def self._buffer_record values, method, returning
       primary_key_value =
         if primary_key.is_a? Array
           _set_composite_primary_key_values primary_key, values
@@ -132,10 +158,9 @@ module ActiveRecord
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         "#{method}": write
       )
-
       connection.current_spanner_transaction.buffer mutation
 
-      primary_key_value
+      _convert_primary_key primary_key_value, returning
     end
 
     def self._set_composite_primary_key_values primary_key, values

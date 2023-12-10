@@ -39,6 +39,17 @@ module ActiveRecord
 
           primary_keys = if o.primary_keys
                            o.primary_keys
+                         elsif o.options[:primary_key]
+                           columns = if o.options[:primary_key].is_a? Array
+                                       o.options[:primary_key]
+                                     else
+                                       [o.options[:primary_key]]
+                                     end
+                           pk_names = []
+                           columns.each do |c|
+                             pk_names.append c.to_s
+                           end
+                           PrimaryKeyDefinition.new pk_names
                          else
                            pk_names = o.columns.each_with_object [] do |c, r|
                              if c.type == :primary_key || c.primary_key?
