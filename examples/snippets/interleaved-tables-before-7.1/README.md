@@ -1,4 +1,7 @@
-# Sample - Interleaved Tables
+# Sample - Interleaved Tables - Before Rails 7.1.0
+
+__NOTE__: This example uses the third-party gem `composite_primary_keys`. This is only supported with
+Rails version < `7.1.0`.
 
 This example shows how to use interleaved tables with the Spanner ActiveRecord adapter.
 Interleaved tables use composite primary keys. This is not natively supported by ActiveRecord.

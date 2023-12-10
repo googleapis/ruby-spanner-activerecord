@@ -328,7 +328,6 @@ module ActiveRecordSpannerAdapter
     private
 
     def execute_ddl_statements statements, operation_id, wait_until_done
-      puts statements
       job = database.update statements: statements, operation_id: operation_id
       job.wait_until_done! if wait_until_done
       raise Google::Cloud::Error.from_error job.error if job.error?
