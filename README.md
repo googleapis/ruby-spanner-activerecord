@@ -88,7 +88,6 @@ Some noteworthy examples in the snippets directory:
 
 ## Limitations
 
-<<<<<<< HEAD
 | Limitation                                                                                                                        | Comment                                                                                                                                                                                                                           | Resolution                                                                                  |
 |-----------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Interleaved tables require composite primary keys                                                                                 | Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables/README.md) for an example on how to use interleaved tables with ActiveRecord                        | Use composite primary keys.                                                                 |

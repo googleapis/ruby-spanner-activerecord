@@ -148,20 +148,20 @@ module MockServerTests
     result_set.rows.push row
     row = ListValue.new
     row.values.push(
-      Google::Protobuf::Value.new(string_value: ""),
-      Google::Protobuf::Value.new(string_value: ""),
-      Google::Protobuf::Value.new(string_value: "table_with_sequence"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
+      Value.new(string_value: "table_with_sequence"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
     row.values.push(
-      Google::Protobuf::Value.new(string_value: ""),
-      Google::Protobuf::Value.new(string_value: ""),
-      Google::Protobuf::Value.new(string_value: "versioned_singers"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
+      Value.new(string_value: "versioned_singers"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
     )
     result_set.rows.push row
 
@@ -657,32 +657,32 @@ module MockServerTests
 
     row = Google::Protobuf::ListValue.new
     row.values.push(
-      Google::Protobuf::Value.new(string_value: "id"),
-      Google::Protobuf::Value.new(string_value: "INT64"),
-      Google::Protobuf::Value.new(string_value: "NO"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "GET_NEXT_SEQUENCE_VALUE(Sequence test_sequence)"),
-      Google::Protobuf::Value.new(string_value: "1")
+      Value.new(string_value: "id"),
+      Value.new(string_value: "INT64"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "GET_NEXT_SEQUENCE_VALUE(Sequence test_sequence)"),
+      Value.new(string_value: "1")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
     row.values.push(
-      Google::Protobuf::Value.new(string_value: "name"),
-      Google::Protobuf::Value.new(string_value: "STRING(MAX)"),
-      Google::Protobuf::Value.new(string_value: "NO"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "2")
+      Value.new(string_value: "name"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "2")
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
     row.values.push(
-      Google::Protobuf::Value.new(string_value: "last_updated"),
-      Google::Protobuf::Value.new(string_value: "TIMESTAMP"),
-      Google::Protobuf::Value.new(string_value: "YES"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
-      Google::Protobuf::Value.new(string_value: "3")
+      Value.new(string_value: "last_updated"),
+      Value.new(string_value: "TIMESTAMP"),
+      Value.new(string_value: "YES"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "3")
     )
     result_set.rows.push row
 
