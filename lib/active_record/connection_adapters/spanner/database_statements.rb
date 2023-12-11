@@ -77,16 +77,19 @@ module ActiveRecord
         # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
 
         if ActiveRecord.gem_version >= VERSION_7_1_0
-          def sql_for_insert sql, _pk, binds, returning
+          def sql_for_insert sql, pk, binds, returning
             if supports_insert_returning?
-              # TODO: Add primary key to returning columns when support for bit-reversed sequences has been added.
-              returning_columns = returning
-
-              if returning_columns&.any?
-                returning_columns_statement = returning_columns.map { |c| quote_column_name c }.join(", ")
-                # rubocop:disable Metrics/BlockNesting
-                sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns.any?
-                # rubocop:enable Metrics/BlockNesting
+              if pk && !_has_pk_binding(pk, binds)
+                returning ||= []
+                returning |= if pk.respond_to? :each
+                               pk
+                             else
+                               [pk]
+                             end
+              end
+              if returning&.any?
+                returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
+                sql = "#{sql} THEN RETURN #{returning_columns_statement}"
               end
             end
 
@@ -119,15 +122,15 @@ module ActiveRecord
             end
             super
           end
+        end # ActiveRecord.gem_version < VERSION_7_1_0
 
-          def _has_pk_binding pk, binds
-            if pk.respond_to? :each
-              has_value = true
-              pk.each { |col| has_value &&= binds.any? { |bind| bind.name == col } }
-              has_value
-            else
-              binds.any? { |bind| bind.name == pk }
-            end
+        def _has_pk_binding pk, binds
+          if pk.respond_to? :each
+            has_value = true
+            pk.each { |col| has_value &&= binds.any? { |bind| bind.name == col } }
+            has_value
+          else
+            binds.any? { |bind| bind.name == pk }
           end
         end
 
