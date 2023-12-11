@@ -421,7 +421,10 @@ INSERT INTO `schema_migrations` (version) VALUES
       end
 
       def expected_schema_sql_on_production
-        "CREATE TABLE accounts (
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
   id INT64 NOT NULL,
   customer_id INT64,
   firm_id INT64,
@@ -578,7 +581,10 @@ INSERT INTO `schema_migrations` (version) VALUES
       end
 
       def expected_schema_sql_on_production_7_1
-        "CREATE TABLE accounts (
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
   id INT64 NOT NULL,
   customer_id INT64,
   firm_id INT64,
