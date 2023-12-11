@@ -79,6 +79,7 @@ module ActiveRecord
         if ActiveRecord.gem_version >= VERSION_7_1_0
           def sql_for_insert sql, pk, binds, returning
             if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
               returning ||= []
               returning |= if pk.respond_to? :each
                              pk
@@ -111,6 +112,7 @@ module ActiveRecord
 
           def sql_for_insert sql, pk, binds
             if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
               returning_columns_statement = if pk.respond_to? :each
                                               pk.map { |c| quote_column_name c }.join(", ")
                                             else

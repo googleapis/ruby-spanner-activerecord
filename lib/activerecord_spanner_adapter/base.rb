@@ -33,6 +33,7 @@ module ActiveRecord
       return super unless spanner_adapter?
       return super if active_transaction?
 
+      # Only use mutations to create new records if the primary key is generated client-side.
       isolation = sequence_name ? nil : :buffered_mutations
       transaction isolation: isolation do
         return super
