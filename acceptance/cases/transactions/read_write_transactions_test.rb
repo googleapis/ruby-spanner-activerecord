@@ -248,7 +248,7 @@ module ActiveRecord
       def test_create_record_with_sequence
         record = TableWithSequence.create name: "Some name", age: 40
         assert record.id, "ID should be generated and returned by the database"
-        assert record.id > 0, "ID should be positive"
+        assert record.id > 0, "ID should be positive" unless ENV["SPANNER_EMULATOR_HOST"]
       end
 
       def test_create_record_with_sequence_in_transaction
@@ -256,9 +256,7 @@ module ActiveRecord
           TableWithSequence.create name: "Some name", age: 40
         end
         assert record.id, "ID should be generated and returned by the database"
-        unless ENV["SPANNER_EMULATOR_HOST"]
-          assert record.id > 0, "ID should be positive"
-        end
+        assert record.id > 0, "ID should be positive" unless ENV["SPANNER_EMULATOR_HOST"]
       end
 
       def test_create_record_with_sequence_using_mutations
