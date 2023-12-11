@@ -78,19 +78,17 @@ module ActiveRecord
 
         if ActiveRecord.gem_version >= VERSION_7_1_0
           def sql_for_insert sql, pk, binds, returning
-            if supports_insert_returning?
-              if pk && !_has_pk_binding(pk, binds)
-                returning ||= []
-                returning |= if pk.respond_to? :each
-                               pk
-                             else
-                               [pk]
-                             end
-              end
-              if returning&.any?
-                returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
-                sql = "#{sql} THEN RETURN #{returning_columns_statement}"
-              end
+            if pk && !_has_pk_binding(pk, binds)
+              returning ||= []
+              returning |= if pk.respond_to? :each
+                             pk
+                           else
+                             [pk]
+                           end
+            end
+            if returning&.any?
+              returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}"
             end
 
             [sql, binds]
@@ -122,7 +120,7 @@ module ActiveRecord
             end
             super
           end
-        end # ActiveRecord.gem_version < VERSION_7_1_0
+        end
 
         def _has_pk_binding pk, binds
           if pk.respond_to? :each

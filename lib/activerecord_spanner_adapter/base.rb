@@ -33,7 +33,8 @@ module ActiveRecord
       return super unless spanner_adapter?
       return super if active_transaction?
 
-      transaction isolation: :buffered_mutations do
+      isolation = sequence_name ? nil : :buffered_mutations
+      transaction isolation: isolation do
         return super
       end
     end
@@ -49,14 +50,15 @@ module ActiveRecord
     def self._insert_record values, returning = []
       return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
 
+      # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
+      if buffered_mutations? && sequence_name
+        raise StatementInvalid, "Mutations cannot be used to create records that ues a sequence " \
+                                     "to generate the primary key. #{self} uses #{sequence_name}."
+      end
+
       return _buffer_record values, :insert, returning if buffered_mutations?
 
-      primary_key_value =
-        if primary_key.is_a? Array
-          _set_composite_primary_key_values primary_key, values
-        else
-          _set_single_primary_key_value primary_key, values
-        end
+      primary_key_value = _set_primary_key_value values
       if ActiveRecord::VERSION::MAJOR >= 7
         im = Arel::InsertManager.new arel_table
         im.insert(values.transform_keys { |name| arel_table[name] })
@@ -66,6 +68,14 @@ module ActiveRecord
       result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
 
       _convert_primary_key result, returning
+    end
+
+    def self._set_primary_key_value values
+      if primary_key.is_a? Array
+        _set_composite_primary_key_values primary_key, values
+      else
+        _set_single_primary_key_value primary_key, values
+      end
     end
 
     def self._convert_primary_key primary_key_value, returning
