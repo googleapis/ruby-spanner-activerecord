@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "active_record/gem_version"
 require "activerecord_spanner_adapter/relation"
 
 module ActiveRecord
@@ -14,6 +15,8 @@ module ActiveRecord
   end
 
   class Base
+    VERSION_7_1 = Gem::Version.create "7.1.0"
+
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
     # isolation: :buffered_mutations.
@@ -43,7 +46,7 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values
+    def self._insert_record values, returning = []
       return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
 
       return _buffer_record values, :insert if buffered_mutations?
@@ -60,7 +63,16 @@ module ActiveRecord
       else
         im = arel_table.compile_insert _substitute_values(values)
       end
-      connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+      result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
+
+      _convert_primary_key result
+    end
+
+    def self._convert_primary_key primary_key_value
+      # Rails 7.1 and higher supports composite primary keys, and therefore require the provider to return an array
+      # instead of a single value in all cases.
+      return primary_key_value if ActiveRecord.gem_version < VERSION_7_1
+      [primary_key_value]
     end
 
     def self._upsert_record values
@@ -132,10 +144,9 @@ module ActiveRecord
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         "#{method}": write
       )
-
       connection.current_spanner_transaction.buffer mutation
 
-      primary_key_value
+      _convert_primary_key primary_key_value
     end
 
     def self._set_composite_primary_key_values primary_key, values

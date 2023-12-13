@@ -109,7 +109,7 @@ module ActiveRecord
           information_schema { |i| i.table_columns table_name }
         end
 
-        def new_column_from_field _table_name, field
+        def new_column_from_field _table_name, field, _definitions = nil
           Spanner::Column.new \
             field.name,
             field.default,
@@ -118,7 +118,8 @@ module ActiveRecord
                                 field.allow_commit_timestamp,
                                 field.generated),
             field.nullable,
-            field.default_function
+            field.default_function,
+            primary_key: field.primary_key
         end
 
         def fetch_type_metadata sql_type, ordinal_position = nil, allow_commit_timestamp = nil, generated = nil

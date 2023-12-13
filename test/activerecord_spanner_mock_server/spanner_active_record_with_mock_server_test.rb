@@ -12,6 +12,7 @@ module MockServerTests
   CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
 
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
+    VERSION_7_1_0 = Gem::Version.create('7.1.0')
 
     def test_insert
       singer = { first_name: "Alice", last_name: "Ecila" }
@@ -208,6 +209,7 @@ module MockServerTests
     def test_after_save
       singer = Singer.create(first_name: "Dave", last_name: "Allison")
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -216,6 +218,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -227,6 +230,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -757,7 +761,9 @@ module MockServerTests
       @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
       singer = Singer.find_by id: 1
 
-      update_albums_sql = "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 \
+                     ? "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+                     : "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND (`albums`.`id` = @p3 OR `albums`.`id` = @p4)"
       @mock.put_statement_result update_albums_sql, StatementResult.new(2)
 
       singer.albums = []
