@@ -93,11 +93,11 @@ module ActiveRecord
       _buffer_record values, :insert_or_update, returning
     end
 
-    def self.insert_all _attributes, _returning: nil, _unique_by: nil
-      raise NotImplementedError, "Cloud Spanner does not support skip_duplicates."
+    def self.insert_all _attributes, **_kwargs
+      raise NotImplementedError, "Cloud Spanner does not support skip_duplicates. Use insert! or upsert instead."
     end
 
-    def self.insert_all! attributes, returning: nil
+    def self.insert_all! attributes, returning: nil, **_kwargs
       return super unless spanner_adapter?
       return super if active_transaction? && !buffered_mutations?
 
@@ -116,7 +116,7 @@ module ActiveRecord
       end
     end
 
-    def self.upsert_all attributes, returning: nil, unique_by: nil
+    def self.upsert_all attributes, returning: nil, unique_by: nil, **_kwargs
       return super unless spanner_adapter?
       if active_transaction? && !buffered_mutations?
         raise NotImplementedError, "Cloud Spanner does not support upsert using DML. " \

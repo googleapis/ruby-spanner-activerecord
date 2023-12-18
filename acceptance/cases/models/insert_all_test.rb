@@ -33,6 +33,12 @@ module ActiveRecord
         assert_raise(NotImplementedError) { Author.insert_all(values) }
       end
 
+      def test_insert
+        value = { id: Author.next_sequence_value, name: "Alice" }
+
+        assert_raise(NotImplementedError) { Author.insert(value) }
+      end
+
       def test_insert_all!
         values = [
           { id: Author.next_sequence_value, name: "Alice" },
@@ -83,6 +89,22 @@ module ActiveRecord
         assert_equal "Alice", authors[0].name
         assert_equal "Bob", authors[1].name
         assert_equal "Carol", authors[2].name
+      end
+
+      def test_upsert
+        Author.create id: 1, name: "David"
+        authors = Author.all.order(:name)
+        assert_equal 1, authors.length
+        assert_equal "David", authors[0].name
+
+        value = { id: 1, name: "Alice" }
+
+        Author.upsert(value)
+
+        authors = Author.all.order(:name)
+
+        assert_equal 1, authors.length
+        assert_equal "Alice", authors[0].name
       end
 
       def test_upsert_all
