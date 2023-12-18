@@ -9,8 +9,68 @@
 require_relative "./base_spanner_mock_server_test"
 
 module MockServerTests
+  CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
+
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     VERSION_7_1_0 = Gem::Version.create('7.1.0')
+
+    def test_insert
+      singer = { first_name: "Alice", last_name: "Ecila" }
+
+      assert_raises(NotImplementedError) { Singer.insert(singer) }
+    end
+
+    def test_insert!
+      singer = { first_name: "Alice", last_name: "Ecila" }
+      singer = Singer.insert! singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 1, mutations.length
+      mutation = mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "singers", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal "Alice", mutation.insert.values[0][0]
+      assert_equal "Ecila", mutation.insert.values[0][1]
+      assert_equal id, mutation.insert.values[0][2].to_i
+
+      assert_equal 3, mutation.insert.columns.length
+      assert_equal "first_name", mutation.insert.columns[0]
+      assert_equal "last_name", mutation.insert.columns[1]
+      assert_equal "id", mutation.insert.columns[2]
+    end
+
+    def test_upsert
+      singer = { first_name: "Alice", last_name: "Ecila" }
+      singer = Singer.upsert singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 1, mutations.length
+      mutation = mutations[0]
+      assert_equal :insert_or_update, mutation.operation
+      assert_equal "singers", mutation.insert_or_update.table
+
+      assert_equal 1, mutation.insert_or_update.values.length
+      assert_equal 3, mutation.insert_or_update.values[0].length
+      assert_equal "Alice", mutation.insert_or_update.values[0][0]
+      assert_equal "Ecila", mutation.insert_or_update.values[0][1]
+      assert_equal id, mutation.insert_or_update.values[0][2].to_i
+
+      assert_equal 3, mutation.insert_or_update.columns.length
+      assert_equal "first_name", mutation.insert_or_update.columns[0]
+      assert_equal "last_name", mutation.insert_or_update.columns[1]
+      assert_equal "id", mutation.insert_or_update.columns[2]
+    end
 
     def test_selects_all_singers_without_transaction
       sql = "SELECT `singers`.* FROM `singers`"
