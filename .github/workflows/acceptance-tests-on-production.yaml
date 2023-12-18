@@ -35,7 +35,7 @@ jobs:
         bundler-cache: true
         ruby-version: ${{ matrix.ruby }}
     - name: Authenticate Google Cloud
-      uses: google-github-actions/auth@v1
+      uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
     - name: Setup GCloud
