@@ -53,7 +53,7 @@ module ActiveRecord
 
       # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
       if buffered_mutations? && sequence_name
-        raise StatementInvalid, "Mutations cannot be used to create records that ues a sequence " \
+        raise StatementInvalid, "Mutations cannot be used to create records that use a sequence " \
                                      "to generate the primary key. #{self} uses #{sequence_name}."
       end
 

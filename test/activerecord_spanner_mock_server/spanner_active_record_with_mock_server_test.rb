@@ -230,7 +230,7 @@ module MockServerTests
           TableWithSequence.create(name: "Foo")
         end
       end
-      assert_equal "Mutations cannot be used to create records that ues a sequence to generate the primary key. MockServerTests::TableWithSequence uses test_sequence.", err.message
+      assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. MockServerTests::TableWithSequence uses test_sequence.", err.message
     end
 
     def test_after_save

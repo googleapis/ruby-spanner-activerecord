@@ -49,7 +49,7 @@ class Application
     puts "Found album: #{album.title}"
   end
 
-  def self.list_singers_albums_tracks
+  def self.list_singers_albums
     puts ""
     puts "Listing all singers with corresponding albums and tracks"
     Singer.all.order("last_name, first_name").each do |singer|

@@ -265,7 +265,7 @@ module ActiveRecord
             TableWithSequence.create name: "Foo", age: 50
           end
         end
-        assert_equal "Mutations cannot be used to create records that ues a sequence to generate the primary key. TableWithSequence uses test_sequence.", err.message
+        assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. TableWithSequence uses test_sequence.", err.message
       end
     end
   end

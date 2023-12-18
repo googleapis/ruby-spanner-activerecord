@@ -175,6 +175,8 @@ def create_tables_in_test_schema
 
       if ENV["SPANNER_EMULATOR_HOST"]
         create_table :table_with_sequence, id: false do |t|
+          # The emulator does not yet support bit-reversed sequences, so we emulate a sequence value
+          # by hashing a UUID instead.
           t.integer :id, primary_key: true, null: false, default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }
           t.string :name, null: false
           t.integer :age, null: false
