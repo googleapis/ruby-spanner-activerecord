@@ -10,6 +10,7 @@ require_relative "./base_spanner_mock_server_test"
 
 module MockServerTests
   CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
+  ExecuteSqlRequest = Google::Cloud::Spanner::V1::ExecuteSqlRequest
 
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     VERSION_7_1_0 = Gem::Version.create('7.1.0')
@@ -953,6 +954,90 @@ module MockServerTests
         assert_equal "1", request.params["p1"]
         assert_equal :INT64, request.param_types["p2"].code
         assert_equal :INT64, request.param_types["p1"].code
+      end
+    end
+
+    def test_query_logs
+      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
+
+      begin
+        current_query_transformers = _enable_query_logs
+
+        sql = "/*request_tag:true,action:test_query_logs,database:testdb*/ SELECT `singers`.* FROM `singers`"
+        @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+        Singer.all.each do |singer|
+          refute_nil singer.id, "singer.id should not be nil"
+        end
+        select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+        select_requests.each do |request|
+          assert request.request_options
+          assert_equal "action:test_query_logs,database:testdb", request.request_options.request_tag
+        end
+      ensure
+        _disable_query_logs current_query_transformers
+      end
+    end
+
+    def test_query_logs_combined_with_request_tag
+      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
+
+      begin
+        current_query_transformers = _enable_query_logs
+
+        sql = "/*request_tag:true,action:test_query_logs,database:testdb*/ SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+        @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+        Singer.annotate("request_tag: selecting all singers").all.each do |singer|
+          refute_nil singer.id, "singer.id should not be nil"
+        end
+        select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+        select_requests.each do |request|
+          assert request.request_options
+          assert_equal "selecting all singers,action:test_query_logs,database:testdb", request.request_options.request_tag
+        end
+      ensure
+        _disable_query_logs current_query_transformers
+      end
+    end
+
+    def _enable_query_logs
+      # Make sure that the comment that is added by query_logs is actually added to the query string.
+      # The comment is not translated to a request tag, because the comment is added at a too late moment.
+      # Instead, we need to add that at a lower level in the Spanner connection.
+
+      # Simulate that query_logs has been enabled.
+      current_query_transformers = ActiveRecord.query_transformers
+
+      ActiveRecord.query_transformers << ActiveRecord::QueryLogs
+      ActiveRecord::QueryLogs.prepend_comment = true
+      ActiveRecord::QueryLogs.taggings.merge!(
+        application:  "test-app",
+        action:       "test_query_logs",
+        pid:          -> { Process.pid.to_s },
+        socket:       ->(context) { context[:connection].pool.db_config.socket },
+        db_host:      ->(context) { context[:connection].pool.db_config.host },
+        database:     ->(context) { context[:connection].pool.db_config.database },
+        )
+      ActiveRecord::QueryLogs.tags = [
+        {
+          request_tag:  "true",
+        },
+        :controller,
+        :action,
+        :job,
+        {
+          request_id: ->(context) { context[:controller]&.request&.request_id },
+          job_id: ->(context) { context[:job]&.job_id },
+        },
+        :db_host,
+        :database
+      ]
+
+      current_query_transformers
+    end
+
+    def _disable_query_logs current_query_transformers
+      current_query_transformers.each do |transformer|
+        ActiveRecord.query_transformers.delete transformer
       end
     end
 

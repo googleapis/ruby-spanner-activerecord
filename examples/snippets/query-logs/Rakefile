@@ -1,0 +1,13 @@
+# Copyright 2023 Google LLC
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
+require_relative "../config/environment"
+require "sinatra/activerecord/rake"
+
+desc "Sample showing how to use automatic query log tagging on Cloud Spanner with ActiveRecord."
+task :run do
+  Dir.chdir("..") { sh "bundle exec rake run[query-logs]" }
+end
