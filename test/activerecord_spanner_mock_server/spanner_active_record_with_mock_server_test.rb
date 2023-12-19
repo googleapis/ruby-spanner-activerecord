@@ -963,7 +963,7 @@ module MockServerTests
       begin
         current_query_transformers = _enable_query_logs
 
-        sql = "/*request_tag:true,action:test_query_logs,database:testdb*/ SELECT `singers`.* FROM `singers`"
+        sql = "/*request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers`"
         @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
         Singer.all.each do |singer|
           refute_nil singer.id, "singer.id should not be nil"
@@ -971,7 +971,7 @@ module MockServerTests
         select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
         select_requests.each do |request|
           assert request.request_options
-          assert_equal "action:test_query_logs,database:testdb", request.request_options.request_tag
+          assert_equal "action:test_query_logs", request.request_options.request_tag
         end
       ensure
         _disable_query_logs current_query_transformers
@@ -984,7 +984,7 @@ module MockServerTests
       begin
         current_query_transformers = _enable_query_logs
 
-        sql = "/*request_tag:true,action:test_query_logs,database:testdb*/ SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+        sql = "/*request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
         @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
         Singer.annotate("request_tag: selecting all singers").all.each do |singer|
           refute_nil singer.id, "singer.id should not be nil"
@@ -992,7 +992,7 @@ module MockServerTests
         select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
         select_requests.each do |request|
           assert request.request_options
-          assert_equal "selecting all singers,action:test_query_logs,database:testdb", request.request_options.request_tag
+          assert_equal "selecting all singers,action:test_query_logs", request.request_options.request_tag
         end
       ensure
         _disable_query_logs current_query_transformers
@@ -1013,10 +1013,7 @@ module MockServerTests
         application:  "test-app",
         action:       "test_query_logs",
         pid:          -> { Process.pid.to_s },
-        socket:       ->(context) { context[:connection].pool.db_config.socket },
-        db_host:      ->(context) { context[:connection].pool.db_config.host },
-        database:     ->(context) { context[:connection].pool.db_config.database },
-        )
+      )
       ActiveRecord::QueryLogs.tags = [
         {
           request_tag:  "true",
