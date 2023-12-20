@@ -14,6 +14,10 @@ module ActiveRecord
     class DatabaseTasksTest < SpannerAdapter::TestCase
       attr_reader :connector_config, :connection
 
+      def is_7_1_or_higher?
+        ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+      end
+
       def setup
         @database_id = "ar-tasks-test-#{SecureRandom.hex 4}"
         @connector_config = {
@@ -87,8 +91,12 @@ module ActiveRecord
         end
         ActiveRecord::Tasks::DatabaseTasks.dump_schema db_config, :sql
         sql = File.read(filename)
-        if ENV["SPANNER_EMULATOR_HOST"]
+        if ENV["SPANNER_EMULATOR_HOST"] && is_7_1_or_higher?
+          assert_equal expected_schema_sql_on_emulator_7_1, sql, msg = sql
+        elsif ENV["SPANNER_EMULATOR_HOST"]
           assert_equal expected_schema_sql_on_emulator, sql, msg = sql
+        elsif is_7_1_or_higher?
+          assert_equal expected_schema_sql_on_production_7_1, sql, msg = sql
         else
           assert_equal expected_schema_sql_on_production, sql, msg = sql
         end
@@ -235,6 +243,168 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (FARM_FINGERPRINT(GENERATE_UUID())),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
+CREATE TABLE schema_migrations (
+  version STRING(MAX) NOT NULL,
+) PRIMARY KEY(version);
+CREATE TABLE ar_internal_metadata (
+  key STRING(MAX) NOT NULL,
+  value STRING(MAX),
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+) PRIMARY KEY(key);
+INSERT INTO `schema_migrations` (version) VALUES
+('1');
+
+"
+      end
+
+      def expected_schema_sql_on_emulator_7_1
+        "CREATE TABLE all_types (
+  id INT64 NOT NULL,
+  col_string STRING(MAX),
+  col_int64 INT64,
+  col_float64 FLOAT64,
+  col_numeric NUMERIC,
+  col_bool BOOL,
+  col_bytes BYTES(MAX),
+  col_date DATE,
+  col_timestamp TIMESTAMP,
+  col_json JSON,
+  col_array_string ARRAY<STRING(MAX)>,
+  col_array_int64 ARRAY<INT64>,
+  col_array_float64 ARRAY<FLOAT64>,
+  col_array_numeric ARRAY<NUMERIC>,
+  col_array_bool ARRAY<BOOL>,
+  col_array_bytes ARRAY<BYTES(MAX)>,
+  col_array_date ARRAY<DATE>,
+  col_array_timestamp ARRAY<TIMESTAMP>,
+  col_array_json ARRAY<JSON>,
+) PRIMARY KEY(id);
+CREATE TABLE firms (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  rating INT64,
+  description STRING(MAX),
+  account_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_firms_on_account_id ON firms(account_id);
+CREATE TABLE customers (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE accounts (
+  id INT64 NOT NULL,
+  customer_id INT64,
+  firm_id INT64,
+  name STRING(MAX),
+  credit_limit INT64,
+  transactions_count INT64,
+) PRIMARY KEY(id);
+CREATE TABLE transactions (
+  id INT64 NOT NULL,
+  amount FLOAT64,
+  account_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE departments (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  resource_type STRING(255),
+  resource_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_departments_on_resource ON departments(resource_type, resource_id);
+CREATE TABLE member_types (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE members (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  member_type_id INT64,
+  admittable_type STRING(255),
+  admittable_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE memberships (
+  id INT64 NOT NULL,
+  joined_on TIMESTAMP,
+  club_id INT64,
+  member_id INT64,
+  favourite BOOL,
+) PRIMARY KEY(id);
+CREATE TABLE clubs (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE authors (
+  id INT64 NOT NULL,
+  name STRING(MAX) NOT NULL,
+  registered_date DATE,
+  organization_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE posts (
+  id INT64 NOT NULL,
+  title STRING(MAX),
+  content STRING(MAX),
+  author_id INT64,
+  comments_count INT64,
+  post_date DATE,
+  published_time TIMESTAMP,
+) PRIMARY KEY(id);
+CREATE INDEX index_posts_on_author_id ON posts(author_id);
+CREATE TABLE comments (
+  id INT64 NOT NULL,
+  comment STRING(MAX),
+  post_id INT64,
+  CONSTRAINT fk_rails_2fd19c0db7 FOREIGN KEY(post_id) REFERENCES posts(id),
+) PRIMARY KEY(id);
+CREATE TABLE addresses (
+  id INT64 NOT NULL,
+  line1 STRING(MAX),
+  postal_code STRING(MAX),
+  city STRING(MAX),
+  author_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE organizations (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  last_updated TIMESTAMP OPTIONS (
+    allow_commit_timestamp = true
+  ),
+) PRIMARY KEY(id);
+CREATE TABLE singers (
+  singerid INT64 NOT NULL,
+  first_name STRING(200),
+  last_name STRING(MAX),
+  tracks_count INT64,
+  lock_version INT64,
+  full_name STRING(MAX) AS (COALESCE(first_name || ' ', '') || last_name) STORED,
+) PRIMARY KEY(singerid);
+CREATE TABLE albums (
+  singerid INT64 NOT NULL,
+  albumid INT64 NOT NULL,
+  title STRING(MAX),
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid),
+  INTERLEAVE IN PARENT singers ON DELETE NO ACTION;
+CREATE TABLE tracks (
+  singerid INT64 NOT NULL,
+  albumid INT64 NOT NULL,
+  trackid INT64 NOT NULL,
+  title STRING(MAX),
+  duration NUMERIC,
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid, trackid),
+  INTERLEAVE IN PARENT albums ON DELETE CASCADE;
+CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (FARM_FINGERPRINT(GENERATE_UUID())),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE schema_migrations (
   version STRING(MAX) NOT NULL,
 ) PRIMARY KEY(version);
@@ -251,7 +421,10 @@ INSERT INTO `schema_migrations` (version) VALUES
       end
 
       def expected_schema_sql_on_production
-        "CREATE TABLE accounts (
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
   id INT64 NOT NULL,
   customer_id INT64,
   firm_id INT64,
@@ -391,6 +564,171 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
+CREATE TABLE transactions (
+  id INT64 NOT NULL,
+  amount FLOAT64,
+  account_id INT64,
+) PRIMARY KEY(id);
+INSERT INTO `schema_migrations` (version) VALUES
+('1');
+
+"
+      end
+
+      def expected_schema_sql_on_production_7_1
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
+  id INT64 NOT NULL,
+  customer_id INT64,
+  firm_id INT64,
+  name STRING(MAX),
+  credit_limit INT64,
+  transactions_count INT64,
+) PRIMARY KEY(id);
+CREATE TABLE addresses (
+  id INT64 NOT NULL,
+  line1 STRING(MAX),
+  postal_code STRING(MAX),
+  city STRING(MAX),
+  author_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE all_types (
+  id INT64 NOT NULL,
+  col_string STRING(MAX),
+  col_int64 INT64,
+  col_float64 FLOAT64,
+  col_numeric NUMERIC,
+  col_bool BOOL,
+  col_bytes BYTES(MAX),
+  col_date DATE,
+  col_timestamp TIMESTAMP,
+  col_json JSON,
+  col_array_string ARRAY<STRING(MAX)>,
+  col_array_int64 ARRAY<INT64>,
+  col_array_float64 ARRAY<FLOAT64>,
+  col_array_numeric ARRAY<NUMERIC>,
+  col_array_bool ARRAY<BOOL>,
+  col_array_bytes ARRAY<BYTES(MAX)>,
+  col_array_date ARRAY<DATE>,
+  col_array_timestamp ARRAY<TIMESTAMP>,
+  col_array_json ARRAY<JSON>,
+) PRIMARY KEY(id);
+CREATE TABLE ar_internal_metadata (
+  key STRING(MAX) NOT NULL,
+  value STRING(MAX),
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+) PRIMARY KEY(key);
+CREATE TABLE authors (
+  id INT64 NOT NULL,
+  name STRING(MAX) NOT NULL,
+  registered_date DATE,
+  organization_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE clubs (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE comments (
+  id INT64 NOT NULL,
+  comment STRING(MAX),
+  post_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE customers (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE departments (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  resource_type STRING(255),
+  resource_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_departments_on_resource ON departments(resource_type, resource_id);
+CREATE TABLE firms (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  rating INT64,
+  description STRING(MAX),
+  account_id INT64,
+) PRIMARY KEY(id);
+CREATE INDEX index_firms_on_account_id ON firms(account_id);
+CREATE TABLE member_types (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+) PRIMARY KEY(id);
+CREATE TABLE members (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  member_type_id INT64,
+  admittable_type STRING(255),
+  admittable_id INT64,
+) PRIMARY KEY(id);
+CREATE TABLE memberships (
+  id INT64 NOT NULL,
+  joined_on TIMESTAMP,
+  club_id INT64,
+  member_id INT64,
+  favourite BOOL,
+) PRIMARY KEY(id);
+CREATE TABLE organizations (
+  id INT64 NOT NULL,
+  name STRING(MAX),
+  last_updated TIMESTAMP OPTIONS (
+    allow_commit_timestamp = true
+  ),
+) PRIMARY KEY(id);
+CREATE TABLE posts (
+  id INT64 NOT NULL,
+  title STRING(MAX),
+  content STRING(MAX),
+  author_id INT64,
+  comments_count INT64,
+  post_date DATE,
+  published_time TIMESTAMP,
+) PRIMARY KEY(id);
+ALTER TABLE comments ADD CONSTRAINT fk_rails_2fd19c0db7 FOREIGN KEY(post_id) REFERENCES posts(id);
+CREATE INDEX index_posts_on_author_id ON posts(author_id);
+CREATE TABLE schema_migrations (
+  version STRING(MAX) NOT NULL,
+) PRIMARY KEY(version);
+CREATE TABLE singers (
+  singerid INT64 NOT NULL,
+  first_name STRING(200),
+  last_name STRING(MAX),
+  tracks_count INT64,
+  lock_version INT64,
+  full_name STRING(MAX) AS (COALESCE(first_name || ' ', '') || last_name) STORED,
+) PRIMARY KEY(singerid);
+CREATE TABLE albums (
+  singerid INT64 NOT NULL,
+  albumid INT64 NOT NULL,
+  title STRING(MAX),
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid),
+  INTERLEAVE IN PARENT singers ON DELETE NO ACTION;
+CREATE TABLE tracks (
+  singerid INT64 NOT NULL,
+  albumid INT64 NOT NULL,
+  trackid INT64 NOT NULL,
+  title STRING(MAX),
+  duration NUMERIC,
+  lock_version INT64,
+) PRIMARY KEY(singerid, albumid, trackid),
+  INTERLEAVE IN PARENT albums ON DELETE CASCADE;
+CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE transactions (
   id INT64 NOT NULL,
   amount FLOAT64,

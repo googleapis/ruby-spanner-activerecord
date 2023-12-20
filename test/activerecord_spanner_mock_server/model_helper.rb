@@ -150,6 +150,15 @@ module MockServerTests
     row.values.push(
       Value.new(string_value: ""),
       Value.new(string_value: ""),
+      Value.new(string_value: "table_with_sequence"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
       Value.new(string_value: "versioned_singers"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
@@ -635,6 +644,66 @@ module MockServerTests
     register_key_columns_result spanner_mock_server, sql
   end
 
+  def self.register_table_with_sequence_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "table_with_sequence"
+
+    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='table_with_sequence' ORDER BY ORDINAL_POSITION ASC"
+
+    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
+    ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+
+    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
+    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Value.new(string_value: "id"),
+      Value.new(string_value: "INT64"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "GET_NEXT_SEQUENCE_VALUE(Sequence test_sequence)"),
+      Value.new(string_value: "1")
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Value.new(string_value: "name"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "2")
+    )
+    result_set.rows.push row
+    row = Google::Protobuf::ListValue.new
+    row.values.push(
+      Value.new(string_value: "last_updated"),
+      Value.new(string_value: "TIMESTAMP"),
+      Value.new(string_value: "YES"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "3")
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_table_with_sequence_primary_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'table_with_sequence' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_table_with_sequence_primary_and_parent_key_columns_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'table_with_sequence' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
+  end
+
   def self.register_empty_select_indexes_result spanner_mock_server, sql
     col_index_name = Field.new name: "INDEX_NAME", type: Type.new(code: TypeCode::STRING)
     col_index_type = Field.new name: "INDEX_TYPE", type: Type.new(code: TypeCode::STRING)
@@ -695,6 +764,11 @@ module MockServerTests
     result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_join_table_primary_key_result spanner_mock_server
+    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'artists_musics' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    register_key_columns_result spanner_mock_server, sql
   end
 
   def self.register_join_table_key_columns_result spanner_mock_server, table, col1, col2

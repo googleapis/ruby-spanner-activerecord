@@ -14,22 +14,14 @@ ActiveRecord::Schema[7.1].define(version: 1) do
   connection.start_batch_ddl
 
   create_table "albums", primary_key: ["singerid", "albumid"], force: :cascade do |t|
-    t.integer "singerid", limit: 8
-    t.integer "albumid", limit: 8
+    t.integer "singerid", limit: 8, null: false
+    t.integer "albumid", limit: 8, null: false
     t.string "title"
   end
 
-  create_table "singers", primary_key: "singerid", force: :cascade do |t|
+  create_table "singers", primary_key: "singerid", default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }, force: :cascade do |t|
     t.string "first_name"
     t.string "last_name"
-  end
-
-  create_table "tracks", primary_key: ["singerid", "albumid", "trackid"], force: :cascade do |t|
-    t.integer "singerid", limit: 8
-    t.integer "albumid", limit: 8
-    t.integer "trackid", limit: 8
-    t.string "title"
-    t.decimal "duration"
   end
 
   connection.run_batch
