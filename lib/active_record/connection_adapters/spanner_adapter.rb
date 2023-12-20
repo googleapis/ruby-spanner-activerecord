@@ -261,6 +261,14 @@ module ActiveRecord
         include TypeMapBuilder
       end
 
+      def transform sql
+        if ActiveRecord::VERSION::MAJOR >= 7
+          transform_query sql
+        else
+          sql
+        end
+      end
+
       # Overwrite the standard log method to be able to translate exceptions.
       def log sql, name = "SQL", binds = [], type_casted_binds = [], statement_name = nil, *args
         super
