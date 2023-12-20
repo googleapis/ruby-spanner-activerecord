@@ -13,6 +13,7 @@ module ActiveRecord
     module Spanner
       module DatabaseStatements
         VERSION_7_1_0 = Gem::Version.create "7.1.0"
+        RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
 
         # DDL, DML and DQL Statements
 
@@ -30,6 +31,9 @@ module ActiveRecord
         def internal_execute sql, name = "SQL", binds = [],
                              prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
           statement_type = sql_statement_type sql
+          # Call `transform` to invoke any query transformers that might have been registered.
+          sql = transform sql
+          append_request_tag_from_query_logs sql, binds
 
           if preventing_writes? && [:dml, :ddl].include?(statement_type)
             raise ActiveRecord::ReadOnlyError(
@@ -40,38 +44,67 @@ module ActiveRecord
           if statement_type == :ddl
             execute_ddl sql
           else
-            transaction_required = statement_type == :dml
-            materialize_transactions
+            execute_query_or_dml statement_type, sql, name, binds
+          end
+        end
 
-            # First process and remove any hints in the binds that indicate that
-            # a different read staleness should be used than the default.
-            staleness_hint = binds.find { |b| b.is_a? Arel::Visitors::StalenessHint }
-            if staleness_hint
-              selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
-              binds.delete staleness_hint
-            end
-            request_options = binds.find { |b| b.is_a? Google::Cloud::Spanner::V1::RequestOptions }
-            if request_options
-              binds.delete request_options
-            end
+        def execute_query_or_dml statement_type, sql, name, binds
+          transaction_required = statement_type == :dml
+          materialize_transactions
 
-            log_args = [sql, name]
-            log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
+          # First process and remove any hints in the binds that indicate that
+          # a different read staleness should be used than the default.
+          staleness_hint = binds.find { |b| b.is_a? Arel::Visitors::StalenessHint }
+          if staleness_hint
+            selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
+            binds.delete staleness_hint
+          end
+          request_options = binds.find { |b| b.is_a? RequestOptions }
+          if request_options
+            binds.delete request_options
+          end
 
-            log(*log_args) do
-              types, params = to_types_and_params binds
-              ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-                if transaction_required
-                  transaction do
-                    @connection.execute_query sql, params: params, types: types, request_options: request_options
-                  end
-                else
-                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
-                                            request_options: request_options
+          log_args = [sql, name]
+          log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
+
+          log(*log_args) do
+            types, params = to_types_and_params binds
+            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+              if transaction_required
+                transaction do
+                  @connection.execute_query sql, params: params, types: types, request_options: request_options
                 end
+              else
+                @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                                          request_options: request_options
               end
             end
           end
+        end
+
+        def append_request_tag_from_query_logs sql, binds
+          legacy_formatter_prefix = "/*request_tag:true,"
+          sql_commenter_prefix = "/*request_tag='true',"
+          if sql.start_with? legacy_formatter_prefix
+            append_request_tag_from_query_logs_with_format sql, binds, legacy_formatter_prefix
+          elsif sql.start_with? sql_commenter_prefix
+            append_request_tag_from_query_logs_with_format sql, binds, sql_commenter_prefix
+          end
+        end
+
+        def append_request_tag_from_query_logs_with_format sql, binds, prefix
+          end_of_comment = sql.index "*/", prefix.length
+          return unless end_of_comment
+
+          request_tag = sql[prefix.length, end_of_comment - prefix.length]
+          options = binds.find { |bind| bind.is_a? RequestOptions } || RequestOptions.new
+          if options.request_tag == ""
+            options.request_tag = request_tag
+          else
+            options.request_tag += "," + request_tag
+          end
+
+          binds.append options
         end
 
         # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
