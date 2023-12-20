@@ -10,22 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 1) do
+ActiveRecord::Schema[7.1].define(version: 1) do
   connection.start_batch_ddl
 
-  create_table "albums", primary_key: "albumid", id: { limit: 8 }, force: :cascade do |t|
-    t.integer "singerid", limit: 8, null: false
+  create_table "albums", primary_key: ["singerid", "albumid"], force: :cascade do |t|
+    t.integer "singerid", limit: 8
+    t.integer "albumid", limit: 8
     t.string "title"
   end
 
-  create_table "singers", primary_key: "singerid", id: { limit: 8 }, force: :cascade do |t|
+  create_table "singers", primary_key: "singerid", force: :cascade do |t|
     t.string "first_name"
     t.string "last_name"
   end
 
-  create_table "tracks", primary_key: "trackid", id: { limit: 8 }, force: :cascade do |t|
-    t.integer "singerid", limit: 8, null: false
-    t.integer "albumid", limit: 8, null: false
+  create_table "tracks", primary_key: ["singerid", "albumid", "trackid"], force: :cascade do |t|
+    t.integer "singerid", limit: 8
+    t.integer "albumid", limit: 8
+    t.integer "trackid", limit: 8
     t.string "title"
     t.decimal "duration"
   end

@@ -6,6 +6,11 @@
 
 # frozen_string_literal: true
 
+
+def is_7_1_or_higher?
+  ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+end
+
 def create_tables_in_test_schema
   ActiveRecord::Schema.define(version: 1) do
     ActiveRecord::Base.connection.ddl_batch do
@@ -122,28 +127,69 @@ def create_tables_in_test_schema
         t.virtual :full_name, type: :string, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
       end
 
-      create_table :albums, id: false do |t|
-        t.interleave_in :singers
-        t.primary_key :albumid
-        # `singerid` is part of the primary key in the table definition, but it is not visible to ActiveRecord as part of
-        # the primary key, to prevent ActiveRecord from considering this to be an entity with a composite primary key.
-        t.parent_key :singerid
-        t.string :title
-        t.integer :lock_version
+      if is_7_1_or_higher?
+        create_table :albums, primary_key: [:singerid, :albumid] do |t|
+          t.interleave_in :singers
+          t.integer :singerid, null: false
+          t.integer :albumid, null: false
+          t.string :title
+          t.integer :lock_version
+        end
+      else
+        create_table :albums, id: false do |t|
+          t.interleave_in :singers
+          t.primary_key :albumid
+          # `singerid` is part of the primary key in the table definition, but it is not visible to ActiveRecord as part of
+          # the primary key, to prevent ActiveRecord from considering this to be an entity with a composite primary key.
+          t.parent_key :singerid
+          t.string :title
+          t.integer :lock_version
+        end
       end
 
-      create_table :tracks, id: false do |t|
-        # `:cascade` causes all tracks that belong to an album to automatically be deleted when an album is deleted.
-        t.interleave_in :albums, :cascade
-        t.primary_key :trackid
-        t.parent_key :singerid
-        t.parent_key :albumid
-        t.string :title
-        t.numeric :duration
-        t.integer :lock_version
+      if is_7_1_or_higher?
+        create_table :tracks, primary_key: [:singerid, :albumid, :trackid] do |t|
+          # `:cascade` causes all tracks that belong to an album to automatically be deleted when an album is deleted.
+          t.interleave_in :albums, :cascade
+          t.integer :singerid, null: false
+          t.integer :albumid, null: false
+          t.integer :trackid, null: false
+          t.string :title
+          t.numeric :duration
+          t.integer :lock_version
+        end
+      else
+        create_table :tracks, id: false do |t|
+          # `:cascade` causes all tracks that belong to an album to automatically be deleted when an album is deleted.
+          t.interleave_in :albums, :cascade
+          t.primary_key :trackid
+          t.parent_key :singerid
+          t.parent_key :albumid
+          t.string :title
+          t.numeric :duration
+          t.integer :lock_version
+        end
       end
 
       add_index :tracks, [:singerid, :albumid, :title], interleave_in: :albums, null_filtered: true, unique: false
+
+      if ENV["SPANNER_EMULATOR_HOST"]
+        create_table :table_with_sequence, id: false do |t|
+          # The emulator does not yet support bit-reversed sequences, so we emulate a sequence value
+          # by hashing a UUID instead.
+          t.integer :id, primary_key: true, null: false, default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }
+          t.string :name, null: false
+          t.integer :age, null: false
+        end
+      else
+        connection.execute "create sequence test_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')"
+
+        create_table :table_with_sequence, id: false do |t|
+          t.integer :id, primary_key: true, null: false, default: -> { "GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)" }
+          t.string :name, null: false
+          t.integer :age, null: false
+        end
+      end
 
     end
   end

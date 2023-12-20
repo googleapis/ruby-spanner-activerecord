@@ -42,14 +42,6 @@ module ActiveRecord
   end
 
   module ConnectionAdapters
-    module AbstractPool
-      def get_schema_cache connection
-        self.schema_cache ||= SpannerSchemaCache.new connection
-        schema_cache.connection = connection
-        schema_cache
-      end
-    end
-
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
       NATIVE_DATABASE_TYPES = {
@@ -78,8 +70,10 @@ module ActiveRecord
       class_attribute :log_statement_binds, instance_writer: false, default: false
 
       def initialize connection, logger, connection_options, config
-        super connection, logger, config
+        @connection = connection
         @connection_options = connection_options
+        super connection, logger, config
+        @raw_connection ||= connection
       end
 
       def max_identifier_length
@@ -116,6 +110,10 @@ module ActiveRecord
         @connection.reset!
       end
       alias reconnect! reset!
+
+      def spanner_schema_cache
+        @spanner_schema_cache ||= SpannerSchemaCache.new self
+      end
 
       # Spanner Connection API
       delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
@@ -184,6 +182,10 @@ module ActiveRecord
       # Generate next sequence number for primary key
       def next_sequence_value _sequence_name
         SecureRandom.uuid.gsub("-", "").hex & 0x7FFFFFFFFFFFFFFF
+      end
+
+      def return_value_after_insert? column
+        column.auto_incremented_by_db? || column.primary_key?
       end
 
       def arel_visitor
@@ -257,6 +259,23 @@ module ActiveRecord
         end
       else
         include TypeMapBuilder
+      end
+
+      def transform sql
+        if ActiveRecord::VERSION::MAJOR >= 7
+          transform_query sql
+        else
+          sql
+        end
+      end
+
+      # Overwrite the standard log method to be able to translate exceptions.
+      def log sql, name = "SQL", binds = [], type_casted_binds = [], statement_name = nil, *args
+        super
+      rescue ActiveRecord::StatementInvalid
+        raise
+      rescue StandardError => e
+        raise translate_exception_class(e, sql, binds)
       end
 
       def translate_exception exception, message:, sql:, binds:

@@ -15,6 +15,8 @@ module ActiveRecordSpannerAdapter
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
 
+    IsRails71OrLater = ActiveRecord.gem_version >= Gem::Version.create("7.1.0")
+
     attr_reader :connection
 
     def initialize connection
@@ -62,6 +64,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def table_columns table_name, column_name: nil
+      primary_keys = table_primary_keys(table_name).map(&:name)
       sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION,"
       sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION"
       sql << " FROM INFORMATION_SCHEMA.COLUMNS"
@@ -75,34 +78,40 @@ module ActiveRecordSpannerAdapter
         table_name: table_name,
         column_name: column_name
       ).map do |row|
-        type, limit = parse_type_and_limit row["SPANNER_TYPE"]
-        column_name = row["COLUMN_NAME"]
-        options = column_options[column_name]
-
-        default = row["COLUMN_DEFAULT"]
-        default_function = row["GENERATION_EXPRESSION"]
-
-        if /\w+\(.*\)/.match?(default)
-          default_function ||= default
-          default = nil
-        end
-
-        if default && type == "STRING"
-          default = unquote_string default
-        end
-
-        Table::Column.new \
-          table_name,
-          column_name,
-          type,
-          limit: limit,
-          allow_commit_timestamp: options["allow_commit_timestamp"],
-          ordinal_position: row["ORDINAL_POSITION"],
-          nullable: row["IS_NULLABLE"] == "YES",
-          default: default,
-          default_function: default_function,
-          generated: row["GENERATION_EXPRESSION"].present?
+        _create_column table_name, row, primary_keys, column_options
       end
+    end
+
+    def _create_column table_name, row, primary_keys, column_options
+      type, limit = parse_type_and_limit row["SPANNER_TYPE"]
+      column_name = row["COLUMN_NAME"]
+      options = column_options[column_name]
+      primary_key = primary_keys.include? column_name
+
+      default = row["COLUMN_DEFAULT"]
+      default_function = row["GENERATION_EXPRESSION"]
+
+      if default && default.length < 200 && /\w+\(.*\)/.match?(default)
+        default_function ||= default
+        default = nil
+      end
+
+      if default && type == "STRING"
+        default = unquote_string default
+      end
+
+      Table::Column.new \
+        table_name,
+        column_name,
+        type,
+        limit: limit,
+        allow_commit_timestamp: options["allow_commit_timestamp"],
+        ordinal_position: row["ORDINAL_POSITION"],
+        nullable: row["IS_NULLABLE"] == "YES",
+        default: default,
+        default_function: default_function,
+        generated: row["GENERATION_EXPRESSION"].present?,
+        primary_key: primary_key
     end
 
     def table_column table_name, column_name
@@ -114,7 +123,7 @@ module ActiveRecordSpannerAdapter
     # ActiveRecord. The parent primary key columns are filtered out by default to allow interleaved tables to be
     # considered as tables with a single-column primary key by ActiveRecord. The actual primary key of the table will
     # include both the parent primary key columns and the 'own' primary key columns of a table.
-    def table_primary_keys table_name, include_parent_keys = false
+    def table_primary_keys table_name, include_parent_keys = IsRails71OrLater
       sql = +"WITH TABLE_PK_COLS AS ( "
       sql << "SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION "
       sql << "FROM INFORMATION_SCHEMA.INDEX_COLUMNS C "

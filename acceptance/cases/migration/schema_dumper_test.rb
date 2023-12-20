@@ -13,6 +13,10 @@ module ActiveRecord
     class IndexTest < SpannerAdapter::TestCase
       include SpannerAdapter::Migration::TestHelper
 
+      def is_7_1_or_higher?
+        ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+      end
+
       def test_dump_schema_contains_start_batch_ddl
         connection = ActiveRecord::Base.connection
         schema = StringIO.new
@@ -34,7 +38,12 @@ module ActiveRecord
         connection = ActiveRecord::Base.connection
         schema = StringIO.new
         ActiveRecord::SchemaDumper.dump connection, schema
-        assert schema.string.include?("create_table \"albums\", primary_key: \"albumid\"")
+        sql = schema.string
+        if is_7_1_or_higher?
+          assert schema.string.include?("create_table \"albums\", primary_key: [\"singerid\", \"albumid\"]"), sql
+        else
+          assert schema.string.include?("create_table \"albums\", primary_key: \"albumid\""), sql
+        end
       end
 
       def test_dump_schema_contains_interleaved_index

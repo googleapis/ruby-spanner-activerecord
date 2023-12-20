@@ -18,7 +18,7 @@ module ActiveRecord
         end
 
         def fetch_primary_and_parent_key
-          return connection.schema_cache.primary_and_parent_keys table_name \
+          return connection.spanner_schema_cache.primary_and_parent_keys table_name \
             if ActiveRecord::Base != self && table_exists?
         end
 
