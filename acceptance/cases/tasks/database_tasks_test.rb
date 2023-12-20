@@ -243,6 +243,11 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (FARM_FINGERPRINT(GENERATE_UUID())),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE schema_migrations (
   version STRING(MAX) NOT NULL,
 ) PRIMARY KEY(version);
@@ -395,6 +400,11 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (FARM_FINGERPRINT(GENERATE_UUID())),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE schema_migrations (
   version STRING(MAX) NOT NULL,
 ) PRIMARY KEY(version);
@@ -411,7 +421,10 @@ INSERT INTO `schema_migrations` (version) VALUES
       end
 
       def expected_schema_sql_on_production
-        "CREATE TABLE accounts (
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
   id INT64 NOT NULL,
   customer_id INT64,
   firm_id INT64,
@@ -551,6 +564,11 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE transactions (
   id INT64 NOT NULL,
   amount FLOAT64,
@@ -563,7 +581,10 @@ INSERT INTO `schema_migrations` (version) VALUES
       end
 
       def expected_schema_sql_on_production_7_1
-        "CREATE TABLE accounts (
+        "CREATE SEQUENCE test_sequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+CREATE TABLE accounts (
   id INT64 NOT NULL,
   customer_id INT64,
   firm_id INT64,
@@ -703,6 +724,11 @@ CREATE TABLE tracks (
 ) PRIMARY KEY(singerid, albumid, trackid),
   INTERLEAVE IN PARENT albums ON DELETE CASCADE;
 CREATE NULL_FILTERED INDEX index_tracks_on_singerid_and_albumid_and_title ON tracks(singerid, albumid, title), INTERLEAVE IN albums;
+CREATE TABLE table_with_sequence (
+  id INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)),
+  name STRING(MAX) NOT NULL,
+  age INT64 NOT NULL,
+) PRIMARY KEY(id);
 CREATE TABLE transactions (
   id INT64 NOT NULL,
   amount FLOAT64,

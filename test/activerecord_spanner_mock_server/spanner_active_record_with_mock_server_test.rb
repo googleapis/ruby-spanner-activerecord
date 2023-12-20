@@ -206,6 +206,33 @@ module MockServerTests
       end
     end
 
+    def test_save_with_sequence
+      insert_sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithSequence.transaction do
+        TableWithSequence.create(name: "Foo")
+      end
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_sequence_without_transaction
+      insert_sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithSequence.create(name: "Foo")
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_sequence_and_mutations
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithSequence.transaction isolation: :buffered_mutations do
+          TableWithSequence.create(name: "Foo")
+        end
+      end
+      assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. MockServerTests::TableWithSequence uses test_sequence.", err.message
+    end
+
     def test_after_save
       singer = Singer.create(first_name: "Dave", last_name: "Allison")
 

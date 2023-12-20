@@ -173,6 +173,24 @@ def create_tables_in_test_schema
 
       add_index :tracks, [:singerid, :albumid, :title], interleave_in: :albums, null_filtered: true, unique: false
 
+      if ENV["SPANNER_EMULATOR_HOST"]
+        create_table :table_with_sequence, id: false do |t|
+          # The emulator does not yet support bit-reversed sequences, so we emulate a sequence value
+          # by hashing a UUID instead.
+          t.integer :id, primary_key: true, null: false, default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }
+          t.string :name, null: false
+          t.integer :age, null: false
+        end
+      else
+        connection.execute "create sequence test_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')"
+
+        create_table :table_with_sequence, id: false do |t|
+          t.integer :id, primary_key: true, null: false, default: -> { "GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)" }
+          t.string :name, null: false
+          t.integer :age, null: false
+        end
+      end
+
     end
   end
 end

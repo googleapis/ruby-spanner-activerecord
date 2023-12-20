@@ -323,6 +323,7 @@ module TestMigrationsWithMockServer
       expectedDdl << "PRIMARY KEY (`id`)"
       assert_equal expectedDdl, ddl_requests[2].statements[0]
     end
+
     def test_add_column
       with_change_table :singers do |t|
         t.column :age, :integer
@@ -1048,6 +1049,25 @@ module TestMigrationsWithMockServer
                    ddl_requests[0].statements[0]
 
       assert_equal [true, true], connection.columns(:artists_musics).map(&:null)
+    end
+
+    def test_create_table_with_sequence
+      context = migration_context
+
+      register_version_result "1", "12"
+
+      context.migrate 12
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 2, ddl_requests[2].statements.length
+
+      assert_equal "create sequence test_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')", ddl_requests[2].statements[0]
+      expectedDdl = "CREATE TABLE `table_with_sequence` "
+      expectedDdl << "(`id` INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE test_sequence)), `name` STRING(MAX) NOT NULL, `age` INT64 NOT NULL) "
+      expectedDdl << "PRIMARY KEY (`id`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[1]
     end
 
     def register_schema_migrations_table_result

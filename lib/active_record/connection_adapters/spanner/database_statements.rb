@@ -77,17 +77,19 @@ module ActiveRecord
         # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
 
         if ActiveRecord.gem_version >= VERSION_7_1_0
-          def sql_for_insert sql, _pk, binds, returning
-            if supports_insert_returning?
-              # TODO: Add primary key to returning columns when support for bit-reversed sequences has been added.
-              returning_columns = returning
-
-              if returning_columns&.any?
-                returning_columns_statement = returning_columns.map { |c| quote_column_name c }.join(", ")
-                # rubocop:disable Metrics/BlockNesting
-                sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns.any?
-                # rubocop:enable Metrics/BlockNesting
-              end
+          def sql_for_insert sql, pk, binds, returning
+            if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
+              returning ||= []
+              returning |= if pk.respond_to? :each
+                             pk
+                           else
+                             [pk]
+                           end
+            end
+            if returning&.any?
+              returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}"
             end
 
             [sql, binds]
@@ -106,6 +108,29 @@ module ActiveRecord
             ActiveRecord::Result.new(
               result.fields.keys.map(&:to_s), result.rows.map(&:values)
             )
+          end
+
+          def sql_for_insert sql, pk, binds
+            if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
+              returning_columns_statement = if pk.respond_to? :each
+                                              pk.map { |c| quote_column_name c }.join(", ")
+                                            else
+                                              quote_column_name pk
+                                            end
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns_statement
+            end
+            super
+          end
+        end
+
+        def _has_pk_binding pk, binds
+          if pk.respond_to? :each
+            has_value = true
+            pk.each { |col| has_value &&= binds.any? { |bind| bind.name == col } }
+            has_value
+          else
+            binds.any? { |bind| bind.name == pk }
           end
         end
 
