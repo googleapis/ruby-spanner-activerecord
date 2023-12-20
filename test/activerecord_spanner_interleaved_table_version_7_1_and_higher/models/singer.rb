@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-module TestInterleavedTables_7_1
+module TestInterleavedTables_7_1_AndHigher
   class Singer < ActiveRecord::Base
     has_many :albums, foreign_key: :singerid
   end

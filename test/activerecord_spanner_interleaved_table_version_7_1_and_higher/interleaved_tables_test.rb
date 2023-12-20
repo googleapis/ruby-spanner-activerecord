@@ -18,7 +18,7 @@ require_relative "models/track"
 
 require "securerandom"
 
-module TestInterleavedTables_7_1
+module TestInterleavedTables_7_1_AndHigher
   class InterleavedTablesTest < Minitest::Test
     def setup
       super
@@ -32,15 +32,15 @@ module TestInterleavedTables_7_1
       end
       @server.wait_till_running
       # Register INFORMATION_SCHEMA queries on the mock server.
-      TestInterleavedTables_7_1::register_select_tables_result @mock
-      TestInterleavedTables_7_1::register_singers_columns_result @mock
-      TestInterleavedTables_7_1::register_singers_primary_and_parent_key_columns_result @mock
-      TestInterleavedTables_7_1::register_albums_columns_result @mock
-      TestInterleavedTables_7_1::register_albums_primary_key_columns_result @mock
-      TestInterleavedTables_7_1::register_albums_primary_and_parent_key_columns_result @mock
-      TestInterleavedTables_7_1::register_tracks_columns_result @mock
-      TestInterleavedTables_7_1::register_tracks_primary_key_columns_result @mock
-      TestInterleavedTables_7_1::register_tracks_primary_and_parent_key_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_select_tables_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_singers_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_singers_primary_and_parent_key_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_albums_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_albums_primary_key_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_albums_primary_and_parent_key_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_tracks_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_tracks_primary_key_columns_result @mock
+      TestInterleavedTables_7_1_AndHigher::register_tracks_primary_and_parent_key_columns_result @mock
       # Connect ActiveRecord to the mock server
       ActiveRecord::Base.establish_connection(
         adapter: "spanner",
@@ -61,7 +61,7 @@ module TestInterleavedTables_7_1
 
     def test_select_all_albums
       sql = "SELECT `albums`.* FROM `albums`"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_albums_result(4)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(4)
       Album.all.each do |album|
         refute_nil album.albumid, "albumid should not be nil"
         refute_nil album.singerid, "singerid should not be nil"
@@ -92,7 +92,7 @@ module TestInterleavedTables_7_1
 
     def test_find_album
       sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_albums_result(1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1)
       album = Album.find [1, 1]
       refute_nil album.albumid, "albumid should not be nil"
       refute_nil album.singerid, "singerid should not be nil"
@@ -100,7 +100,7 @@ module TestInterleavedTables_7_1
 
     def test_create_album
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_singers_result(1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_singers_result(1)
       singer = Singer.find 1
 
       album = Album.create singer: singer, title: "Random Title"
@@ -127,7 +127,7 @@ module TestInterleavedTables_7_1
 
     def test_update_album
       sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
-      @mock.put_statement_result sql_album, TestInterleavedTables_7_1::create_random_albums_result(1)
+      @mock.put_statement_result sql_album, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1)
       album = Album.find [1, 1]
 
       album.update title: "New Title"
@@ -152,7 +152,7 @@ module TestInterleavedTables_7_1
 
     def test_destroy_album
       sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_albums_result(1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1)
       album = Album.find [1, 1]
       album.destroy
 
@@ -174,7 +174,7 @@ module TestInterleavedTables_7_1
     def test_create_album_in_transaction
       select_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       insert_sql = "INSERT INTO `albums` (`singerid`, `title`, `albumid`) VALUES (@p1, @p2, @p3)"
-      @mock.put_statement_result select_sql, TestInterleavedTables_7_1::create_random_singers_result(1)
+      @mock.put_statement_result select_sql, TestInterleavedTables_7_1_AndHigher::create_random_singers_result(1)
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
       singer = nil
@@ -202,7 +202,7 @@ module TestInterleavedTables_7_1
     def test_update_album_in_transaction
       select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       update_sql = "UPDATE `albums` SET `title` = @p1 WHERE `albums`.`singerid` = @p2 AND `albums`.`albumid` = @p3"
-      @mock.put_statement_result select_sql, TestInterleavedTables_7_1::create_random_albums_result(1)
+      @mock.put_statement_result select_sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1)
       @mock.put_statement_result update_sql, StatementResult.new(1)
 
       album = nil
@@ -228,7 +228,7 @@ module TestInterleavedTables_7_1
     def test_destroy_album_in_transaction
       select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       delete_sql = "DELETE FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2"
-      @mock.put_statement_result select_sql, TestInterleavedTables_7_1::create_random_albums_result(1)
+      @mock.put_statement_result select_sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1)
       @mock.put_statement_result delete_sql, StatementResult.new(1)
 
       album = nil
@@ -253,7 +253,7 @@ module TestInterleavedTables_7_1
       select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       insert_album_sql = "INSERT INTO `albums` (`singerid`, `title`, `albumid`) VALUES (@p1, @p2, @p3)"
 
-      @mock.put_statement_result select_singer_sql, TestInterleavedTables_7_1::create_random_singers_result(1)
+      @mock.put_statement_result select_singer_sql, TestInterleavedTables_7_1_AndHigher::create_random_singers_result(1)
       @mock.put_statement_result insert_album_sql, StatementResult.new(1)
 
       singer = Singer.find_by id: 1
@@ -268,7 +268,7 @@ module TestInterleavedTables_7_1
 
     def test_select_all_tracks
       sql = "SELECT `tracks`.* FROM `tracks`"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_tracks_result(4)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_tracks_result(4)
       Track.all.each do |track|
         refute_nil track.trackid, "trackid should not be nil"
         refute_nil track.albumid, "albumid should not be nil"
@@ -278,7 +278,7 @@ module TestInterleavedTables_7_1
 
     def test_find_track
       sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_tracks_result(1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_tracks_result(1)
       track = Track.find [1, 1, 1]
       refute_nil track.trackid, "trackid should not be nil"
       refute_nil track.singerid, "singerid should not be nil"
@@ -287,9 +287,9 @@ module TestInterleavedTables_7_1
 
     def test_create_track
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_singers_result(1, 1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_singers_result(1, 1)
       sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_albums_result(1, 1, 1)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_albums_result(1, 1, 1)
       album = Album.find [1, 1]
 
       track = Track.create album: album, title: "Random Title", duration: 5.5
@@ -320,7 +320,7 @@ module TestInterleavedTables_7_1
 
     def test_update_track
       sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
-      @mock.put_statement_result sql_track, TestInterleavedTables_7_1::create_random_tracks_result(1, 1, 1, 1)
+      @mock.put_statement_result sql_track, TestInterleavedTables_7_1_AndHigher::create_random_tracks_result(1, 1, 1, 1)
       track = Track.find [1, 1, 1]
 
       track.update title: "New Title", duration: 3.14
@@ -349,7 +349,7 @@ module TestInterleavedTables_7_1
 
     def test_destroy_track
       sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
-      @mock.put_statement_result sql, TestInterleavedTables_7_1::create_random_tracks_result(1, 1, 2, 3)
+      @mock.put_statement_result sql, TestInterleavedTables_7_1_AndHigher::create_random_tracks_result(1, 1, 2, 3)
       track = Track.find [2, 3, 1]
       track.destroy
 
@@ -373,7 +373,7 @@ module TestInterleavedTables_7_1
       select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       insert_album_sql = "INSERT INTO `albums` (`singerid`, `title`, `albumid`) VALUES (@p1, @p2, @p3)"
       insert_track_sql = "INSERT INTO `tracks` (`trackid`, `singerid`, `albumid`, `title`) VALUES (@p1, @p2, @p3, @p4)"
-      @mock.put_statement_result select_singer_sql, TestInterleavedTables_7_1::create_random_singers_result(1)
+      @mock.put_statement_result select_singer_sql, TestInterleavedTables_7_1_AndHigher::create_random_singers_result(1)
       @mock.put_statement_result insert_album_sql, StatementResult.new(1)
       @mock.put_statement_result insert_track_sql, StatementResult.new(1)
 

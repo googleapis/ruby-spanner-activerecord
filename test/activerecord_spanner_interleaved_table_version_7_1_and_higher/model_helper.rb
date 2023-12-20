@@ -16,7 +16,7 @@ require_relative "models/album"
 
 require "securerandom"
 
-module TestInterleavedTables_7_1
+module TestInterleavedTables_7_1_AndHigher
   StructType = Google::Cloud::Spanner::V1::StructType
   Field = Google::Cloud::Spanner::V1::StructType::Field
   ResultSetMetadata = Google::Cloud::Spanner::V1::ResultSetMetadata
