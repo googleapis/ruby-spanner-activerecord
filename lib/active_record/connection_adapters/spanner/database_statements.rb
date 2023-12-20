@@ -31,6 +31,7 @@ module ActiveRecord
         def internal_execute sql, name = "SQL", binds = [],
                              prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
           statement_type = sql_statement_type sql
+          # Call `transform` to invoke any query transformers that might have been registered.
           sql = transform sql
           append_request_tag_from_query_logs sql, binds
 
@@ -58,7 +59,7 @@ module ActiveRecord
             selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
             binds.delete staleness_hint
           end
-          request_options = binds.find { |b| b.is_a? Google::Cloud::Spanner::V1::RequestOptions }
+          request_options = binds.find { |b| b.is_a? RequestOptions }
           if request_options
             binds.delete request_options
           end
