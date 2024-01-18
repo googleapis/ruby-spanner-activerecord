@@ -8,7 +8,7 @@ require "activerecord_spanner_adapter/index/column"
 
 module ActiveRecordSpannerAdapter
   class Index
-    attr_accessor :table, :name, :columns, :type, :unique, :null_filtered,
+    attr_accessor :schema, :table, :name, :columns, :type, :unique, :null_filtered,
                   :interleave_in, :storing, :state
 
     def initialize \
@@ -20,7 +20,9 @@ module ActiveRecordSpannerAdapter
         null_filtered: false,
         interleave_in: nil,
         storing: nil,
-        state: nil
+        state: nil,
+        schema: ""
+      @schema = schema.to_s
       @table = table.to_s
       @name = name.to_s
       @columns = Array(columns)

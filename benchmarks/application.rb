@@ -12,7 +12,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def self.run # rubocop:disable Metrics/AbcSize
     ActiveRecord::Base.logger.level = Logger::WARN
     config = ActiveRecord::Base.connection_config
     spanner = Google::Cloud::Spanner.new project: config[:project], credentials: config[:credentials]
