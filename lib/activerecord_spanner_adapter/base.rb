@@ -61,6 +61,10 @@ module ActiveRecord
 
       return _buffer_record values, :insert, returning if buffered_mutations?
 
+      _insert_record_dml values, returning
+    end
+
+    def self._insert_record_dml values, returning
       primary_key_value = _set_primary_key_value values
       if ActiveRecord::VERSION::MAJOR >= 7
         im = Arel::InsertManager.new arel_table
