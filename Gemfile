@@ -10,7 +10,7 @@ gem "pry", "~> 0.13.0"
 gem "pry-byebug", "~> 3.9.0"
 
 # Required for samples and testing.
-install_if -> { ENV.fetch("AR_VERSION", "~> 6.1.6.1").dup.to_s.sub!("~>", "").strip < "7.1.0" && !ENV["SKIP_COMPOSITE_PK"] } do
+install_if -> { ENV.fetch("AR_VERSION", "~> 6.1.6.1").dup.to_s.sub("~>", "").strip < "7.1.0" && !ENV["SKIP_COMPOSITE_PK"] } do
   gem "composite_primary_keys"
 end
 
