@@ -49,9 +49,10 @@ module ActiveRecord
     end
 
     def self._insert_record values, returning = []
-      return super values unless spanner_adapter?
-
-      return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
+      if !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+        return super values if ActiveRecord.gem_version < VERSION_7_1
+        return super
+      end
 
       # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
       if buffered_mutations? && sequence_name
