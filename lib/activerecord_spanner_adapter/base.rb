@@ -49,6 +49,8 @@ module ActiveRecord
     end
 
     def self._insert_record values, returning = []
+      return super values unless spanner_adapter?
+
       return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
 
       # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.

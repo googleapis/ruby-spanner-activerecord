@@ -68,7 +68,12 @@ module Google
           snp_grpc = service.create_snapshot \
             path, timestamp: (timestamp || read_timestamp),
             staleness: (staleness || exact_staleness)
-          Snapshot.from_grpc snp_grpc, self
+          num_args = Snapshot.method(:from_grpc).arity
+          if num_args == 3
+            Snapshot.from_grpc snp_grpc, self, nil
+          else
+            Snapshot.from_grpc snp_grpc, self
+          end
         end
 
         def create_pdml
