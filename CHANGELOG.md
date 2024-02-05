@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.6.1 (2024-02-05)
+
+#### Bug Fixes
+
+* _insert_record failed for other adapters ([#298](https://github.com/googleapis/ruby-spanner-activerecord/issues/298)) 
+
 ### 1.6.0 (2023-12-20)
 
 #### Features
