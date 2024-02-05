@@ -10,7 +10,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def self.run # rubocop:disable Metrics/AbcSize
     # Use a read-only transaction to execute multiple reads at the same commit timestamp.
     # The Spanner ActiveRecord adapter supports the custom isolation level :read_only that
     # will start a read-only Spanner transaction with a strong timestamp bound.
