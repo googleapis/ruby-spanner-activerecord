@@ -11,7 +11,6 @@ module ActiveRecord
         private
 
         # rubocop:disable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
-        # rubocop:disable Metrics/MethodLength
 
         def visit_TableDefinition o
           create_sql = +"CREATE TABLE #{quote_table_name o.name} "
@@ -133,7 +132,6 @@ module ActiveRecord
         end
 
         # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
-        # rubocop:enable Metrics/MethodLength
 
         def add_column_options! column, sql, options
           if options[:null] == false || options[:primary_key] == true
