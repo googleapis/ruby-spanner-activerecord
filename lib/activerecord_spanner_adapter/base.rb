@@ -49,7 +49,10 @@ module ActiveRecord
     end
 
     def self._insert_record values, returning = []
-      return super unless buffered_mutations? || (primary_key && values.is_a?(Hash))
+      if !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+        return super values if ActiveRecord.gem_version < VERSION_7_1
+        return super
+      end
 
       # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
       if buffered_mutations? && sequence_name
@@ -59,6 +62,10 @@ module ActiveRecord
 
       return _buffer_record values, :insert, returning if buffered_mutations?
 
+      _insert_record_dml values, returning
+    end
+
+    def self._insert_record_dml values, returning
       primary_key_value = _set_primary_key_value values
       if ActiveRecord::VERSION::MAJOR >= 7
         im = Arel::InsertManager.new arel_table
