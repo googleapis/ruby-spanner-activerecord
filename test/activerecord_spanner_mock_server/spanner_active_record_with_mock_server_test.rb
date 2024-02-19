@@ -306,6 +306,23 @@ module MockServerTests
       assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p3"]
     end
 
+    def test_create_singer_with_time_zone_aware_attributes
+      Singer.time_zone_aware_attributes=true
+
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+
+      Singer.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison", last_performance: ::Time.parse("2021-05-12T10:30:00+02:00"))
+      end
+
+      request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert_equal :TIMESTAMP, request.param_types["p3"].code
+      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p3"]
+    ensure
+      Singer.time_zone_aware_attributes=false
+    end
+
     def test_create_singer_with_last_performance_as_non_iso_string
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)

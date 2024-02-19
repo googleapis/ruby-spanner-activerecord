@@ -23,6 +23,9 @@ module ActiveRecord
         ##
         # Converts an ActiveModel::Type to a Spanner type code.
         def self.convert_active_model_type_to_spanner type # rubocop:disable Metrics/CyclomaticComplexity
+          # Unwrap the underlying object if the type is a DelegateClass.
+          type = type.__getobj__ if type.respond_to? :__getobj__
+
           case type
           when NilClass then nil
           when ActiveModel::Type::Integer, ActiveModel::Type::BigInteger then :INT64
