@@ -40,6 +40,15 @@ module ActiveRecord
         end
         alias data_source_exists? table_exists?
 
+        def extract_schema_qualified_name string
+          schema, name = string.to_s.scan(/[^`.\s]+|`[^`]*`/)
+          unless name
+            name = schema
+            schema = nil
+          end
+          [schema, name]
+        end
+
         def create_table table_name, id: :primary_key, **options
           td = create_table_definition table_name, options
 

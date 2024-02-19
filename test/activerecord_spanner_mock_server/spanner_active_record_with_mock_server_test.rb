@@ -6,7 +6,9 @@
 #
 # frozen_string_literal: true
 
+require "sqlite3"
 require_relative "./base_spanner_mock_server_test"
+require_relative "models/other_adapter"
 
 module MockServerTests
   CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
@@ -19,6 +21,35 @@ module MockServerTests
       singer = { first_name: "Alice", last_name: "Ecila" }
 
       assert_raises(NotImplementedError) { Singer.insert(singer) }
+    end
+
+    def test_insert_other_adapter
+      ActiveRecord::Base.establish_connection(
+        adapter: "sqlite3",
+        database: ":memory:",
+      )
+      ActiveRecord::Base.logger = nil
+      ActiveRecord::Schema.define(version: 1) do
+        create_table :systems do |t|
+          t.string  :name
+        end
+
+        create_table :plans do |t|
+          t.string  :name
+        end
+
+        # simulate a join table with no primary key
+        create_table :projects, id: false do |t|
+          t.integer  :plan_id
+          t.integer  :system_id
+          t.index [:plan_id, :system_id], unique: true
+        end
+      end
+
+      system = System.create(name: "Baroque")
+      plan = Plan.create(name: "Music")
+      # This would previously fail, as the table has no primary key.
+      Project.create(plan_id: plan.id, system_id: system.id)
     end
 
     def test_insert!

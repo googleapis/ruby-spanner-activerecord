@@ -11,6 +11,7 @@ require_relative "../test_helper"
 
 return if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
+require_relative "../activerecord_spanner_mock_server/model_helper"
 require_relative "models/singer"
 require_relative "models/album"
 
@@ -151,9 +152,9 @@ module TestInterleavedTables_7_1_AndHigher
   end
 
   def self.register_singers_columns_result spanner_mock_server
-    register_commit_timestamps_result spanner_mock_server, "singers"
+    MockServerTests.register_commit_timestamps_result spanner_mock_server, "singers"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' ORDER BY ORDINAL_POSITION ASC"
+    sql = MockServerTests.table_columns_sql "singers"
 
     column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
     spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
@@ -200,36 +201,13 @@ module TestInterleavedTables_7_1_AndHigher
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
 
-  def self.register_commit_timestamps_result spanner_mock_server, table_name, column_name = nil, commit_timestamps_col = nil
-    option_sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='#{table_name}'"
-    option_sql << " AND COLUMN_NAME='#{column_name}'" if column_name
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    option_name = Field.new name: "OPTION_NAME", type: Type.new(code: TypeCode::STRING)
-    option_type = Field.new name: "OPTION_TYPE", type: Type.new(code: TypeCode::STRING)
-    option_value = Field.new name: "OPTION_VALUE", type: Type.new(code: TypeCode::STRING)
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, option_name, option_type, option_value
-    result_set = ResultSet.new metadata: metadata
-    row = ListValue.new
-    if commit_timestamps_col
-      row.values.push(
-        Value.new(string_value: commit_timestamps_col),
-        Value.new(string_value: "allow_commit_timestamp"),
-        Value.new(string_value: "BOOL"),
-        Value.new(string_value: "TRUE"),
-        )
-    end
-    result_set.rows.push row
-    spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)
-  end
-
   def self.register_singers_primary_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "singers", parent_keys: false
     register_singers_key_columns_result spanner_mock_server, sql
   end
 
   def self.register_singers_primary_and_parent_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "singers", parent_keys: true
     register_singers_key_columns_result spanner_mock_server, sql
   end
 
@@ -256,9 +234,9 @@ module TestInterleavedTables_7_1_AndHigher
   end
 
   def self.register_albums_columns_result spanner_mock_server
-    register_commit_timestamps_result spanner_mock_server, "albums"
+    MockServerTests.register_commit_timestamps_result spanner_mock_server, "albums"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='albums' ORDER BY ORDINAL_POSITION ASC"
+    sql = MockServerTests.table_columns_sql "albums"
 
     column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
     spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
@@ -306,12 +284,12 @@ module TestInterleavedTables_7_1_AndHigher
   end
 
   def self.register_albums_primary_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "albums", parent_keys: false
     register_albums_key_columns_result spanner_mock_server, sql, false
   end
 
   def self.register_albums_primary_and_parent_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "albums", parent_keys: true
     register_albums_key_columns_result spanner_mock_server, sql, true
   end
 
@@ -348,9 +326,9 @@ module TestInterleavedTables_7_1_AndHigher
   end
 
   def self.register_tracks_columns_result spanner_mock_server
-    register_commit_timestamps_result spanner_mock_server, "tracks"
+    MockServerTests.register_commit_timestamps_result spanner_mock_server, "tracks"
 
-    sql = "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='tracks' ORDER BY ORDINAL_POSITION ASC"
+    sql = MockServerTests.table_columns_sql "tracks"
 
     column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
     spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
@@ -418,12 +396,12 @@ module TestInterleavedTables_7_1_AndHigher
   end
 
   def self.register_tracks_primary_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   SELECT COLUMN_NAME   FROM TABLE_PK_COLS   WHERE TABLE_NAME = T.PARENT_TABLE_NAME )) ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "tracks", parent_keys: false
     register_tracks_key_columns_result spanner_mock_server, sql, false
   end
 
   def self.register_tracks_primary_and_parent_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "tracks", parent_keys: true
     register_tracks_key_columns_result spanner_mock_server, sql, true
   end
 
