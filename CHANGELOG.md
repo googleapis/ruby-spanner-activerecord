@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.6.2 (2024-02-19)
+
+#### Bug Fixes
+
+* failed to convert active model type to spanner type under certain condition ([#299](https://github.com/googleapis/ruby-spanner-activerecord/issues/299)) 
+
 ### 1.6.1 (2024-02-05)
 
 #### Bug Fixes
