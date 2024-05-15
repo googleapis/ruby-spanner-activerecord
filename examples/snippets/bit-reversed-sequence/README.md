@@ -5,6 +5,12 @@ This example shows how to use a bit-reversed sequence to generate the primary ke
 See https://cloud.google.com/spanner/docs/primary-key-default-value#bit-reversed-sequence for more information
 about bit-reversed sequences in Cloud Spanner.
 
+## Requirements
+Using bit-reversed sequences for generating primary key values in ActiveRecord has the following requirements:
+1. You must use __ActiveRecord version 7.1 or higher__.
+2. Your models must include a sequence name like this: `self.sequence_name = :singer_sequence`
+3. You must create the bit-reversed sequence using a SQL statement in your migrations.
+
 ## Creating Tables with Bit-Reversed Sequences in ActiveRecord
 You can create bit-reversed sequences using migrations in ActiveRecord by executing a SQL statement using the underlying
 connection.

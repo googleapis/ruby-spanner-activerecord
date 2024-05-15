@@ -8,15 +8,12 @@ class CreateTables < ActiveRecord::Migration[7.1]
   def change
     # Execute the entire migration as one DDL batch.
     connection.ddl_batch do
-      # TODO: Uncomment when bit-reversed sequences are supported in the emulator.
-      # connection.execute "create sequence singer_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')"
+      connection.execute "create sequence singer_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')"
 
       # Explicitly define the primary key.
       create_table :singers, id: false, primary_key: :singerid do |t|
-        # TODO: Uncomment when bit-reversed sequences are supported in the emulator.
-        # t.integer :singerid, primary_key: true, null: false,
-        #           default: -> { "GET_NEXT_SEQUENCE_VALUE(SEQUENCE singer_sequence)" }
-        t.integer :singerid, primary_key: true, null: false, default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }
+        t.integer :singerid, primary_key: true, null: false,
+                  default: -> { "GET_NEXT_SEQUENCE_VALUE(SEQUENCE singer_sequence)" }
         t.string :first_name
         t.string :last_name
       end
