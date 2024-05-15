@@ -9,7 +9,7 @@ gem "minitest-rg", "~> 5.3.0"
 gem "pry", "~> 0.13.0"
 gem "pry-byebug", "~> 3.9.0"
 # Add sqlite3 for testing for compatibility with other adapters.
-gem "sqlite3"
+gem 'sqlite3', '~> 1.4'
 
 # Required for samples and testing.
 install_if -> { ENV.fetch("AR_VERSION", "~> 6.1.6.1").dup.to_s.sub("~>", "").strip < "7.1.0" && !ENV["SKIP_COMPOSITE_PK"] } do
