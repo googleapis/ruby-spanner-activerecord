@@ -19,7 +19,7 @@ ActiveRecord::Schema[7.1].define(version: 1) do
     t.string "title"
   end
 
-  create_table "singers", primary_key: "singerid", default: -> { "FARM_FINGERPRINT(GENERATE_UUID())" }, force: :cascade do |t|
+  create_table "singers", primary_key: "singerid", default: -> { "GET_NEXT_SEQUENCE_VALUE(SEQUENCE singer_sequence)" }, force: :cascade do |t|
     t.string "first_name"
     t.string "last_name"
   end

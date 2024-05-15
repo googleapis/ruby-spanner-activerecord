@@ -77,6 +77,7 @@ __NOTE__: You do need to have [Docker](https://docs.docker.com/get-docker/) inst
 Some noteworthy examples in the snippets directory:
 - [quickstart](examples/snippets/quickstart): A simple application that shows how to create and query a simple database containing two tables.
 - [migrations](examples/snippets/migrations): Shows a best-practice for executing migrations on Cloud Spanner.
+- [bit-reversed-sequences](examples/snippets/bit-reversed-sequence): Shows how to use bit-reversed sequences for primary keys.
 - [read-write-transactions](examples/snippets/read-write-transactions): Shows how to execute transactions on Cloud Spanner.
 - [read-only-transactions](examples/snippets/read-only-transactions): Shows how to execute read-only transactions on Cloud Spanner.
 - [bulk-insert](examples/snippets/bulk-insert): Shows the best way to insert a large number of new records.
