@@ -99,6 +99,8 @@ Some noteworthy examples in the snippets directory:
 | Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index) | Cloud Spanner does not support index with fields length                                                                                                                                                                           | Ensure that your database definition does not include index definitions with field lengths. |
 | Only GoogleSQL-dialect databases                                                                                                  | Cloud Spanner supports both GoogleSQL- and PostgreSQL-dialect databases. This adapter only supports GoogleSQL-dialect databases.                                                                                                  | Ensure that your database uses the GoogleSQL dialect.                                       |
 
+Also, Cloud Spanner doesn't have an interactive command-line client, so command `rails dbconsole` won't work.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/googleapis/ruby-spanner-activerecord. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
