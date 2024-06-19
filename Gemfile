@@ -4,7 +4,7 @@ source "https://rubygems.org"
 gemspec
 
 gem "activerecord", ENV.fetch("AR_VERSION", "~> 6.1.6.1")
-gem "minitest", "~> 5.20.0"
+gem "minitest", "~> 5.24.0"
 gem "minitest-rg", "~> 5.3.0"
 gem "pry", "~> 0.13.0"
 gem "pry-byebug", "~> 3.9.0"
