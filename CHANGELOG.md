@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.6.3 (2024-07-16)
+
+#### Documentation
+
+* update bit-reversed sequence sample ([#303](https://github.com/googleapis/ruby-spanner-activerecord/issues/303)) 
+
 ### 1.6.2 (2024-02-19)
 
 #### Bug Fixes
