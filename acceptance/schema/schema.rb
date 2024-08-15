@@ -126,6 +126,7 @@ def create_tables_in_test_schema
         t.integer :lock_version
         t.virtual :full_name, type: :string, as: "COALESCE(first_name || ' ', '') || last_name", stored: true
       end
+      add_index :singers, :last_name, storing: %i[tracks_count first_name]
 
       if is_7_1_or_higher?
         create_table :albums, primary_key: [:singerid, :albumid] do |t|

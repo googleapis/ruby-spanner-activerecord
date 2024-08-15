@@ -27,6 +27,8 @@ module ActiveRecord
             spec = { type: schema_type(column).inspect }.merge! spec
           end
 
+          spec[:array] = true if column.sql_type.start_with?('ARRAY<')
+
           spec
         end
 
@@ -54,7 +56,7 @@ module ActiveRecord
           index_parts = super
           index_parts << "null_filtered: #{index.null_filtered.inspect}" if index.null_filtered
           index_parts << "interleave_in: #{index.interleave_in.inspect}" if index.interleave_in
-          index_parts << "storing: #{format_index_parts index.storing}" if index.storing.present?
+          index_parts << "storing: #{format_index_parts index.storing.sort}" if index.storing.present?
           index_parts
         end
 
