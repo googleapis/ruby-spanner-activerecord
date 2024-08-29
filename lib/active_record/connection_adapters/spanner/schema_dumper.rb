@@ -27,7 +27,7 @@ module ActiveRecord
             spec = { type: schema_type(column).inspect }.merge! spec
           end
 
-          spec[:array] = true if column.sql_type.start_with?('ARRAY<')
+          spec[:array] = true if column.sql_type.start_with? "ARRAY<"
 
           spec
         end
