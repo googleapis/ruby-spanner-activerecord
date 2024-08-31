@@ -25,6 +25,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 2.7"
 
   spec.add_dependency "google-cloud-spanner", "~> 2.18"
+  # Pin gRPC to 1.64.3, as 1.65 and 1.66 cause test runs to hang randomly.
   spec.add_dependency "grpc", "1.64.3"
   spec.add_runtime_dependency "activerecord", [">= 6.0.0", "< 7.2"]
 
