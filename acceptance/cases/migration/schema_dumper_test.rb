@@ -73,6 +73,20 @@ module ActiveRecord
         ActiveRecord::SchemaDumper.dump connection, schema
         assert schema.string.include?("t.virtual \"full_name\", type: :string, as: \"COALESCE(first_name || ' ', '') || last_name\", stored: true"), schema.string
       end
+
+      def test_dump_schema_contains_string_array
+        connection = ActiveRecord::Base.connection
+        schema = StringIO.new
+        ActiveRecord::SchemaDumper.dump connection, schema
+        assert schema.string.include?("t.string \"col_array_string\", array: true"), schema.string
+      end
+
+      def test_dump_schema_index_storing
+        connection = ActiveRecord::Base.connection
+        schema = StringIO.new
+        ActiveRecord::SchemaDumper.dump connection, schema
+        assert schema.string.include?("t.index [\"last_name\"], name: \"index_singers_on_last_name\", order: { last_name: :asc }, storing: [\"first_name\", \"tracks_count\"]"), schema.string
+      end
     end
   end
 end
