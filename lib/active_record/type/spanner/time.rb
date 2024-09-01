@@ -9,7 +9,7 @@
 module ActiveRecord
   module Type
     module Spanner
-      class Time < ActiveRecord::Type::Time
+      class Time < ActiveRecord::Type::DateTime
         def serialize_with_isolation_level value, isolation_level
           if value == :commit_timestamp
             return "PENDING_COMMIT_TIMESTAMP()" if isolation_level == :dml
