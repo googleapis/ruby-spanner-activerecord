@@ -4,6 +4,7 @@ source "https://rubygems.org"
 gemspec
 
 gem "activerecord", ENV.fetch("AR_VERSION", "~> 6.1.6.1")
+gem "ostruct"
 gem "minitest", "~> 5.25.0"
 gem "minitest-rg", "~> 5.3.0"
 gem "pry", "~> 0.13.0"
