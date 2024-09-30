@@ -1,0 +1,15 @@
+{
+	"name": "Ruby",
+	"dockerComposeFile": "compose.yml",
+	"service": "app",
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"features": {
+		"github-cli": "latest"
+	},
+	"postCreateCommand": "bundle install",
+	"containerEnv": {
+		"SPANNER_EMULATOR_HOST": "localhost:9010",
+		"SPANNER_TEST_PROJECT": "test-project",
+		"SPANNER_TEST_INSTANCE": "test-instance"
+	}
+}

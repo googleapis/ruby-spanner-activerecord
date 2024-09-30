@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    image: ghcr.io/rails/devcontainer/images/ruby:3.3.5
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    network_mode: service:spanner-emulator
+
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+
+volumes:
+  spanner-data:
