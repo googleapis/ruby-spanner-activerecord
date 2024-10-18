@@ -324,6 +324,8 @@ module MockServerTests
     end
 
     def test_create_singer_with_last_performance_as_non_iso_string
+      return if "#{RUBY_VERSION}" < "3" && ActiveRecord::gem_version >= VERSION_7_1_0
+
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
