@@ -11,6 +11,7 @@ require "ostruct"
 require "google/cloud/spanner"
 require "active_record"
 require "activerecord-spanner-adapter"
+require "ostruct"
 require "active_record/connection_adapters/spanner_adapter"
 
 module SqlStatmentAssertions
