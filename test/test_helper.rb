@@ -7,6 +7,7 @@
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/rg"
+require "ostruct"
 require "google/cloud/spanner"
 require "active_record"
 require "activerecord-spanner-adapter"
