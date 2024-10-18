@@ -19,7 +19,7 @@ jobs:
       max-parallel: 4
       matrix:
         # Run acceptance tests all supported combinations of Ruby and ActiveRecord.
-        ruby: [2.7, 3.0, 3.1, 3.2]
+        ruby: [2.7, 3.0, 3.1, 3.2, 3.3]
         ar: [6.0.0, 6.0.1, 6.0.2.2, 6.0.3.7, 6.0.4, 6.1.3.2, 6.1.4.7, 6.1.5.1, 6.1.6.1, 7.0.2.4, 7.0.3.1, 7.0.4, 7.0.5, 7.0.6, 7.0.7, 7.1.0, 7.1.1, 7.1.2]
         # Exclude combinations that are not supported.
         exclude:
@@ -53,6 +53,14 @@ jobs:
             ar: 6.0.3.7
           - ruby: 3.2
             ar: 6.0.4
+          - ruby: 3.3
+            ar: 6.0.0
+          - ruby: 3.3
+            ar: 6.0.1
+          - ruby: 3.3
+            ar: 6.0.2.2
+          - ruby: 3.3
+            ar: 6.0.3.7
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
