@@ -56,8 +56,8 @@ task :acceptance, [:project, :keyfile, :instance, :tests] do |t, args|
   tests ||= "**"
 
   # always overwrite when running tests
-  ENV["SPANNER_PROJECT"] = project
-  ENV["SPANNER_KEYFILE_JSON"] = keyfile
+  ENV["SPANNER_TEST_PROJECT"] = project
+  ENV["SPANNER_TEST_KEYFILE_JSON"] = keyfile
   ENV["SPANNER_TEST_INSTANCE"] = instance
   ENV["SPANNER_EMULATOR_HOST"] = emulator_host
 
