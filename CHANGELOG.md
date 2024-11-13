@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.6.4 (2024-11-13)
+
+#### Bug Fixes
+
+* local emulator test ([#320](https://github.com/googleapis/ruby-spanner-activerecord/issues/320)) 
+
 ### 1.6.3 (2024-08-31)
 
 #### Bug Fixes

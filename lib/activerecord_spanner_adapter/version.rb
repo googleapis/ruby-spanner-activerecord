@@ -5,5 +5,5 @@
 # https://opensource.org/licenses/MIT.
 
 module ActiveRecordSpannerAdapter
-  VERSION = "1.6.3".freeze
+  VERSION = "1.6.4".freeze
 end
