@@ -78,6 +78,25 @@ module MockServerTests
       assert_equal "id", mutation.insert.columns[2]
     end
 
+    if VERSION_7_1_0
+      def test_insert_with_disabled_prepared_statements
+        ActiveRecord.disable_prepared_statements = true
+        ActiveRecord::Base.establish_connection(
+          adapter: "spanner",
+          emulator_host: "localhost:#{@port}",
+          project: "test-project",
+          instance: "test-instance",
+          database: "testdb",
+        )
+        assert ActiveRecord::Base.connection.prepared_statements?
+
+        singer = { first_name: "Alice", last_name: "Ecila" }
+        singer = Singer.insert! singer
+      ensure
+        ActiveRecord.disable_prepared_statements = false
+      end
+    end
+
     def test_upsert
       singer = { first_name: "Alice", last_name: "Ecila" }
       singer = Singer.upsert singer
