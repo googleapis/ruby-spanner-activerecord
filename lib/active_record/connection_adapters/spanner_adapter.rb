@@ -28,16 +28,18 @@ require "activerecord_spanner_adapter/primary_key"
 require "activerecord_spanner_adapter/transaction"
 
 module ActiveRecord
-  module ConnectionHandling # :nodoc:
-    def spanner_connection config
-      connection = ActiveRecordSpannerAdapter::Connection.new config
-      connection.connect!
-      ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
-    rescue Google::Cloud::Error => error
-      if error.instance_of? Google::Cloud::NotFoundError
-        raise ActiveRecord::NoDatabaseError
+  if Rails.version < "7.2.0"
+    module ConnectionHandling # :nodoc:
+      def spanner_connection config
+        connection = ActiveRecordSpannerAdapter::Connection.new config
+        connection.connect!
+        ConnectionAdapters::SpannerAdapter.new connection, logger, nil, config
+      rescue Google::Cloud::Error => error
+        if error.instance_of? Google::Cloud::NotFoundError
+          raise ActiveRecord::NoDatabaseError
+        end
+        raise error
       end
-      raise error
     end
   end
 
@@ -69,11 +71,18 @@ module ActiveRecord
       # Determines whether or not to log query binds when executing statements
       class_attribute :log_statement_binds, instance_writer: false, default: false
 
-      def initialize connection, logger, connection_options, config
-        @connection = connection
-        @connection_options = connection_options
-        super connection, logger, config
-        @raw_connection ||= connection
+      def initialize config_or_deprecated_connection, deprecated_logger = nil, deprecated_connection_options = nil, deprecated_config = nil
+        if config_or_deprecated_connection.is_a?(Hash)
+          @connection = ActiveRecordSpannerAdapter::Connection.new config_or_deprecated_connection
+          @connection.connect!
+          super config_or_deprecated_connection
+          @raw_connection ||= @connection
+        else
+          @connection = config_or_deprecated_connection
+          @connection_options = deprecated_connection_options
+          super config_or_deprecated_connection, deprecated_logger, deprecated_connection_options, deprecated_config
+          @raw_connection ||= config_or_deprecated_connection
+        end
       end
 
       def max_identifier_length

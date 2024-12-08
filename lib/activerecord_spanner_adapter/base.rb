@@ -48,7 +48,17 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values, returning = []
+    if Rails.version < "7.2.0"
+      def self._insert_record values, returning = []
+        __insert_record(values, returning)
+      end
+    else
+      def self._insert_record connection, values, returning = []
+        __insert_record(values, returning)
+      end
+    end
+
+    def self.__insert_record values, returning = []
       if !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
         return super values if ActiveRecord.gem_version < VERSION_7_1
         return super

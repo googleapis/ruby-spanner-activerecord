@@ -15,7 +15,11 @@ if defined?(Rails)
         end
 
         ActiveSupport.on_load :active_record do
-          require "active_record/connection_adapters/spanner_adapter"
+          if Rails.version >= '7.2.0'
+            ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+          else
+            require "active_record/connection_adapters/spanner_adapter"
+          end
         end
       end
     end
