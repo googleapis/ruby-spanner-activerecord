@@ -78,23 +78,33 @@ module MockServerTests
       assert_equal "id", mutation.insert.columns[2]
     end
 
-    if VERSION_7_1_0
-      def test_insert_with_disabled_prepared_statements
-        ActiveRecord.disable_prepared_statements = true
-        ActiveRecord::Base.establish_connection(
-          adapter: "spanner",
-          emulator_host: "localhost:#{@port}",
-          project: "test-project",
-          instance: "test-instance",
-          database: "testdb",
-        )
-        assert ActiveRecord::Base.connection.prepared_statements?
+    def test_insert_with_disabled_prepared_statements
+      ActiveRecord.disable_prepared_statements = true
+      ActiveRecord::Base.establish_connection(
+        adapter: "spanner",
+        emulator_host: "localhost:#{@port}",
+        project: "test-project",
+        instance: "test-instance",
+        database: "testdb",
+      )
+      assert ActiveRecord::Base.connection.prepared_statements?
 
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+      ActiveRecord::Base.transaction do
         singer = { first_name: "Alice", last_name: "Ecila" }
-        singer = Singer.insert! singer
-      ensure
-        ActiveRecord.disable_prepared_statements = false
+        Singer.create singer
       end
+
+      requests = @mock.requests
+      request = requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert_equal "Alice", request.params["p1"]
+      assert_equal "Ecila", request.params["p2"]
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal :STRING, request.param_types["p2"].code
+      assert_equal :INT64, request.param_types["p3"].code
+    ensure
+      ActiveRecord.disable_prepared_statements = false
     end
 
     def test_upsert
