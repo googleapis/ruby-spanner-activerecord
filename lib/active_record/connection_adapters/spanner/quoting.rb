@@ -36,11 +36,11 @@ module ActiveRecord
         QUOTED_TABLE_NAMES = Concurrent::Map.new # :nodoc:
 
         def quote_column_name name
-          QUOTED_COLUMN_NAMES[name] ||= "`#{super.gsub '`', '``'}`".freeze
+          QUOTED_COLUMN_NAMES[name] ||= "`#{name.to_s.gsub '`', '``'}`".freeze
         end
 
         def quote_table_name name
-          QUOTED_TABLE_NAMES[name] ||= super.gsub(".", "`.`").freeze
+          QUOTED_TABLE_NAMES[name] ||= "`#{name.to_s.gsub '.', '`.`'}`".freeze
         end
 
         STR_ESCAPE_REGX = /[\n\r'\\]/.freeze

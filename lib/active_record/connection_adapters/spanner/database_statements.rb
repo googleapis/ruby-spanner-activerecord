@@ -21,15 +21,15 @@ module ActiveRecord
           internal_execute sql, name, binds
         end
 
-        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false
-          result = internal_execute sql, name, binds, prepare: prepare, async: async
+        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false, allow_retry: false
+          result = internal_execute sql, name, binds, prepare: prepare, async: async, allow_retry: allow_retry
           ActiveRecord::Result.new(
             result.fields.keys.map(&:to_s), result.rows.map(&:values)
           )
         end
 
         def internal_execute sql, name = "SQL", binds = [],
-                             prepare: false, async: false # rubocop:disable Lint/UnusedMethodArgument
+                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument, Metrics/LineLength
           statement_type = sql_statement_type sql
           # Call `transform` to invoke any query transformers that might have been registered.
           sql = transform sql
