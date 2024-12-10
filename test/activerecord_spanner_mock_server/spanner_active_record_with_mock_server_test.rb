@@ -79,15 +79,17 @@ module MockServerTests
     end
 
     def test_insert_with_disabled_prepared_statements
-      ActiveRecord.disable_prepared_statements = true
-      ActiveRecord::Base.establish_connection(
-        adapter: "spanner",
-        emulator_host: "localhost:#{@port}",
-        project: "test-project",
-        instance: "test-instance",
-        database: "testdb",
-      )
-      assert ActiveRecord::Base.connection.prepared_statements?
+      if ActiveRecord.respond_to?(:disable_prepared_statements)
+        ActiveRecord.disable_prepared_statements = true
+        ActiveRecord::Base.establish_connection(
+          adapter: "spanner",
+          emulator_host: "localhost:#{@port}",
+          project: "test-project",
+          instance: "test-instance",
+          database: "testdb",
+        )
+        assert ActiveRecord::Base.connection.prepared_statements?
+      end
 
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
@@ -104,7 +106,9 @@ module MockServerTests
       assert_equal :STRING, request.param_types["p2"].code
       assert_equal :INT64, request.param_types["p3"].code
     ensure
-      ActiveRecord.disable_prepared_statements = false
+      if ActiveRecord.respond_to?(:disable_prepared_statements)
+        ActiveRecord.disable_prepared_statements = false
+      end
     end
 
     def test_upsert
