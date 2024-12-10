@@ -49,6 +49,10 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
+    def self._should_use_standard_insert_record? values
+      !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+    end
+
     def self._insert_record *args
       if ActiveRecord.gem_version < VERSION_7_2
         values, returning = args
@@ -56,7 +60,7 @@ module ActiveRecord
         _connection, values, returning = []
       end
 
-      if !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+      if _should_use_standard_insert_record? values
         return super values if ActiveRecord.gem_version < VERSION_7_1
         return super
       end
