@@ -74,6 +74,9 @@ module ActiveRecord
         @connection_options = connection_options
         super connection, logger, config
         @raw_connection ||= connection
+
+        # Spanner does not support unprepared statements
+        @prepared_statements = true
       end
 
       def max_identifier_length
