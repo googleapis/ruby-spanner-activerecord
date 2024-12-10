@@ -48,6 +48,7 @@ module ActiveRecord
       end
 
       def teardown
+        drop_database
         ActiveRecord::Base.connection_pool.disconnect!
         FileUtils.rm_rf ActiveRecord::Tasks::DatabaseTasks.db_dir
         ActiveRecord::Tasks::DatabaseTasks.db_dir = @original_db_dir
