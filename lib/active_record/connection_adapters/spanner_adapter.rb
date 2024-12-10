@@ -71,7 +71,8 @@ module ActiveRecord
       # Determines whether or not to log query binds when executing statements
       class_attribute :log_statement_binds, instance_writer: false, default: false
 
-      def initialize config_or_deprecated_connection, deprecated_logger = nil, deprecated_connection_options = nil, deprecated_config = nil # rubocop:disable Metrics/LineLength
+      def initialize config_or_deprecated_connection, deprecated_logger = nil,
+                     deprecated_connection_options = nil, deprecated_config = nil
         if config_or_deprecated_connection.is_a? Hash
           @connection = ActiveRecordSpannerAdapter::Connection.new config_or_deprecated_connection
           @connection.connect!
