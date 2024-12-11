@@ -16,6 +16,7 @@ module ActiveRecord
 
   class Base
     VERSION_7_1 = Gem::Version.create "7.1.0"
+    VERSION_7_2 = Gem::Version.create "7.2.0"
 
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
     # of DML if there is no active transaction, or if the active transaction has been created with the option
@@ -48,8 +49,18 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
-    def self._insert_record values, returning = []
-      if !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+    def self._should_use_standard_insert_record? values
+      !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+    end
+
+    def self._insert_record *args
+      if ActiveRecord.gem_version < VERSION_7_2
+        values, returning = args
+      else
+        _connection, values, returning = []
+      end
+
+      if _should_use_standard_insert_record? values
         return super values if ActiveRecord.gem_version < VERSION_7_1
         return super
       end
