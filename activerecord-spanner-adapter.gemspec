@@ -22,12 +22,12 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename f }
   spec.require_paths = ["lib"]
 
-  spec.required_ruby_version = ">= 2.7"
+  spec.required_ruby_version = ">= 3.2"
 
   spec.add_dependency "google-cloud-spanner", "~> 2.18"
   # Pin gRPC to 1.64.3, as 1.65 and 1.66 cause test runs to hang randomly.
   spec.add_dependency "grpc", "1.64.3"
-  spec.add_runtime_dependency "activerecord", [">= 6.1", "< 7.3"]
+  spec.add_runtime_dependency "activerecord", [">= 6.1", "< 9"]
 
   spec.add_development_dependency "autotest-suffix", "~> 1.1"
   spec.add_development_dependency "bundler", "~> 2.0"
