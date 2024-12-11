@@ -1,5 +1,15 @@
 # Changelog
 
+### 1.7.0 (2024-12-11)
+
+#### Features
+
+* support Rails 7.2.0 ([#328](https://github.com/googleapis/ruby-spanner-activerecord/issues/328)) 
+#### Bug Fixes
+
+* `SpannerAdapter` requires prepared statements to be enabled ([#323](https://github.com/googleapis/ruby-spanner-activerecord/issues/323)) 
+* local emulator test ([#320](https://github.com/googleapis/ruby-spanner-activerecord/issues/320)) 
+
 ### 1.6.3 (2024-08-31)
 
 #### Bug Fixes
