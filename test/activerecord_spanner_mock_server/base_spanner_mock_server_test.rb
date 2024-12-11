@@ -22,6 +22,8 @@ module MockServerTests
   class BaseSpannerMockServerTest < Minitest::Test
     def setup
       super
+      ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+
       @server = GRPC::RpcServer.new
       @port = @server.add_http2_port "localhost:0", :this_port_is_insecure
       @mock = SpannerMockServer.new
