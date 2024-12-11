@@ -125,7 +125,7 @@ module ActiveRecord
     def self.insert_all attributes, returning: nil, **_kwargs
       if active_transaction? && buffered_mutations?
         raise NotImplementedError,
-              "Spanner does not support skip_duplicates for mutations. " +
+              "Spanner does not support skip_duplicates for mutations. " \
               "Use a transaction that uses DML, or use insert! or upsert instead."
       end
       super
