@@ -84,6 +84,8 @@ module ActiveRecord
           super config_or_deprecated_connection, deprecated_logger, deprecated_config
           @raw_connection ||= config_or_deprecated_connection
         end
+        # Spanner does not support unprepared statements
+        @prepared_statements = true
       end
 
       def max_identifier_length
