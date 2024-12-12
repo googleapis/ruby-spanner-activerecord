@@ -320,6 +320,8 @@ module ActiveRecord
             elsif bind.class == Symbol
               # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
               type = :STRING
+            elsif bind.class == TrueClass || bind.class == FalseClass
+              type = :BOOL
             end
             [
               # Generates binds for named parameters in the format `@p1, @p2, ...`
