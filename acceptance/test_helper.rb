@@ -19,7 +19,10 @@ require "securerandom"
 require "composite_primary_keys" if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
 # rubocop:disable Style/GlobalVars
-
+#
+if ActiveRecord.gem_version >= Gem::Version.create("7.2.0")
+  ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+end
 $spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
 
 def connector_config
