@@ -30,11 +30,23 @@
 
 module ActiveRecord
   module ConnectionAdapters
+    QUOTED_COLUMN_NAMES = Concurrent::Map.new # :nodoc:
+    QUOTED_TABLE_NAMES = Concurrent::Map.new # :nodoc:
+
+    module Quoting
+      module ClassMethods
+        # This is used for ActiveRecord v8 and higher.
+        def quote_column_name name
+          QUOTED_COLUMN_NAMES[name] ||= "`#{name.to_s.gsub '`', '``'}`".freeze
+        end
+
+        def quote_table_name name
+          QUOTED_TABLE_NAMES[name] ||= "`#{name.to_s.gsub '.', '`.`'}`".freeze
+        end
+      end
+    end
     module Spanner
       module Quoting
-        QUOTED_COLUMN_NAMES = Concurrent::Map.new # :nodoc:
-        QUOTED_TABLE_NAMES = Concurrent::Map.new # :nodoc:
-
         def quote_column_name name
           QUOTED_COLUMN_NAMES[name] ||= "`#{name.to_s.gsub '`', '``'}`".freeze
         end
