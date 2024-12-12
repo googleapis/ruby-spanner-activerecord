@@ -1,5 +1,14 @@
 # Changelog
 
+### 1.8.0 (2024-12-12)
+
+#### Features
+
+* INSERT OR [IGNORE|UPDATE] ([#332](https://github.com/googleapis/ruby-spanner-activerecord/issues/332)) 
+#### Bug Fixes
+
+* Fixed incorrect argument handling. ([#333](https://github.com/googleapis/ruby-spanner-activerecord/issues/333)) 
+
 ### 1.7.0 (2024-12-11)
 
 #### Features
