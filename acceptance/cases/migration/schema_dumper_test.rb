@@ -25,7 +25,7 @@ module ActiveRecord
         if is_7_2_or_higher?
           ActiveRecord::Base.connection_pool
         else
-          ActiveRecord::Base.connection_pool
+          ActiveRecord::Base.connection
         end
       end
 
