@@ -23,6 +23,7 @@ module ActiveRecord
       module SchemaStatements
         VERSION_6_1_0 = Gem::Version.create "6.1.0"
         VERSION_6_0_3 = Gem::Version.create "6.0.3"
+        VERSION_7_2 = Gem::Version.create "7.2.0"
 
         def current_database
           @connection.database_id
@@ -401,12 +402,14 @@ module ActiveRecord
           information_schema { |i| i.check_constraints table_name }
         end
 
-        def migration_context
-          pool.migration_context
-        end
+        if ActiveRecord.gem_version >= VERSION_7_2
+          def migration_context
+            pool.migration_context
+          end
 
-        def schema_migration
-          pool.schema_migration
+          def schema_migration
+            pool.schema_migration
+          end
         end
 
         def assume_migrated_upto_version version
