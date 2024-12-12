@@ -22,6 +22,10 @@ module TestInterleavedTables_7_1_AndHigher
   class InterleavedTablesTest < Minitest::Test
     def setup
       super
+      if ActiveRecord.version >= Gem::Version.create("7.2.0")
+        ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+      end
+
       @server = GRPC::RpcServer.new
       @port = @server.add_http2_port "localhost:0", :this_port_is_insecure
       @mock = SpannerMockServer.new

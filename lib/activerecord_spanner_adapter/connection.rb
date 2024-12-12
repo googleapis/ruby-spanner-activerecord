@@ -251,8 +251,6 @@ module ActiveRecordSpannerAdapter
       end
       # It was not the first statement, so propagate the error.
       raise
-    rescue Error => e
-      puts sql
     end
 
     # Creates a transaction using a BeginTransaction RPC. This is used if the first statement of a
