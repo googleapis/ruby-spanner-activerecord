@@ -401,6 +401,14 @@ module ActiveRecord
           information_schema { |i| i.check_constraints table_name }
         end
 
+        def migration_context
+          pool.migration_context
+        end
+
+        def schema_migration
+          pool.schema_migration
+        end
+
         def assume_migrated_upto_version version
           version = version.to_i
           sm_table = quote_table_name schema_migration.table_name
