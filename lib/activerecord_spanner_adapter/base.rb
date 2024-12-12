@@ -57,7 +57,7 @@ module ActiveRecord
       if ActiveRecord.gem_version < VERSION_7_2
         values, returning = args
       else
-        _connection, values, returning = []
+        _connection, values, returning = args
       end
 
       if _should_use_standard_insert_record? values
