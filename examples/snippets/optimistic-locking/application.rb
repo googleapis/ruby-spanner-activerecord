@@ -38,10 +38,6 @@ class Application
 
     singer.reload
     puts "Reloaded singer data: #{singer.first_name} #{singer.last_name}, version: #{singer.lock_version}"
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

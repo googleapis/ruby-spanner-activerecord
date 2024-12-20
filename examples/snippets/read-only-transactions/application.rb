@@ -67,10 +67,6 @@ class Application
         puts "This error is expected."
       end
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

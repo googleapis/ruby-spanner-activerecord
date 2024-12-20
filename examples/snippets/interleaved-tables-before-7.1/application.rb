@@ -13,7 +13,7 @@ require_relative "models/track"
 class Application
   def self.run
     # List all singers, albums and tracks.
-    list_singers_albums_tracks
+    list_singers_albums
 
     # Create a new album with some tracks.
     create_new_album
@@ -28,10 +28,6 @@ class Application
     # Try to delete an album that has at least one track. This IS possible as tracks IS marked with
     # ON DELETE CASCADE.
     delete_album_with_tracks
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 
   def self.find_singer

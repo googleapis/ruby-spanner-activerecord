@@ -37,10 +37,6 @@ class Application
           .distinct.order("last_name, first_name").each do |singer|
       puts singer.full_name
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

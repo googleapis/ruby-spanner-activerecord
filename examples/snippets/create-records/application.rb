@@ -13,7 +13,7 @@ class Application
   def self.run
     # Creating a single record without an explicit transaction will automatically save it to the database.
     # It is not recommended to call Entity.create repeatedly to insert multiple records, as each call will
-    # use a separate Spanner transaction. Instead multiple records should be created by passing an array of
+    # use a separate Spanner transaction. Instead, multiple records should be created by passing an array of
     # entities to the Entity.create method.
     singer = Singer.create first_name: "Dave", last_name: "Allison"
     puts ""
@@ -32,10 +32,6 @@ class Application
     singers.each do |s|
       puts "  Created singer #{s.first_name} #{s.last_name} with id #{s.id}"
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

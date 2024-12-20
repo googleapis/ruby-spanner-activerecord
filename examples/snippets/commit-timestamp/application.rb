@@ -43,10 +43,6 @@ class Application
     puts "Singer and album updated:"
     puts "#{singer.first_name} #{singer.last_name} (Last updated: #{singer.last_updated.strftime format})"
     puts "   #{album.title} (Last updated: #{album.last_updated.strftime format})"
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

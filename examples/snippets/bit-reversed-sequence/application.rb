@@ -22,10 +22,6 @@ class Application
 
     # List all singers, albums and tracks.
     list_singers_albums
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 
   def self.find_album singerid, albumid
