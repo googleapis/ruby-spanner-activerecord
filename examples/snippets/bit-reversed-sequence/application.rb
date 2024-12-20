@@ -25,7 +25,7 @@ class Application
 
     puts ""
     puts "Press any key to end the application"
-    STDIN.getch
+    $stdin.getch
   end
 
   def self.find_album singerid, albumid

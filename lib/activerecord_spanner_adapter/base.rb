@@ -76,7 +76,7 @@ module ActiveRecord
       # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
       if buffered_mutations? && sequence_name
         raise StatementInvalid, "Mutations cannot be used to create records that use a sequence " \
-                                     "to generate the primary key. #{self} uses #{sequence_name}."
+                                "to generate the primary key. #{self} uses #{sequence_name}."
       end
 
       return _buffer_record values, :insert, returning if buffered_mutations?
@@ -118,12 +118,10 @@ module ActiveRecord
       keys = returning || primary_key
       return primary_key_value if keys == primary_key
 
-      primary_key_values_hash = Hash[primary_key.zip(primary_key_value)]
-      values = []
-      keys.each do |column|
-        values.append primary_key_values_hash[column]
+      primary_key_values_hash = primary_key.zip(primary_key_value).to_h
+      keys.map do |column|
+        primary_key_values_hash[column]
       end
-      values
     end
 
     def self._upsert_record values, returning
@@ -216,11 +214,9 @@ module ActiveRecord
     end
 
     def self._set_composite_primary_key_values primary_key, values
-      primary_key_value = []
-      primary_key.each do |col|
-        primary_key_value.append _set_composite_primary_key_value col, values
+      primary_key.map do |col|
+        _set_composite_primary_key_value col, values
       end
-      primary_key_value
     end
 
     def self._set_composite_primary_key_value primary_key, values
@@ -419,14 +415,12 @@ module ActiveRecord
     end
 
     def serialize_keys metadata, keys
-      serialized_values = []
-      keys.each do |key|
-        serialized_values << ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                             .serialize_with_transaction_isolation_level(metadata.type(key),
-                                                                         attribute_in_database(key),
-                                                                         :mutation)
+      keys.map do |key|
+        ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+          .serialize_with_transaction_isolation_level(metadata.type(key),
+                                                      attribute_in_database(key),
+                                                      :mutation)
       end
-      serialized_values
     end
 
     def _execute_version_check attempted_action # rubocop:disable Metrics/AbcSize
@@ -456,7 +450,7 @@ module ActiveRecord
 
       # We need to check the version using a SELECT query, as a mutation cannot include a WHERE clause.
       sql = "SELECT 1 FROM `#{self.class.arel_table.name}` " \
-              "WHERE #{pk_sql} AND `#{locking_column}` = @lock_version"
+            "WHERE #{pk_sql} AND `#{locking_column}` = @lock_version"
       locked_row = self.class.connection.raw_connection.execute_query sql, params: params, types: param_types
       raise ActiveRecord::StaleObjectError.new(self, attempted_action) unless locked_row.rows.any?
     end

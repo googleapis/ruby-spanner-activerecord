@@ -123,7 +123,7 @@ module ActiveRecordSpannerAdapter
 
     def shoot_and_forget_rollback
       @connection.session.rollback @grpc_transaction.transaction_id if @committable
-    rescue StandardError # rubocop:disable Lint/HandleExceptions
+    rescue StandardError
       # Ignored
     end
 

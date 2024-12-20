@@ -44,10 +44,7 @@ module ActiveRecord
                                      else
                                        [o.options[:primary_key]]
                                      end
-                           pk_names = []
-                           columns.each do |c|
-                             pk_names.append c.to_s
-                           end
+                           pk_names = columns.map(&:to_s)
                            PrimaryKeyDefinition.new pk_names
                          else
                            pk_names = o.columns.each_with_object [] do |c, r|
@@ -93,8 +90,8 @@ module ActiveRecord
         end
 
         def visit_DropColumnDefinition o
-          "ALTER TABLE #{quote_table_name o.table_name} DROP" \
-           " COLUMN #{quote_column_name o.name}"
+          "ALTER TABLE #{quote_table_name o.table_name} DROP " \
+            "COLUMN #{quote_column_name o.name}"
         end
 
         def visit_ChangeColumnDefinition o
@@ -143,7 +140,7 @@ module ActiveRecord
 
           if !options[:allow_commit_timestamp].nil? &&
              options[:column].sql_type == "TIMESTAMP"
-            sql << " OPTIONS (allow_commit_timestamp = "\
+            sql << " OPTIONS (allow_commit_timestamp = " \
                    "#{options[:allow_commit_timestamp]})"
           end
 
@@ -153,8 +150,9 @@ module ActiveRecord
             sql << " STORED" if options[:stored]
             unless options[:stored]
               raise ArgumentError, "" \
-                "Cloud Spanner currently does not support generated columns without the STORED option." \
-                "Specify 'stored: true' option for `#{options[:column].name}`"
+                                   "Cloud Spanner currently does not support generated columns" \
+                                   "without the STORED option." \
+                                   "Specify 'stored: true' option for `#{options[:column].name}`"
             end
           end
 

@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require_relative "../../config/environment.rb"
+require_relative "../../config/environment"
 require_relative "../models/singer"
 require_relative "../models/album"
 
@@ -14,7 +14,7 @@ last_names = %w[Wendelson Allison Peterson Johnson Henderson Ericsson Aronson Te
 adjectives = %w[daily happy blue generous cooked bad open]
 nouns = %w[windows potatoes bank street tree glass bottle]
 
-# Note: We do not use mutations to insert these rows, because letting the database generate the primary key means that
+# NOTE: We do not use mutations to insert these rows, because letting the database generate the primary key means that
 # we rely on a `THEN RETURN id` clause in the insert statement. This is only supported for DML statements, and not for
 # mutations.
 ActiveRecord::Base.transaction do
