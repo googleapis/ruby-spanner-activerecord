@@ -45,10 +45,8 @@ module ActiveRecord
         end
       end
     end
-
     module Spanner
       module Quoting
-
         def quote_column_name name
           QUOTED_COLUMN_NAMES[name] ||= "`#{name.to_s.gsub '`', '``'}`".freeze
         end

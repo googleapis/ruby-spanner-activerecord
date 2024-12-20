@@ -30,13 +30,24 @@ module ActiveRecord
           { id: Author.next_sequence_value, name: "Carol" },
         ]
 
-        assert_raise(NotImplementedError) { Author.insert_all(values) }
+        Author.insert_all(values)
+
+        authors = Author.all.order(:name)
+
+        assert_equal "Alice", authors[0].name
+        assert_equal "Bob", authors[1].name
+        assert_equal "Carol", authors[2].name
       end
 
       def test_insert
         value = { id: Author.next_sequence_value, name: "Alice" }
 
-        assert_raise(NotImplementedError) { Author.insert(value) }
+        Author.insert(value)
+
+        authors = Author.all.order(:name)
+
+        assert_equal 1, authors.length
+        assert_equal "Alice", authors[0].name
       end
 
       def test_insert_all!
@@ -136,12 +147,16 @@ module ActiveRecord
           { id: Author.next_sequence_value, name: "Carol" },
         ]
 
-        err = assert_raise(NotImplementedError) do
-          ActiveRecord::Base.transaction do
-            Author.upsert_all(values)
-          end
+        ActiveRecord::Base.transaction do
+          Author.upsert_all(values)
         end
-        assert_match "Use upsert outside a transaction block", err.message
+
+        authors = Author.all.order(:name)
+
+        assert_equal 3, authors.length
+        assert_equal "Alice", authors[0].name
+        assert_equal "Bob", authors[1].name
+        assert_equal "Carol", authors[2].name
       end
 
       def test_upsert_all_with_buffered_mutation_transaction
