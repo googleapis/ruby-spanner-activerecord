@@ -30,7 +30,7 @@ class Application
 
     puts ""
     puts "Press any key to end the application"
-    STDIN.getch
+    $stdin.getch
   end
 end
 

@@ -45,6 +45,7 @@ module ActiveRecord
         end
       end
     end
+
     module Spanner
       module Quoting
         def quote_column_name name
@@ -55,7 +56,7 @@ module ActiveRecord
           QUOTED_TABLE_NAMES[name] ||= "`#{name.to_s.gsub '.', '`.`'}`".freeze
         end
 
-        STR_ESCAPE_REGX = /[\n\r'\\]/.freeze
+        STR_ESCAPE_REGX = /[\n\r'\\]/
         STR_ESCAPE_VALUES = {
           "\n" => "\\n", "\r" => "\\r", "'" => "\\'", "\\" => "\\\\"
         }.freeze

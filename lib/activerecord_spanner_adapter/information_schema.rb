@@ -32,7 +32,7 @@ module ActiveRecordSpannerAdapter
 
       rows = execute_query(
         sql,
-        schema_name: (schema_name || ""), table_name: table_name
+        schema_name: schema_name || "", table_name: table_name
       )
 
       rows.map do |row|

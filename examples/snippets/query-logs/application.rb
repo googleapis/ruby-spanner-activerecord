@@ -20,7 +20,7 @@ class Application
 
     puts ""
     puts "Press any key to end the application"
-    STDIN.getch
+    $stdin.getch
   end
 
   def self.enable_query_logs
@@ -31,16 +31,9 @@ class Application
     # Query log comments *MUST* be prepended to be included as a request tag.
     ActiveRecord::QueryLogs.prepend_comment = true
 
-    # This block manually enables Query Logs without a full Rails application.
+    # Enable query logs in a non-Rails application.
     # This should normally not be needed in your application.
-    ActiveRecord::QueryLogs.taggings.merge!(
-      application:  "example-app",
-      action:       "run-test-application",
-      pid:          -> { Process.pid.to_s },
-      socket:       ->(context) { context[:connection].pool.db_config.socket },
-      db_host:      ->(context) { context[:connection].pool.db_config.host },
-      database:     ->(context) { context[:connection].pool.db_config.database }
-    )
+    enable_query_logs_without_rails
 
     ActiveRecord::QueryLogs.tags = [
       # The first tag *MUST* be the fixed value 'request_tag:true'.
@@ -57,6 +50,19 @@ class Application
       :db_host,
       :database
     ]
+  end
+
+  def self.enable_query_logs_without_rails
+    # This block manually enables Query Logs without a full Rails application.
+    # This should normally not be needed in your application.
+    ActiveRecord::QueryLogs.taggings.merge!(
+      application:  "example-app",
+      action:       "run-test-application",
+      pid:          -> { Process.pid.to_s },
+      socket:       ->(context) { context[:connection].pool.db_config.socket },
+      db_host:      ->(context) { context[:connection].pool.db_config.host },
+      database:     ->(context) { context[:connection].pool.db_config.database }
+    )
   end
 end
 

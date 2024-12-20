@@ -10,16 +10,16 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       class Column < ConnectionAdapters::Column
-        # rubocop:disable Style/MethodDefParentheses
+        # rubocop:disable Style/OptionalBooleanParameter
         def initialize(name, default, sql_type_metadata = nil, null = true,
                        default_function = nil, collation: nil, comment: nil,
                        primary_key: false, **)
-          # rubocop:enable Style/MethodDefParentheses
+          # rubocop:enable Style/OptionalBooleanParameter
           super
           @primary_key = primary_key
         end
 
-        def has_default? # rubocop:disable Naming/PredicateName
+        def has_default?
           super && !virtual?
         end
 

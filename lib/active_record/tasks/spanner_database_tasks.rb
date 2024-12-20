@@ -31,7 +31,7 @@ module ActiveRecord
       def purge
         begin
           drop
-        rescue ActiveRecord::NoDatabaseError # rubocop:disable Lint/HandleExceptions
+        rescue ActiveRecord::NoDatabaseError
           # ignored; create the database
         end
 
@@ -51,8 +51,8 @@ module ActiveRecord
         ignore_tables = ActiveRecord::SchemaDumper.ignore_tables
 
         if ignore_tables.any?
-          index_regx = /^CREATE(.*)INDEX(.*)ON (#{ignore_tables.join "|"})\(/
-          table_regx = /^CREATE TABLE (#{ignore_tables.join "|"})/
+          index_regx = /^CREATE(.*)INDEX(.*)ON (#{ignore_tables.join '|'})\(/
+          table_regx = /^CREATE TABLE (#{ignore_tables.join '|'})/
         end
 
         @connection.database.ddl(force: true).each do |statement|
@@ -66,7 +66,7 @@ module ActiveRecord
       end
 
       def structure_load filename, _extra_flags
-        statements = File.read(filename).split(/;/).map(&:strip).reject(&:empty?)
+        statements = File.read(filename).split(";").map(&:strip).reject(&:empty?)
         ddls = statements.select { |s| s =~ /^(CREATE|ALTER|DROP|GRANT|REVOKE|ANALYZE)/ }
         @connection.execute_ddl ddls
 

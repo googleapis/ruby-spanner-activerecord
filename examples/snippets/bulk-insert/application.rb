@@ -46,7 +46,7 @@ class Application
       ]
     end
     puts ""
-    puts "Created a batch of #{singers.length} singers and #{albums.length} "\
+    puts "Created a batch of #{singers.length} singers and #{albums.length} " \
          "albums using a transaction with buffered mutations:"
     singers.each do |s|
       puts "  Created singer #{s.first_name} #{s.last_name} with id #{s.id}"
@@ -57,7 +57,7 @@ class Application
 
     puts ""
     puts "Press any key to end the application"
-    STDIN.getch
+    $stdin.getch
   end
 end
 

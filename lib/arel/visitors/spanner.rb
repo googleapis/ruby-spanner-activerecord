@@ -35,15 +35,19 @@ module Arel # :nodoc: all
         sql = collector.hints[:statement_hint].value + sql if collector.hints[:statement_hint]
 
         if binds
-          binds << collector.hints[:staleness] if collector.hints[:staleness]
-          binds << collector.hints[:request_options] if collector.hints[:request_options]
-          [sql, binds]
+          compile_with_binds collector, sql, binds
         else
           sql
         end
       end
 
       private
+
+      def compile_with_binds collector, sql, binds
+        binds << collector.hints[:staleness] if collector.hints[:staleness]
+        binds << collector.hints[:request_options] if collector.hints[:request_options]
+        [sql, binds]
+      end
 
       BIND_BLOCK = proc { |i| "@p#{i}" }
       private_constant :BIND_BLOCK
@@ -62,43 +66,44 @@ module Arel # :nodoc: all
       end
 
       def visit_statement_hint v, collector
-        collector.hints[:statement_hint] = \
+        collector.hints[:statement_hint] =
           StatementHint.new v.delete_prefix("statement_hint:")
       end
 
-      # rubocop:disable Naming/MethodName
+      # rubocop:disable Naming/MethodName, Metrics/AbcSize
       def visit_Arel_Nodes_OptimizerHints o, collector
         o.expr.each do |v|
           visit_table_hint v, collector if v.start_with? "table_hint:"
           visit_statement_hint v, collector if v.start_with? "statement_hint:"
           if v.start_with? "max_staleness:"
-            collector.hints[:staleness] = \
+            collector.hints[:staleness] =
               StalenessHint.new max_staleness: v.delete_prefix("max_staleness:").to_f
             next
           end
           if v.start_with? "exact_staleness:"
-            collector.hints[:staleness] = \
+            collector.hints[:staleness] =
               StalenessHint.new exact_staleness: v.delete_prefix("exact_staleness:").to_f
             next
           end
           if v.start_with? "min_read_timestamp:"
             time = Time.xmlschema v.delete_prefix("min_read_timestamp:")
-            collector.hints[:staleness] = \
+            collector.hints[:staleness] =
               StalenessHint.new min_read_timestamp: time
             next
           end
           next unless v.start_with? "read_timestamp:"
           time = Time.xmlschema v.delete_prefix("read_timestamp:")
-          collector.hints[:staleness] = \
+          collector.hints[:staleness] =
             StalenessHint.new read_timestamp: time
         end
         collector
       end
+      # rubocop:enable Metrics/AbcSize
 
       def visit_Arel_Nodes_Comment o, collector
-        o.values.each do |v|
+        o.values.each do |v| # rubocop:disable Style/HashEachMethods
           if v.start_with?("request_tag:") || v.start_with?("transaction_tag:")
-            collector.hints[:request_options] ||= \
+            collector.hints[:request_options] ||=
               Google::Cloud::Spanner::V1::RequestOptions.new
           end
 

@@ -10,7 +10,9 @@ require "activerecord_spanner_adapter/information_schema"
 
 module ActiveRecordSpannerAdapter
   class Connection
-    attr_reader :instance_id, :database_id, :spanner
+    attr_reader :instance_id
+    attr_reader :database_id
+    attr_reader :spanner
     attr_accessor :current_transaction
 
     def initialize config
@@ -217,6 +219,7 @@ module ActiveRecordSpannerAdapter
       execute_sql_request sql, converted_params, types, selector, request_options
     end
 
+    # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     def execute_sql_request sql, converted_params, types, selector, request_options = nil
       res = session.execute_query \
         sql,
@@ -224,7 +227,7 @@ module ActiveRecordSpannerAdapter
         types: types,
         transaction: selector,
         request_options: request_options,
-        seqno: (current_transaction&.next_sequence_number)
+        seqno: current_transaction&.next_sequence_number
       current_transaction.grpc_transaction = res.metadata.transaction \
           if current_transaction && res&.metadata&.transaction
       res
@@ -252,6 +255,7 @@ module ActiveRecordSpannerAdapter
       # It was not the first statement, so propagate the error.
       raise
     end
+    # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
     # Creates a transaction using a BeginTransaction RPC. This is used if the first statement of a
     # transaction fails, as that also means that no transaction id was returned.
@@ -283,7 +287,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def transaction_selector
-      return current_transaction&.transaction_selector if current_transaction&.active?
+      current_transaction&.transaction_selector if current_transaction&.active?
     end
 
     def truncate table_name
