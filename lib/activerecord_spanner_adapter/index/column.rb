@@ -7,7 +7,12 @@
 module ActiveRecordSpannerAdapter
   class Index
     class Column
-      attr_accessor :table_name, :schema_name, :index_name, :name, :order, :ordinal_position
+      attr_accessor :table_name
+      attr_accessor :schema_name
+      attr_accessor :index_name
+      attr_accessor :name
+      attr_accessor :order
+      attr_accessor :ordinal_position
 
       def initialize \
           table_name,

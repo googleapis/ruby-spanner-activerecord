@@ -7,9 +7,18 @@
 module ActiveRecordSpannerAdapter
   class Table
     class Column
-      attr_accessor :schema_name, :table_name, :name, :type, :limit, :ordinal_position,
-                    :allow_commit_timestamp, :default, :default_function, :generated,
-                    :primary_key, :nullable
+      attr_accessor :schema_name
+      attr_accessor :table_name
+      attr_accessor :name
+      attr_accessor :type
+      attr_accessor :limit
+      attr_accessor :ordinal_position
+      attr_accessor :allow_commit_timestamp
+      attr_accessor :default
+      attr_accessor :default_function
+      attr_accessor :generated
+      attr_accessor :primary_key
+      attr_accessor :nullable
 
       def initialize \
           table_name,

@@ -180,8 +180,8 @@ module ActiveRecord
 
         def _remove_columns table_name, *column_names
           if column_names.empty?
-            raise ArgumentError, "You must specify at least one column name. "\
-              "Example: remove_columns(:people, :first_name)"
+            raise ArgumentError, "You must specify at least one column name. " \
+                                 "Example: remove_columns(:people, :first_name)"
           end
 
           statements = []
@@ -508,8 +508,8 @@ module ActiveRecord
           type ||= column.type
           options[:null] = column.null unless options.key? :null
 
-          if ["STRING", "BYTES"].include? type
-            options[:limit] = column.limit unless options.key? :limit
+          if ["STRING", "BYTES"].include?(type) && !options.key?(:limit)
+            options[:limit] = column.limit
           end
 
           # Only timestamp type can set commit timestamp

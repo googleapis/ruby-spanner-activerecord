@@ -30,8 +30,14 @@ require "activerecord_spanner_adapter/table/column"
 
 module ActiveRecordSpannerAdapter
   class Table
-    attr_accessor :name, :on_delete, :parent_table, :schema_name, :catalog,
-                  :indexes, :columns, :foreign_keys
+    attr_accessor :name
+    attr_accessor :on_delete
+    attr_accessor :parent_table
+    attr_accessor :schema_name
+    attr_accessor :catalog
+    attr_accessor :indexes
+    attr_accessor :columns
+    attr_accessor :foreign_keys
 
     # parent_table == interleave_in
     def initialize \

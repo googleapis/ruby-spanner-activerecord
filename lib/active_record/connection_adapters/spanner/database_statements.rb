@@ -29,7 +29,7 @@ module ActiveRecord
         end
 
         def internal_execute sql, name = "SQL", binds = [],
-                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument, Metrics/LineLength
+                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument, /
           statement_type = sql_statement_type sql
           # Call `transform` to invoke any query transformers that might have been registered.
           sql = transform sql
@@ -65,7 +65,7 @@ module ActiveRecord
           end
 
           log_args = [sql, name]
-          log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
+          log_args.push binds, type_casted_binds(binds) if log_statement_binds
 
           log(*log_args) do
             types, params = to_types_and_params binds
@@ -101,7 +101,7 @@ module ActiveRecord
           if options.request_tag == ""
             options.request_tag = request_tag
           else
-            options.request_tag += "," + request_tag
+            options.request_tag += ",#{request_tag}"
           end
 
           binds.append options
@@ -192,7 +192,7 @@ module ActiveRecord
           # and this RPC can return multiple partial result sets for DML as well. Only the last partial
           # result set will contain the statistics. Although there will never be any rows, this makes
           # sure that the stream is fully consumed.
-          result.rows.each { |_| }
+          result.rows.each { |_| } # rubocop:disable Lint/EmptyBlock
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
@@ -312,26 +312,35 @@ module ActiveRecord
 
         # Translates binds to Spanner types and params.
         def to_types_and_params binds
-          types = binds.enum_for(:each_with_index).map do |bind, i|
+          types = to_types binds
+          params = to_params binds
+          [types, params]
+        end
+
+        def to_types binds
+          binds.enum_for(:each_with_index).to_h do |bind, i|
             type = :INT64
             if bind.respond_to? :type
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                      .convert_active_model_type_to_spanner(bind.type)
-            elsif bind.class == Symbol
+            elsif bind.instance_of? Symbol
               # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
               type = :STRING
-            elsif bind.class == TrueClass || bind.class == FalseClass
+            elsif bind.instance_of?(TrueClass) || bind.instance_of?(FalseClass)
               type = :BOOL
             end
             [
               # Generates binds for named parameters in the format `@p1, @p2, ...`
               "p#{i + 1}", type
             ]
-          end.to_h
-          params = binds.enum_for(:each_with_index).map do |bind, i|
+          end
+        end
+
+        def to_params binds
+          binds.enum_for(:each_with_index).to_h do |bind, i|
             type = if bind.respond_to? :type
                      bind.type
-                   elsif bind.class == Symbol
+                   elsif bind.instance_of? Symbol
                      # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
                      :STRING
                    else
@@ -343,8 +352,7 @@ module ActiveRecord
                     .serialize_with_transaction_isolation_level(type, bind_value, :dml)
 
             ["p#{i + 1}", value]
-          end.to_h
-          [types, params]
+          end
         end
 
         # An insert/update/delete statement could use mutations in some specific circumstances.
@@ -353,7 +361,7 @@ module ActiveRecord
         def should_use_mutation arel
           !@connection.current_transaction.nil? \
             && @connection.current_transaction.isolation == :buffered_mutations \
-            && can_use_mutation(arel) \
+            && can_use_mutation(arel)
         end
 
         def can_use_mutation arel
@@ -383,7 +391,7 @@ module ActiveRecord
           )
         end
 
-        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m.freeze \
+        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m \
             unless defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
         COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX \
             if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX

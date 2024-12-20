@@ -5,7 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 module ActiveRecord
-  module ConnectionAdapters #:nodoc:
+  module ConnectionAdapters # :nodoc:
     module Spanner
       class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
         attr_reader :interleave_in_parent
@@ -62,6 +62,9 @@ module ActiveRecord
       DropIndexDefinition = Struct.new :name
 
       class ReferenceDefinition < ActiveRecord::ConnectionAdapters::ReferenceDefinition
+        # This constructor intentionally does not call super to prevent ActiveRecord
+        # from creating an additional secondary index for the foreign key.
+        # rubocop:disable Lint/MissingSuper
         def initialize \
             name,
             polymorphic: false,
@@ -81,6 +84,7 @@ module ActiveRecord
           return unless polymorphic && foreign_key
           raise ArgumentError, "Cannot add a foreign key to a polymorphic relation"
         end
+        # rubocop:enable Lint/MissingSuper
 
         private
 
@@ -96,8 +100,13 @@ module ActiveRecord
       end
 
       class IndexDefinition < ActiveRecord::ConnectionAdapters::IndexDefinition
-        attr_reader :null_filtered, :interleave_in, :storing, :orders
+        attr_reader :null_filtered
+        attr_reader :interleave_in
+        attr_reader :storing
+        attr_reader :orders
 
+        # This constructor intentionally does not call super.
+        # rubocop:disable Lint/MissingSuper
         def initialize \
             table_name,
             name,
@@ -123,6 +132,7 @@ module ActiveRecord
 
           @orders = @orders.symbolize_keys
         end
+        # rubocop:enable Lint/MissingSuper
 
         def columns_with_order
           columns.each_with_object({}) do |c, result|

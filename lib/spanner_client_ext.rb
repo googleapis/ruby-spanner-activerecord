@@ -66,8 +66,8 @@ module Google
           ensure_service!
 
           snp_grpc = service.create_snapshot \
-            path, timestamp: (timestamp || read_timestamp),
-            staleness: (staleness || exact_staleness)
+            path, timestamp: timestamp || read_timestamp,
+            staleness: staleness || exact_staleness
           num_args = Snapshot.method(:from_grpc).arity
           if num_args == 3
             Snapshot.from_grpc snp_grpc, self, nil
@@ -105,7 +105,8 @@ module Google
       end
 
       class Transaction
-        attr_accessor :seqno, :commit
+        attr_accessor :seqno
+        attr_accessor :commit
       end
     end
   end
