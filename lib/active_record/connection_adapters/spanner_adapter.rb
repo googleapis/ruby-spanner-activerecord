@@ -288,7 +288,7 @@ module ActiveRecord
       # Overwrite the standard log method to be able to translate exceptions.
       # sql, name = "SQL", binds = [], type_casted_binds = [], async: false, &block
       if ActiveRecord::VERSION::MAJOR >= 8
-        def log(sql, name = "SQL", binds = [], type_casted_binds = [], async: false, &block)
+        def log sql, name = "SQL", binds = [], type_casted_binds = [], async: false, &block
           super
         rescue ActiveRecord::StatementInvalid
           raise

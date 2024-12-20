@@ -881,7 +881,7 @@ module MockServerTests
       @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
       singer = Singer.find_by id: 1
 
-      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 \
+      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 || ActiveRecord::VERSION::MAJOR >= 8 \
                      ? "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
                      : "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND (`albums`.`id` = @p3 OR `albums`.`id` = @p4)"
       @mock.put_statement_result update_albums_sql, StatementResult.new(2)
@@ -1082,7 +1082,7 @@ module MockServerTests
       begin
         current_query_transformers = _enable_query_logs
 
-        sql = "/*request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers`"
+        sql = "/*_request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers`"
         @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
         Singer.all.each do |singer|
           refute_nil singer.id, "singer.id should not be nil"
@@ -1103,7 +1103,8 @@ module MockServerTests
       begin
         current_query_transformers = _enable_query_logs
 
-        sql = "/*request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+        header = "/*_request_tag:true,action:test_query_logs*/"
+        sql = "#{header} SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
         @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
         Singer.annotate("request_tag: selecting all singers").all.each do |singer|
           refute_nil singer.id, "singer.id should not be nil"
@@ -1128,14 +1129,14 @@ module MockServerTests
 
       ActiveRecord.query_transformers << ActiveRecord::QueryLogs
       ActiveRecord::QueryLogs.prepend_comment = true
-      ActiveRecord::QueryLogs.taggings.merge!(
+      ActiveRecord::QueryLogs.taggings = {
         application:  "test-app",
         action:       "test_query_logs",
         pid:          -> { Process.pid.to_s },
-      )
+      }
       ActiveRecord::QueryLogs.tags = [
         {
-          request_tag:  "true",
+          _request_tag:  "true",
         },
         :controller,
         :action,
@@ -1154,7 +1155,7 @@ module MockServerTests
     def _disable_query_logs current_query_transformers
       current_query_transformers.each do |transformer|
         ActiveRecord.query_transformers.delete transformer
-      end
+      end if current_query_transformers
     end
 
     def test_insert_all

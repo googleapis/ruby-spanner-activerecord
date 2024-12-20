@@ -83,12 +83,11 @@ module ActiveRecord
         end
 
         def append_request_tag_from_query_logs sql, binds
-          legacy_formatter_prefix = "/*request_tag:true,"
-          sql_commenter_prefix = "/*request_tag='true',"
-          if sql.start_with? legacy_formatter_prefix
-            append_request_tag_from_query_logs_with_format sql, binds, legacy_formatter_prefix
-          elsif sql.start_with? sql_commenter_prefix
-            append_request_tag_from_query_logs_with_format sql, binds, sql_commenter_prefix
+          possible_prefixes = %w[/*request_tag:true, /*_request_tag='true', /*_request_tag:true, /*_request_tag='true',]
+          for prefix in possible_prefixes
+            if sql.start_with? prefix
+              append_request_tag_from_query_logs_with_format sql, binds, prefix
+            end
           end
         end
 
