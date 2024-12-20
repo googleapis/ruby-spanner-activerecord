@@ -33,6 +33,7 @@ module MockServerTests
     end
 
     def test_insert_other_adapter
+      skip if ActiveRecord.version < Gem::Version.create("7.1.0")
       ActiveRecord::Base.establish_connection(
         adapter: "sqlite3",
         database: ":memory:",
