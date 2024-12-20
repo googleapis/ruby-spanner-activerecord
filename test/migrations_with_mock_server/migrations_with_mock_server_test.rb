@@ -31,6 +31,9 @@ module TestMigrationsWithMockServer
 
     def setup
       super
+      if ActiveRecord.version >= Gem::Version.create("7.2.0")
+        ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+      end
       @server = GRPC::RpcServer.new
       @port = @server.add_http2_port "localhost:0", :this_port_is_insecure
       @mock = SpannerMockServer.new
