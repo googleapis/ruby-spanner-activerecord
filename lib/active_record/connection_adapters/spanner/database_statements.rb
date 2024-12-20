@@ -83,8 +83,13 @@ module ActiveRecord
         end
 
         def append_request_tag_from_query_logs sql, binds
-          possible_prefixes = %w[/*request_tag:true, /*_request_tag='true', /*_request_tag:true, /*_request_tag='true',]
-          for prefix in possible_prefixes
+          possible_prefixes = [
+            "/*request_tag:true,",
+            "/*_request_tag='true',",
+            "/*_request_tag:true,",
+            "/*_request_tag='true',"
+          ]
+          possible_prefixes.each do |prefix|
             if sql.start_with? prefix
               append_request_tag_from_query_logs_with_format sql, binds, prefix
             end
