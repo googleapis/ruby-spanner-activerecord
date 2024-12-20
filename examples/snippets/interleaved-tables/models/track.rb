@@ -8,7 +8,11 @@ class Track < ActiveRecord::Base
   # `tracks` is defined as INTERLEAVE IN PARENT `albums`.
   # The primary key of `albums` is (`singerid`, `albumid`).
   # Rails 7.1 requires a composite primary key in a belongs_to relationship to be specified as query_constraints.
-  belongs_to :album, query_constraints: [:singerid, :albumid]
+  if ActiveRecord::VERSION::MAJOR >= 8
+    belongs_to :album, foreign_key: [:singerid, :albumid]
+  else
+    belongs_to :album, query_constraints: [:singerid, :albumid]
+  end
 
   # `tracks` also has a `singerid` column that can be used to associate a Track with a Singer.
   belongs_to :singer, foreign_key: :singerid

@@ -22,10 +22,6 @@ class Application
       albums = Album.annotate("request_tag: query-all-albums", "transaction_tag: sample-transaction").all
       puts "Queried #{albums.length} albums using a request and a transaction tag"
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

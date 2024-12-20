@@ -9,6 +9,10 @@ require "bundler"
 
 Dir["../../lib/*.rb"].each { |file| require file }
 
+if ActiveRecord.version >= Gem::Version.create("7.2.0")
+  ActiveRecord::ConnectionAdapters.register "spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter"
+end
+
 Bundler.require
 
 ActiveRecord::Base.establish_connection(
