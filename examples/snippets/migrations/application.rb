@@ -16,10 +16,6 @@ class Application
     tables.rows.each do |row|
       puts row[:TABLE_NAME]
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

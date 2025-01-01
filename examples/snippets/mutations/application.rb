@@ -37,10 +37,6 @@ class Application
     puts "Budgets after commit:"
     puts "Marketing budget #{from_album.title}: #{from_album.reload.marketing_budget}"
     puts "Marketing budget #{to_album.title}: #{to_album.reload.marketing_budget}"
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 
