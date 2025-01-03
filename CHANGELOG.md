@@ -1,5 +1,11 @@
 # Changelog
 
+### 1.9.0 (2025-01-03)
+
+#### Features
+
+* support Rails 8.0 ([#331](https://github.com/googleapis/ruby-spanner-activerecord/issues/331)) 
+
 ### 1.8.0 (2024-12-12)
 
 #### Features
