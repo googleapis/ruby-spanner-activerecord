@@ -10,7 +10,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize
+  def self.run
     from_album = nil
     to_album = nil
     # Use a read/write transaction to execute multiple statements as an atomic unit.
@@ -29,10 +29,6 @@ class Application
     puts "Budgets after update:"
     puts "Marketing budget #{from_album.title}: #{from_album.reload.marketing_budget}"
     puts "Marketing budget #{to_album.title}: #{to_album.reload.marketing_budget}"
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

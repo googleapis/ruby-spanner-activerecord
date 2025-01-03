@@ -8,7 +8,11 @@ module TestInterleavedTables_7_1_AndHigher
   class Track < ActiveRecord::Base
     # self.primary_keys = :singerid, :albumid, :trackid
 
-    belongs_to :album, query_constraints: [:singerid, :albumid]
+    if ActiveRecord::VERSION::MAJOR >= 8
+      belongs_to :album, foreign_key: [:singerid, :albumid]
+    else
+      belongs_to :album, query_constraints: [:singerid, :albumid]
+    end
     belongs_to :singer, foreign_key: :singerid
 
     def album=value

@@ -10,7 +10,12 @@ module TestInterleavedTables_7_1_AndHigher
 
     belongs_to :singer, foreign_key: :singerid
 
-    # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is (`singerid`, `albumid`).
-    has_many :tracks, query_constraints: [:singerid, :albumid]
+    # `tracks` is defined as INTERLEAVE IN PARENT `albums`.
+    # The primary key of `albums` is (`singerid`, `albumid`).
+    if ActiveRecord::VERSION::MAJOR >= 8
+      has_many :tracks, foreign_key: [:singerid, :albumid]
+    else
+      has_many :tracks, query_constraints: [:singerid, :albumid]
+    end
   end
 end

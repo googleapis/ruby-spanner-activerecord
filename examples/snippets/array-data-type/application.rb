@@ -9,7 +9,7 @@ require_relative "../config/environment"
 require_relative "models/entity_with_array_types"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize
+  def self.run
     # Create a record with all array types.
     record = EntityWithArrayTypes.create \
       col_array_string: ["value1", "value2", "value3"],
@@ -35,10 +35,6 @@ class Application
     puts "Bytes array: #{record.col_array_bytes.map(&:read)}"
     puts "Date array: #{record.col_array_date}"
     puts "Timestamp array: #{record.col_array_timestamp}"
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

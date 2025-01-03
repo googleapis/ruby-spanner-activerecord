@@ -11,6 +11,10 @@ class Album < ActiveRecord::Base
 
   # `tracks` is defined as INTERLEAVE IN PARENT `albums`.
   # The primary key of `albums` is (`singerid`, `albumid`).
-  # Rails 7.1 requires using query_constraints to define a composite foreign key.
-  has_many :tracks, query_constraints: [:singerid, :albumid]
+  if ActiveRecord::VERSION::MAJOR >= 8
+    has_many :tracks, foreign_key: [:singerid, :albumid]
+  else
+    # Rails 7.1 requires using query_constraints to define a composite foreign key.
+    has_many :tracks, query_constraints: [:singerid, :albumid]
+  end
 end

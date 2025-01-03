@@ -54,10 +54,6 @@ class Application
         puts "    with album #{a.title} with id #{a.id}"
       end
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    $stdin.getch
   end
 end
 

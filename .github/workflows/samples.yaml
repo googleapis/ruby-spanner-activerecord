@@ -1,16 +1,14 @@
 on:
-  schedule:
-    # 05:30 UTC
-    - cron:  '30 5 * * *'
-  workflow_dispatch:
-name: nightly-unit-tests
+  pull_request:
+name: samples
 jobs:
   test:
     runs-on: ubuntu-latest
+
     strategy:
       max-parallel: 4
       matrix:
-        # Run acceptance tests all supported combinations of Ruby and ActiveRecord.
+        ruby: ["3.1", "3.2", "3.3"]
         ar: ["~> 6.1.0", "~> 7.0.0", "~> 7.1.0", "~> 7.2.0", "~> 8.0.0"]
         # Exclude combinations that are not supported.
         exclude:
@@ -23,10 +21,10 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        # Disable caching as we are overriding the ActiveRecord below.
         bundler-cache: false
         ruby-version: ${{ matrix.ruby }}
     - name: Install dependencies
       run: bundle install
-    - name: Run tests
-      run: bundle exec rake test
+    - name: Run samples
+      run: bundle exec rake all
+      working-directory: examples/snippets

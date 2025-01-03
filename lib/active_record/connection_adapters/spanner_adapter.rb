@@ -276,7 +276,9 @@ module ActiveRecord
       end
 
       def transform sql
-        if ActiveRecord::VERSION::MAJOR >= 7
+        if ActiveRecord::VERSION::MAJOR >= 8
+          preprocess_query sql
+        elsif ActiveRecord::VERSION::MAJOR == 7
           transform_query sql
         else
           sql
@@ -284,12 +286,23 @@ module ActiveRecord
       end
 
       # Overwrite the standard log method to be able to translate exceptions.
-      def log sql, name = "SQL", binds = [], type_casted_binds = [], statement_name = nil, *args
-        super
-      rescue ActiveRecord::StatementInvalid
-        raise
-      rescue StandardError => e
-        raise translate_exception_class(e, sql, binds)
+      # sql, name = "SQL", binds = [], type_casted_binds = [], async: false, &block
+      if ActiveRecord::VERSION::MAJOR >= 8
+        def log sql, name = "SQL", binds = [], type_casted_binds = [], async: false, &block
+          super
+        rescue ActiveRecord::StatementInvalid
+          raise
+        rescue StandardError => e
+          raise translate_exception_class(e, sql, binds)
+        end
+      else
+        def log sql, name = "SQL", binds = [], type_casted_binds = [], statement_name = nil, *args
+          super
+        rescue ActiveRecord::StatementInvalid
+          raise
+        rescue StandardError => e
+          raise translate_exception_class(e, sql, binds)
+        end
       end
 
       def translate_exception exception, message:, sql:, binds:
