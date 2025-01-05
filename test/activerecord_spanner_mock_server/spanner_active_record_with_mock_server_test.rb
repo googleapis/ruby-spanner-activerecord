@@ -1259,6 +1259,86 @@ module MockServerTests
       assert_equal 1, execute_requests.length
     end
 
+    def test_binary_id
+      user = User.create!(
+        email: "test@example.com",
+        full_name: "Test User"
+      )
+      # Verify that an ID was generated for the User.
+      assert user.id
+      assert user.id.is_a?(StringIO)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      assert_equal 1, commit_requests[0].mutations.length
+      mutation = commit_requests[0].mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "users", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal to_base64(user.id), mutation.insert.values[0][0]
+      assert_equal "test@example.com", mutation.insert.values[0][1]
+      assert_equal "Test User", mutation.insert.values[0][2]
+    end
+
+    def test_binary_id_association
+      user = User.create!(
+        email: "test@example.com",
+        full_name: "Test User"
+      )
+      project1 = BinaryProject.create!(
+        name: "Test Project 1",
+        description: "Test Description 1",
+        owner: user
+      )
+      project2 = BinaryProject.create!(
+        name: "Test Project 2",
+        description: "Test Description 2",
+        owner: user
+      )
+      # Verify that an ID was generated for the records.
+      assert user.id
+      assert project1.id
+      assert project2.id
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 3, commit_requests.length
+      assert_equal 1, commit_requests[1].mutations.length
+      mutation = commit_requests[1].mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "binary_projects", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 4, mutation.insert.values[0].length
+      assert_equal to_base64(project1.id), mutation.insert.values[0][0]
+      assert_equal "Test Project 1", mutation.insert.values[0][1]
+      assert_equal "Test Description 1", mutation.insert.values[0][2]
+      assert_equal to_base64(user.id), mutation.insert.values[0][3]
+    end
+
+    def test_skip_binary_deserialization
+      ENV["SPANNER_BYTES_DESERIALIZE_DISABLED"] = "true"
+      begin
+        user = User.create!(
+          email: "test@example.com",
+          full_name: "Test User"
+        )
+        # Verify that the ID is returned as a Base64 string.
+        assert user.id
+        assert user.id.is_a?(String)
+        assert_equal user.id, Base64.strict_encode64(Base64.strict_decode64(user.id))
+      ensure
+        ENV.delete("SPANNER_BYTES_DESERIALIZE_DISABLED")
+      end
+    end
+
+    def to_base64 buffer
+      buffer.rewind
+      value = buffer.read
+      Base64.strict_encode64 value.force_encoding("ASCII-8BIT")
+    end
+
     private
 
     def verify_insert_upsert_all operation

@@ -10,6 +10,16 @@ module ActiveRecord
   module Type
     module Spanner
       class Bytes < ActiveRecord::Type::Binary
+        def deserialize value
+          # Set this environment variable to disable de-serializing BYTES
+          # to a StringIO instance.
+          return super if ENV["SPANNER_BYTES_DESERIALIZE_DISABLED"]
+
+          return super value if value.nil?
+          return StringIO.new Base64.strict_decode64(value) if value.is_a? ::String
+          value
+        end
+
         def serialize value
           return super value if value.nil?
 

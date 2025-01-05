@@ -47,7 +47,7 @@ module ActiveRecordSpannerAdapter
 
     def self.information_schema config
       @information_schemas ||= {}
-      @information_schemas[database_path(config)] ||= \
+      @information_schemas[database_path(config)] ||=
         ActiveRecordSpannerAdapter::InformationSchema.new new(config)
     end
 
@@ -204,7 +204,7 @@ module ActiveRecordSpannerAdapter
 
     def execute_query sql, params: nil, types: nil, single_use_selector: nil, request_options: nil
       if params
-        converted_params, types = \
+        converted_params, types =
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
             params, types
           )

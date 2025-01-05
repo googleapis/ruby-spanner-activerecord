@@ -15,6 +15,8 @@ require_relative "models/all_types"
 require_relative "models/table_with_commit_timestamp"
 require_relative "models/table_with_sequence"
 require_relative "models/versioned_singer"
+require_relative "models/user"
+require_relative "models/binary_project"
 
 require "securerandom"
 
@@ -57,6 +59,15 @@ module MockServerTests
       MockServerTests::register_table_with_sequence_columns_result @mock
       MockServerTests::register_table_with_sequence_primary_key_columns_result @mock
       MockServerTests::register_table_with_sequence_primary_and_parent_key_columns_result @mock
+
+      MockServerTests::register_users_columns_result @mock
+      MockServerTests::register_users_primary_key_columns_result @mock
+      MockServerTests::register_users_primary_and_parent_key_columns_result @mock
+
+      MockServerTests::register_binary_projects_columns_result @mock
+      MockServerTests::register_binary_projects_primary_key_columns_result @mock
+      MockServerTests::register_binary_projects_primary_and_parent_key_columns_result @mock
+
       # Connect ActiveRecord to the mock server
       ActiveRecord::Base.establish_connection(
         adapter: "spanner",
