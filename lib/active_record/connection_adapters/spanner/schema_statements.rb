@@ -109,7 +109,7 @@ module ActiveRecord
         end
 
         def rename_table _table_name, _new_name
-          raise ActiveRecordSpannerAdapter::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError,
                 "rename_table is not implemented"
         end
 
@@ -208,13 +208,13 @@ module ActiveRecord
         end
 
         def change_column_default _table_name, _column_name, _default_or_changes
-          raise ActiveRecordSpannerAdapter::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError,
                 "change column with default value not supported."
         end
 
         def rename_column table_name, column_name, new_column_name
           if ActiveRecord::Base.connection.ddl_batch?
-            raise ActiveRecordSpannerAdapter::NotSupportedError, \
+            raise ActiveRecordSpannerAdapter::NotSupportedError,
                   "rename_column in a DDL Batch is not supported."
           end
           column = information_schema do |i|
@@ -642,8 +642,7 @@ module ActiveRecord
         end
 
         def information_schema
-          info_schema = \
-            ActiveRecordSpannerAdapter::Connection.information_schema @config
+          info_schema = ActiveRecordSpannerAdapter::Connection.information_schema @config
 
           return info_schema unless block_given?
 
