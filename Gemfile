@@ -3,7 +3,7 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in activerecord-spanner.gemspec
 gemspec
 
-ar_version = ENV.fetch("AR_VERSION", "~> 7.1.0")
+ar_version = ENV.fetch("AR_VERSION", "~> 7.2.0")
 gem "activerecord", ar_version
 gem "ostruct"
 gem "minitest", "~> 5.25.0"
@@ -17,6 +17,7 @@ gem 'sqlite3'
 install_if -> { ar_version.dup.to_s.sub("~>", "").strip < "7.1.0" && !ENV["SKIP_COMPOSITE_PK"] } do
   gem "composite_primary_keys"
 end
+gem 'simplecov', require: false, group: :test
 
 # Required for samples
 gem "docker-api"

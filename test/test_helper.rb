@@ -4,6 +4,13 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require 'simplecov'
+SimpleCov.start do
+  add_filter '/test/'
+  add_filter '/acceptance/'
+  add_filter '/benchmarks/'
+end
+
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/rg"
