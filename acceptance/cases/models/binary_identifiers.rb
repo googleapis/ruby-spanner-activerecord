@@ -58,10 +58,15 @@ module Models
           # Access the owner to ensure it's preloaded
           assert_equal user.full_name, project.owner.full_name
         end
+        assert_equal 3, loaded_projects.count
       end
 
       # Spanner should execute 2 queries: one for projects and one for users
       assert_equal 2, query_count
+
+      user = User.all.includes(:projects).first
+      assert user
+      assert_equal 3, user.projects.count
     end
 
     private
