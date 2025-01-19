@@ -6,6 +6,8 @@
 
 # frozen_string_literal: true
 
+require_relative 'string_io'
+
 class User < ActiveRecord::Base
   has_many :binary_projects, foreign_key: :owner_id
 

@@ -1317,6 +1317,61 @@ module MockServerTests
       assert_equal to_base64(user.id), mutation.insert.values[0][3]
     end
 
+    def test_binary_id_association_includes
+      col_id = Field.new name: "id", type: Type.new(code: TypeCode::BYTES)
+      col_email = Field.new name: "email", type: Type.new(code: TypeCode::STRING)
+      col_full_name = Field.new name: "full_name", type: Type.new(code: TypeCode::STRING)
+
+      metadata = ResultSetMetadata.new row_type: StructType.new
+      metadata.row_type.fields.push col_id, col_email, col_full_name
+      result_set = ResultSet.new metadata: metadata
+
+      user_id = to_base64(StringIO.new(SecureRandom.random_bytes(16)))
+      row = ListValue.new
+      row.values.push(
+        Value.new(string_value: user_id),
+        Value.new(string_value: "test_user@example.com"),
+        Value.new(string_value: "Test User")
+      )
+      result_set.rows.push row
+      statement_result = StatementResult.new(result_set)
+
+      sql = "SELECT `users`.* FROM `users` ORDER BY `users`.`id` ASC LIMIT @p1"
+      @mock.put_statement_result sql, statement_result
+
+      col_id = Field.new name: "id", type: Type.new(code: TypeCode::BYTES)
+      col_name = Field.new name: "name", type: Type.new(code: TypeCode::STRING)
+      col_description = Field.new name: "description", type: Type.new(code: TypeCode::STRING)
+      col_owner = Field.new name: "owner_id", type: Type.new(code: TypeCode::BYTES)
+
+      metadata = ResultSetMetadata.new row_type: StructType.new
+      metadata.row_type.fields.push col_id, col_name, col_description, col_owner
+      result_set = ResultSet.new metadata: metadata
+
+      project_count = 3
+      (1..project_count).each { |i|
+        row = ListValue.new
+        row.values.push(
+          Value.new(string_value: to_base64(StringIO.new(SecureRandom.random_bytes(16)))),
+          Value.new(string_value: "Test Project #{i}"),
+          Value.new(string_value: "Test Project Description #{i}"),
+          Value.new(string_value: user_id)
+        )
+        result_set.rows.push row
+      }
+      statement_result = StatementResult.new(result_set)
+      projects_sql = "SELECT `binary_projects`.* FROM `binary_projects` WHERE `binary_projects`.`owner_id` = @p1"
+      @mock.put_statement_result projects_sql, statement_result
+
+      users = User.all.includes(:binary_projects)
+      u1 = users.first
+      found = 0
+      u1.binary_projects.each do |_|
+        found += 1
+      end
+      assert_equal project_count, found
+    end
+
     def test_skip_binary_deserialization
       ENV["SPANNER_BYTES_DESERIALIZE_DISABLED"] = "true"
       begin

@@ -66,6 +66,11 @@ module Models
 
       user = User.all.includes(:projects).first
       assert user
+      project_count = 0
+      user.projects.each do |_|
+        project_count += 1
+      end
+      assert_equal 3, project_count
       assert_equal 3, user.projects.count
     end
 
