@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "logger" # https://github.com/rails/rails/issues/54260
 require "active_record"
 require "bundler"
 
