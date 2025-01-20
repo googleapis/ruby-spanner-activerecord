@@ -13,9 +13,6 @@ module ActiveRecord
     class CommandRecorderTest < SpannerAdapter::TestCase
       include SpannerAdapter::Migration::TestHelper
 
-      VERSION_6_1_0 = Gem::Version.create "6.1.0"
-      VERSION_6_0_3 = Gem::Version.create "6.0.3"
-
       def setup
         skip_test_table_create!
         super
@@ -203,20 +200,12 @@ module ActiveRecord
 
       def test_invert_add_index
         remove = @recorder.inverse_of :add_index, [:table, [:one, :two]]
-        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
-          assert_equal [:remove_index, [:table, { column: [:one, :two] }]], remove
-        else
-          assert_equal [:remove_index, [:table, [:one, :two]], nil], remove
-        end
+        assert_equal [:remove_index, [:table, [:one, :two]], nil], remove
       end
 
       def test_invert_add_index_with_name
         remove = @recorder.inverse_of :add_index, [:table, [:one, :two], name: "new_index"]
-        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
-          assert_equal [:remove_index, [:table, { name: "new_index" }]], remove
-        else
-          assert_equal [:remove_index, [:table, [:one, :two], {:name=>"new_index"}], nil], remove
-        end
+        assert_equal [:remove_index, [:table, [:one, :two], {:name=>"new_index"}], nil], remove
       end
 
       def test_invert_remove_index
@@ -226,11 +215,7 @@ module ActiveRecord
 
       def test_invert_remove_index_with_options
         add = @recorder.inverse_of :remove_index, [:table, { column: :one }]
-        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
-          assert_equal [:add_index, [:table, :one, {} ]], add
-        else
-          assert_equal [:add_index, [:table, :one ]], add
-        end
+        assert_equal [:add_index, [:table, :one ]], add
       end
 
       def test_invert_remove_index_with_positional_column
@@ -250,11 +235,7 @@ module ActiveRecord
 
       def test_invert_remove_index_with_no_special_options
         add = @recorder.inverse_of :remove_index, [:table, { column: [:one, :two] }]
-        if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
-          assert_equal [:add_index, [:table, [:one, :two], {}]], add
-        else
-          assert_equal [:add_index, [:table, [:one, :two]]], add
-        end
+        assert_equal [:add_index, [:table, [:one, :two]]], add
       end
 
       def test_invert_remove_index_with_no_column
@@ -315,11 +296,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people]
-        if ActiveRecord.gem_version < VERSION_6_0_3
-          assert_equal [:remove_foreign_key, [:dogs, :people]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people], nil], enable
       end
 
       def test_invert_remove_foreign_key
@@ -329,11 +306,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id"]
-        if ActiveRecord.gem_version < VERSION_6_0_3
-          assert_equal [:remove_foreign_key, [:dogs, column: "owner_id"]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people, column: "owner_id"], nil], enable
       end
 
       def test_invert_remove_foreign_key_with_column
@@ -343,11 +316,7 @@ module ActiveRecord
 
       def test_invert_add_foreign_key_with_column_and_name
         enable = @recorder.inverse_of :add_foreign_key, [:dogs, :people, column: "owner_id", name: "fk"]
-        if ActiveRecord.gem_version < VERSION_6_0_3
-          assert_equal [:remove_foreign_key, [:dogs, { name: "fk" }]], enable
-        else
-          assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
-        end
+        assert_equal [:remove_foreign_key, [:dogs, :people, { column: "owner_id", name: "fk" }], nil], enable
       end
 
       def test_invert_remove_foreign_key_with_column_and_name

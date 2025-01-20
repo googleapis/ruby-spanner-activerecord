@@ -168,14 +168,8 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        if ActiveRecord.gem_version < VERSION_6_1_0
-          def remove_columns table_name, *column_names
-            _remove_columns table_name, *column_names
-          end
-        else
-          def remove_columns table_name, *column_names, _type: nil, **_options
-            _remove_columns table_name, *column_names
-          end
+        def remove_columns table_name, *column_names, _type: nil, **_options
+          _remove_columns table_name, *column_names
         end
 
         def _remove_columns table_name, *column_names
@@ -193,14 +187,8 @@ module ActiveRecord
           execute_schema_statements statements
         end
 
-        if ActiveRecord.gem_version < VERSION_6_1_0
-          def change_column table_name, column_name, type, options = {}
-            _change_column table_name, column_name, type, **options
-          end
-        else
-          def change_column table_name, column_name, type, **options
-            _change_column table_name, column_name, type, **options
-          end
+        def change_column table_name, column_name, type, **options
+          _change_column table_name, column_name, type, **options
         end
 
         def change_column_null table_name, column_name, null, _default = nil
@@ -280,16 +268,9 @@ module ActiveRecord
           execute_schema_statements schema_creation.accept(id)
         end
 
-        if ActiveRecord.gem_version < VERSION_6_1_0
-          def remove_index table_name, options = {}
-            index_name = index_name_for_remove table_name, options
-            execute "DROP INDEX #{quote_table_name index_name}"
-          end
-        else
-          def remove_index table_name, column_name = nil, **options
-            index_name = index_name_for_remove table_name, column_name, options
-            execute "DROP INDEX #{quote_table_name index_name}"
-          end
+        def remove_index table_name, column_name = nil, **options
+          index_name = index_name_for_remove table_name, column_name, options
+          execute "DROP INDEX #{quote_table_name index_name}"
         end
 
         def rename_index table_name, old_name, new_name
@@ -358,14 +339,8 @@ module ActiveRecord
           end
         end
 
-        if ActiveRecord.gem_version < VERSION_6_0_3
-          def add_foreign_key from_table, to_table, options = {}
-            _add_foreign_key from_table, to_table, **options
-          end
-        else
-          def add_foreign_key from_table, to_table, **options
-            _add_foreign_key from_table, to_table, **options
-          end
+        def add_foreign_key from_table, to_table, **options
+          _add_foreign_key from_table, to_table, **options
         end
 
         def _add_foreign_key from_table, to_table, **options
