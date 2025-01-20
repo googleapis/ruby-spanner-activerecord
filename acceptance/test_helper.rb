@@ -5,6 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 gem "minitest"
+require "logger" # https://github.com/rails/rails/issues/54260
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/rg"
