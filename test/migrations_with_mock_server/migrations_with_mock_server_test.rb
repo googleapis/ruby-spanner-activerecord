@@ -248,9 +248,7 @@ module TestMigrationsWithMockServer
 
       expectedDdl = "CREATE TABLE `tracks` "
       expectedDdl << "(`trackid` INT64 NOT NULL, `singerid` INT64 NOT NULL, `albumid` INT64 NOT NULL, `title` STRING(MAX), `duration` NUMERIC"
-      if ActiveRecord.gem_version >= Gem::Version.create("6.1.0")
-        expectedDdl << ", CONSTRAINT chk_tracks_duration CHECK (duration > 0)"
-      end
+      expectedDdl << ", CONSTRAINT chk_tracks_duration CHECK (duration > 0)"
       expectedDdl << ") PRIMARY KEY (`singerid`, `albumid`, `trackid`), INTERLEAVE IN PARENT `albums` ON DELETE CASCADE"
       assert_equal expectedDdl, ddl_requests[2].statements[3]
 
@@ -638,9 +636,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_references_column_with_polymorphic_adds_type
-      index_name = ActiveRecord::gem_version < VERSION_6_1_0 \
-                     ? "index_singers_on_person_type_and_person_id"
-                     : "index_singers_on_person"
+      index_name = "index_singers_on_person"
 
       select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
       register_single_select_tables_result select_table_sql, "albums"
@@ -943,8 +939,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_creates_polymorphic_index_for_existing_table
-      index_name = "index_singers_on_foo" unless ActiveRecord::gem_version < Gem::Version.create('6.1.0')
-      index_name = "index_singers_on_foo_type_and_foo_id" if ActiveRecord::gem_version < Gem::Version.create('6.1.0')
+      index_name = "index_singers_on_foo"
 
       select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
       register_single_select_tables_result select_table_sql, "singers"
