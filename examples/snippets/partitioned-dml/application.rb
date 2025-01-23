@@ -38,10 +38,6 @@ class Application
     puts ""
     puts "Singers in the database: #{singer_count}"
     puts "Albums in the database: #{album_count}"
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 

@@ -6,10 +6,146 @@
 #
 # frozen_string_literal: true
 
+require "sqlite3"
 require_relative "./base_spanner_mock_server_test"
+require_relative "models/other_adapter"
 
 module MockServerTests
+  CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
+  ExecuteSqlRequest = Google::Cloud::Spanner::V1::ExecuteSqlRequest
+
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
+    VERSION_7_1_0 = Gem::Version.create('7.1.0')
+
+    def test_insert
+      sql = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      @mock.put_statement_result sql, StatementResult.new(1)
+
+      singer = { first_name: "Alice", last_name: "Ecila" }
+      Singer.insert(singer)
+
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+      assert_equal 1, execute_requests.length
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 0, mutations.length
+    end
+
+    def test_insert_other_adapter
+      skip if ActiveRecord.version < Gem::Version.create("7.1.0")
+      ActiveRecord::Base.establish_connection(
+        adapter: "sqlite3",
+        database: ":memory:",
+      )
+      ActiveRecord::Base.logger = nil
+      ActiveRecord::Schema.define(version: 1) do
+        create_table :systems do |t|
+          t.string  :name
+        end
+
+        create_table :plans do |t|
+          t.string  :name
+        end
+
+        # simulate a join table with no primary key
+        create_table :projects, id: false do |t|
+          t.integer  :plan_id
+          t.integer  :system_id
+          t.index [:plan_id, :system_id], unique: true
+        end
+      end
+
+      system = System.create(name: "Baroque")
+      plan = Plan.create(name: "Music")
+      # This would previously fail, as the table has no primary key.
+      Project.create(plan_id: plan.id, system_id: system.id)
+    end
+
+    def test_insert!
+      singer = { first_name: "Alice", last_name: "Ecila" }
+      singer = Singer.insert! singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 1, mutations.length
+      mutation = mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "singers", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal "Alice", mutation.insert.values[0][0]
+      assert_equal "Ecila", mutation.insert.values[0][1]
+      assert_equal id, mutation.insert.values[0][2].to_i
+
+      assert_equal 3, mutation.insert.columns.length
+      assert_equal "first_name", mutation.insert.columns[0]
+      assert_equal "last_name", mutation.insert.columns[1]
+      assert_equal "id", mutation.insert.columns[2]
+    end
+
+    def test_insert_with_disabled_prepared_statements
+      if ActiveRecord.respond_to?(:disable_prepared_statements)
+        ActiveRecord.disable_prepared_statements = true
+        ActiveRecord::Base.establish_connection(
+          adapter: "spanner",
+          emulator_host: "localhost:#{@port}",
+          project: "test-project",
+          instance: "test-instance",
+          database: "testdb",
+        )
+        assert ActiveRecord::Base.connection.prepared_statements?
+      end
+
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+      ActiveRecord::Base.transaction do
+        singer = { first_name: "Alice", last_name: "Ecila" }
+        Singer.create singer
+      end
+
+      requests = @mock.requests
+      request = requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert_equal "Alice", request.params["p1"]
+      assert_equal "Ecila", request.params["p2"]
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal :STRING, request.param_types["p2"].code
+      assert_equal :INT64, request.param_types["p3"].code
+    ensure
+      if ActiveRecord.respond_to?(:disable_prepared_statements)
+        ActiveRecord.disable_prepared_statements = false
+      end
+    end
+
+    def test_upsert
+      singer = { first_name: "Alice", last_name: "Ecila" }
+      singer = Singer.upsert singer
+      id = singer[0]["id"]
+      id = id.value if id.respond_to?(:value)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 1, mutations.length
+      mutation = mutations[0]
+      assert_equal :insert_or_update, mutation.operation
+      assert_equal "singers", mutation.insert_or_update.table
+
+      assert_equal 1, mutation.insert_or_update.values.length
+      assert_equal 3, mutation.insert_or_update.values[0].length
+      assert_equal "Alice", mutation.insert_or_update.values[0][0]
+      assert_equal "Ecila", mutation.insert_or_update.values[0][1]
+      assert_equal id, mutation.insert_or_update.values[0][2].to_i
+
+      assert_equal 3, mutation.insert_or_update.columns.length
+      assert_equal "first_name", mutation.insert_or_update.columns[0]
+      assert_equal "last_name", mutation.insert_or_update.columns[1]
+      assert_equal "id", mutation.insert_or_update.columns[2]
+    end
 
     def test_selects_all_singers_without_transaction
       sql = "SELECT `singers`.* FROM `singers`"
@@ -145,9 +281,37 @@ module MockServerTests
       end
     end
 
+    def test_save_with_sequence
+      insert_sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithSequence.transaction do
+        TableWithSequence.create(name: "Foo")
+      end
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_sequence_without_transaction
+      insert_sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithSequence.create(name: "Foo")
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_sequence_and_mutations
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithSequence.transaction isolation: :buffered_mutations do
+          TableWithSequence.create(name: "Foo")
+        end
+      end
+      assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. MockServerTests::TableWithSequence uses test_sequence.", err.message
+    end
+
     def test_after_save
       singer = Singer.create(first_name: "Dave", last_name: "Allison")
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -156,6 +320,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -167,6 +332,7 @@ module MockServerTests
         Singer.create(first_name: "Dave", last_name: "Allison")
       end
 
+      assert singer.id
       assert_equal "Dave Allison", singer.full_name
     end
 
@@ -183,7 +349,26 @@ module MockServerTests
       assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p3"]
     end
 
+    def test_create_singer_with_time_zone_aware_attributes
+      Singer.time_zone_aware_attributes=true
+
+      insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
+      @mock.put_statement_result insert_sql, StatementResult.new(1)
+
+      Singer.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison", last_performance: ::Time.parse("2021-05-12T10:30:00+02:00"))
+      end
+
+      request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert_equal :TIMESTAMP, request.param_types["p3"].code
+      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p3"]
+    ensure
+      Singer.time_zone_aware_attributes=false
+    end
+
     def test_create_singer_with_last_performance_as_non_iso_string
+      return if "#{RUBY_VERSION}" < "3" && ActiveRecord::gem_version >= VERSION_7_1_0
+
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
@@ -697,7 +882,9 @@ module MockServerTests
       @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
       singer = Singer.find_by id: 1
 
-      update_albums_sql = "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 || ActiveRecord::VERSION::MAJOR >= 8 \
+                     ? "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
+                     : "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND (`albums`.`id` = @p3 OR `albums`.`id` = @p4)"
       @mock.put_statement_result update_albums_sql, StatementResult.new(2)
 
       singer.albums = []
@@ -831,13 +1018,158 @@ module MockServerTests
       assert_equal sql, execute_sql_request.sql
     end
 
+    def test_query_annotate_request_tag
+      sql = "SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("request_tag: selecting all singers").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "selecting all singers", request.request_options.request_tag
+      end
+    end
+
+    def test_query_annotate_transaction_tag
+      sql = "SELECT `singers`.* FROM `singers` /* transaction_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("transaction_tag: selecting all singers").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "selecting all singers", request.request_options.transaction_tag
+      end
+    end
+
+    def test_query_annotate_request_and_transaction_tag
+      sql = "SELECT `singers`.* FROM `singers` /* transaction_tag: tx tag */ /* request_tag: req tag */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("transaction_tag: tx tag", "request_tag: req tag").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "req tag", request.request_options.request_tag
+        assert_equal "tx tag", request.request_options.transaction_tag
+      end
+    end
+
+    def test_query_annotate_request_and_transaction_tag_and_binds
+      sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 /* transaction_tag: tx tag */ /* request_tag: req tag */ LIMIT @p2"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
+      singer = Singer.annotate("transaction_tag: tx tag", "request_tag: req tag").find_by id: 1
+      assert singer
+
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal "req tag", request.request_options.request_tag
+        assert_equal "tx tag", request.request_options.transaction_tag
+        assert_equal 2, request.params.fields.length
+        assert_equal "1", request.params["p2"]
+        assert_equal "1", request.params["p1"]
+        assert_equal :INT64, request.param_types["p2"].code
+        assert_equal :INT64, request.param_types["p1"].code
+      end
+    end
+
+    def test_query_logs
+      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
+
+      begin
+        current_query_transformers = _enable_query_logs
+
+        sql = "/*_request_tag:true,action:test_query_logs*/ SELECT `singers`.* FROM `singers`"
+        @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+        Singer.all.each do |singer|
+          refute_nil singer.id, "singer.id should not be nil"
+        end
+        select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+        select_requests.each do |request|
+          assert request.request_options
+          assert_equal "action:test_query_logs", request.request_options.request_tag
+        end
+      ensure
+        _disable_query_logs current_query_transformers
+      end
+    end
+
+    def test_query_logs_combined_with_request_tag
+      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
+
+      begin
+        current_query_transformers = _enable_query_logs
+
+        header = "/*_request_tag:true,action:test_query_logs*/"
+        sql = "#{header} SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+        @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+        Singer.annotate("request_tag: selecting all singers").all.each do |singer|
+          refute_nil singer.id, "singer.id should not be nil"
+        end
+        select_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+        select_requests.each do |request|
+          assert request.request_options
+          assert_equal "selecting all singers,action:test_query_logs", request.request_options.request_tag
+        end
+      ensure
+        _disable_query_logs current_query_transformers
+      end
+    end
+
+    def _enable_query_logs
+      # Make sure that the comment that is added by query_logs is actually added to the query string.
+      # The comment is not translated to a request tag, because the comment is added at a too late moment.
+      # Instead, we need to add that at a lower level in the Spanner connection.
+
+      # Simulate that query_logs has been enabled.
+      current_query_transformers = ActiveRecord.query_transformers
+
+      ActiveRecord.query_transformers << ActiveRecord::QueryLogs
+      ActiveRecord::QueryLogs.prepend_comment = true
+      ActiveRecord::QueryLogs.taggings = {
+        application:  "test-app",
+        action:       "test_query_logs",
+        pid:          -> { Process.pid.to_s },
+      }
+      ActiveRecord::QueryLogs.tags = [
+        {
+          _request_tag:  "true",
+        },
+        :controller,
+        :action,
+        :job,
+        {
+          request_id: ->(context) { context[:controller]&.request&.request_id },
+          job_id: ->(context) { context[:job]&.job_id },
+        },
+        :db_host,
+        :database
+      ]
+
+      current_query_transformers
+    end
+
+    def _disable_query_logs current_query_transformers
+      current_query_transformers.each do |transformer|
+        ActiveRecord.query_transformers.delete transformer
+      end if current_query_transformers
+    end
+
     def test_insert_all
+      sql = "INSERT OR IGNORE INTO `singers` (`id`,`first_name`,`last_name`) " +
+            "VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
+      @mock.put_statement_result sql, StatementResult.new(3)
+
       values = [
         {id: 1, first_name: "Dave", last_name: "Allison"},
         {id: 2, first_name: "Alice", last_name: "Davidson"},
         {id: 3, first_name: "Rene", last_name: "Henderson"},
       ]
-      assert_raises(NotImplementedError) { Singer.insert_all values }
+      Singer.insert_all values
     end
 
     def test_insert_all_bang_mutations
@@ -907,17 +1239,24 @@ module MockServerTests
     end
 
     def test_upsert_all_dml
+      sql = "INSERT OR UPDATE INTO `singers` (`id`,`first_name`,`last_name`) " +
+            "VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
+      @mock.put_statement_result sql, StatementResult.new(3)
+
       values = [
         {id: 1, first_name: "Dave", last_name: "Allison"},
         {id: 2, first_name: "Alice", last_name: "Davidson"},
         {id: 3, first_name: "Rene", last_name: "Henderson"},
       ]
-      err = assert_raises(NotImplementedError) do
-        Singer.transaction do
-          Singer.upsert_all values
-        end
+      Singer.transaction do
+        Singer.upsert_all values
       end
-      assert_match "Use upsert outside a transaction block", err.message
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      assert_equal 0, commit_requests[0].mutations.length
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+      assert_equal 1, execute_requests.length
     end
 
     private

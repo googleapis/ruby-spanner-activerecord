@@ -23,6 +23,7 @@ module ActiveRecord
       module SchemaStatements
         VERSION_6_1_0 = Gem::Version.create "6.1.0"
         VERSION_6_0_3 = Gem::Version.create "6.0.3"
+        VERSION_7_2 = Gem::Version.create "7.2.0"
 
         def current_database
           @connection.database_id
@@ -39,6 +40,15 @@ module ActiveRecord
           information_schema { |i| i.table table_name }.present?
         end
         alias data_source_exists? table_exists?
+
+        def extract_schema_qualified_name string
+          schema, name = string.to_s.scan(/[^`.\s]+|`[^`]*`/)
+          unless name
+            name = schema
+            schema = nil
+          end
+          [schema, name]
+        end
 
         def create_table table_name, id: :primary_key, **options
           td = create_table_definition table_name, options
@@ -99,7 +109,7 @@ module ActiveRecord
         end
 
         def rename_table _table_name, _new_name
-          raise ActiveRecordSpannerAdapter::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError,
                 "rename_table is not implemented"
         end
 
@@ -109,7 +119,7 @@ module ActiveRecord
           information_schema { |i| i.table_columns table_name }
         end
 
-        def new_column_from_field _table_name, field
+        def new_column_from_field _table_name, field, _definitions = nil
           Spanner::Column.new \
             field.name,
             field.default,
@@ -118,7 +128,8 @@ module ActiveRecord
                                 field.allow_commit_timestamp,
                                 field.generated),
             field.nullable,
-            field.default_function
+            field.default_function,
+            primary_key: field.primary_key
         end
 
         def fetch_type_metadata sql_type, ordinal_position = nil, allow_commit_timestamp = nil, generated = nil
@@ -169,8 +180,8 @@ module ActiveRecord
 
         def _remove_columns table_name, *column_names
           if column_names.empty?
-            raise ArgumentError, "You must specify at least one column name. "\
-              "Example: remove_columns(:people, :first_name)"
+            raise ArgumentError, "You must specify at least one column name. " \
+                                 "Example: remove_columns(:people, :first_name)"
           end
 
           statements = []
@@ -197,13 +208,13 @@ module ActiveRecord
         end
 
         def change_column_default _table_name, _column_name, _default_or_changes
-          raise ActiveRecordSpannerAdapter::NotSupportedError, \
+          raise ActiveRecordSpannerAdapter::NotSupportedError,
                 "change column with default value not supported."
         end
 
         def rename_column table_name, column_name, new_column_name
           if ActiveRecord::Base.connection.ddl_batch?
-            raise ActiveRecordSpannerAdapter::NotSupportedError, \
+            raise ActiveRecordSpannerAdapter::NotSupportedError,
                   "rename_column in a DDL Batch is not supported."
           end
           column = information_schema do |i|
@@ -391,6 +402,48 @@ module ActiveRecord
           information_schema { |i| i.check_constraints table_name }
         end
 
+        if ActiveRecord.gem_version >= VERSION_7_2
+          def migration_context
+            pool.migration_context
+          end
+
+          def schema_migration
+            pool.schema_migration
+          end
+        end
+
+        def assume_migrated_upto_version version
+          version = version.to_i
+          sm_table = quote_table_name schema_migration.table_name
+
+          migrated = migration_context.get_all_versions
+          versions = migration_context.migrations.map(&:version)
+
+          execute "INSERT INTO #{sm_table} (version) VALUES (#{quote version.to_s})" unless migrated.include? version
+
+          inserting = (versions - migrated).select { |v| v < version }
+          return unless inserting.any?
+
+          if (duplicate = inserting.detect { |v| inserting.count(v) > 1 })
+            raise "Duplicate migration #{duplicate}. Please renumber your migrations to resolve the conflict."
+          end
+
+          execute insert_versions_sql(inserting)
+        end
+
+        def insert_versions_sql versions
+          sm_table = quote_table_name schema_migration.table_name
+
+          if versions.is_a? Array
+            sql = +"INSERT INTO #{sm_table} (version) VALUES\n"
+            sql << versions.reverse.map { |v| "(#{quote v.to_s})" }.join(",\n")
+            sql << ";"
+            sql
+          else
+            "INSERT INTO #{sm_table} (version) VALUES (#{quote versions.to_s});"
+          end
+        end
+
         def quoted_scope name = nil, type: nil
           scope = { schema: quote("") }
           scope[:name] = quote name if name
@@ -455,8 +508,8 @@ module ActiveRecord
           type ||= column.type
           options[:null] = column.null unless options.key? :null
 
-          if ["STRING", "BYTES"].include? type
-            options[:limit] = column.limit unless options.key? :limit
+          if ["STRING", "BYTES"].include?(type) && !options.key?(:limit)
+            options[:limit] = column.limit
           end
 
           # Only timestamp type can set commit timestamp
@@ -589,8 +642,7 @@ module ActiveRecord
         end
 
         def information_schema
-          info_schema = \
-            ActiveRecordSpannerAdapter::Connection.information_schema @config
+          info_schema = ActiveRecordSpannerAdapter::Connection.information_schema @config
 
           return info_schema unless block_given?
 

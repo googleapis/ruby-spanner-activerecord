@@ -8,8 +8,16 @@ require "activerecord_spanner_adapter/index/column"
 
 module ActiveRecordSpannerAdapter
   class Index
-    attr_accessor :table, :name, :columns, :type, :unique, :null_filtered,
-                  :interleave_in, :storing, :state
+    attr_accessor :schema
+    attr_accessor :table
+    attr_accessor :name
+    attr_accessor :columns
+    attr_accessor :type
+    attr_accessor :unique
+    attr_accessor :null_filtered
+    attr_accessor :interleave_in
+    attr_accessor :storing
+    attr_accessor :state
 
     def initialize \
         table,
@@ -20,7 +28,9 @@ module ActiveRecordSpannerAdapter
         null_filtered: false,
         interleave_in: nil,
         storing: nil,
-        state: nil
+        state: nil,
+        schema: ""
+      @schema = schema.to_s
       @table = table.to_s
       @name = name.to_s
       @columns = Array(columns)

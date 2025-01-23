@@ -120,6 +120,27 @@ module ActiveRecord
         end
       end
 
+      def test_create_table_with_column_default
+        testings_klass = Class.new ActiveRecord::Base
+        connection.ddl_batch do
+          connection.create_table :testings do |t|
+            t.string :name, null: false, default: "no name"
+            t.integer :age, null: false, default: 10
+          end
+          testings_klass.table_name = "testings"
+        end
+
+        testings_klass.reset_column_information
+        assert_equal false, testings_klass.columns_hash["name"].null
+        assert_equal false, testings_klass.columns_hash["age"].null
+
+        assert_nothing_raised {
+          testings_klass.connection.transaction {
+            testings_klass.connection.execute("insert into testings (id, name, age) values (#{generate_id}, DEFAULT, DEFAULT)")
+          }
+        }
+      end
+
       def test_create_table_with_limits
         connection.ddl_batch do
           connection.create_table :testings do |t|
@@ -175,8 +196,14 @@ module ActiveRecord
             end
           end
         end
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
+          "you can't redefine the primary key column 'id'. To define a custom primary key, pass { id: false } to create_table."
+        else
+          "you can't redefine the primary key column 'id' on 'testings'. To define a custom primary key, pass { id: false } to create_table."
+        end
 
-        assert_equal "you can't redefine the primary key column 'id'. To define a custom primary key, pass { id: false } to create_table.", error.message
+
+        assert_equal expected, error.message
       end
 
       def test_create_table_raises_when_redefining_custom_primary_key_column
@@ -188,7 +215,12 @@ module ActiveRecord
           end
         end
 
-        assert_equal "you can't redefine the primary key column 'testing_id'. To define a custom primary key, pass { id: false } to create_table.", error.message
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
+          "you can't redefine the primary key column 'testing_id'. To define a custom primary key, pass { id: false } to create_table."
+        else
+          "you can't redefine the primary key column 'testing_id' on 'testings'. To define a custom primary key, pass { id: false } to create_table."
+        end
+        assert_equal expected, error.message
       end
 
       def test_create_table_raises_when_defining_existing_column
@@ -201,7 +233,12 @@ module ActiveRecord
           end
         end
 
-        assert_equal "you can't define an already defined column 'testing_column'.", error.message
+        expected = if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
+          "you can't define an already defined column 'testing_column'."
+        else
+          "you can't define an already defined column 'testing_column' on 'testings'."
+        end
+        assert_equal expected, error.message
       end
 
       def test_create_table_with_timestamps_should_create_datetime_columns

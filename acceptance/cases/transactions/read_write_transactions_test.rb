@@ -11,6 +11,7 @@ require "models/author"
 require "models/post"
 require "models/comment"
 require "models/organization"
+require "models/table_with_sequence"
 
 module ActiveRecord
   module Transactions
@@ -242,6 +243,29 @@ module ActiveRecord
         end
 
         assert_equal 0, Comment.count
+      end
+
+      def test_create_record_with_sequence
+        record = TableWithSequence.create name: "Some name", age: 40
+        assert record.id, "ID should be generated and returned by the database"
+        assert record.id > 0, "ID should be positive" unless ENV["SPANNER_EMULATOR_HOST"]
+      end
+
+      def test_create_record_with_sequence_in_transaction
+        record = TableWithSequence.transaction do
+          TableWithSequence.create name: "Some name", age: 40
+        end
+        assert record.id, "ID should be generated and returned by the database"
+        assert record.id > 0, "ID should be positive" unless ENV["SPANNER_EMULATOR_HOST"]
+      end
+
+      def test_create_record_with_sequence_using_mutations
+        err = assert_raises ActiveRecord::StatementInvalid do
+          TableWithSequence.transaction isolation: :buffered_mutations do
+            TableWithSequence.create name: "Foo", age: 50
+          end
+        end
+        assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. TableWithSequence uses test_sequence.", err.message
       end
     end
   end

@@ -5,9 +5,11 @@
 # https://opensource.org/licenses/MIT.
 
 gem "minitest"
+require "logger" # https://github.com/rails/rails/issues/54260
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/rg"
+require "ostruct"
 require "active_support"
 require "google/cloud/spanner"
 require "active_record"
@@ -15,9 +17,13 @@ require "active_support/testing/stream"
 require "activerecord-spanner-adapter"
 require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
+require "composite_primary_keys" if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
 # rubocop:disable Style/GlobalVars
-
+#
+if ActiveRecord.gem_version >= Gem::Version.create("7.2.0")
+  ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+end
 $spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
 
 def connector_config
@@ -64,6 +70,7 @@ def create_test_database
   puts "Loading test schema..."
   ActiveRecord::Base.establish_connection connector_config
   require_relative "schema/schema"
+  create_tables_in_test_schema
 end
 
 def drop_test_database
@@ -83,6 +90,7 @@ def load_test_schema
   ActiveRecord::Base.establish_connection connector_config
 
   require_relative "schema/schema"
+  create_tables_in_test_schema
 end
 
 module SpannerAdapter

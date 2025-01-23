@@ -41,10 +41,6 @@ class Application
     Singer.where(last_name.matches("A%")).each do |s|
       puts "#{s.first_name} #{s.last_name}"
     end
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 

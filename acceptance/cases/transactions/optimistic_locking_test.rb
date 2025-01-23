@@ -6,6 +6,12 @@
 
 # frozen_string_literal: true
 
+# ActiveRecord 7.1 introduced native support for composite primary keys.
+# This deprecates the https://github.com/composite-primary-keys/composite_primary_keys gem that was previously used in
+# this library to support composite primary keys, which again are needed for interleaved tables. These tests use the
+# third-party composite primary key gem and are therefore not executed for Rails 7.1 and higher.
+return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+
 require "test_helper"
 require "models/singer"
 require "models/album"

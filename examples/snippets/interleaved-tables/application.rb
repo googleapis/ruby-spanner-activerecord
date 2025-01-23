@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
@@ -13,7 +13,7 @@ require_relative "models/track"
 class Application
   def self.run
     # List all singers, albums and tracks.
-    list_singers_albums_tracks
+    list_singers_albums
 
     # Create a new album with some tracks.
     create_new_album
@@ -28,10 +28,6 @@ class Application
     # Try to delete an album that has at least one track. This IS possible as tracks IS marked with
     # ON DELETE CASCADE.
     delete_album_with_tracks
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 
   def self.find_singer
@@ -49,7 +45,7 @@ class Application
     puts "Found album: #{album.title}"
   end
 
-  def self.list_singers_albums_tracks
+  def self.list_singers_albums
     puts ""
     puts "Listing all singers with corresponding albums and tracks"
     Singer.all.order("last_name, first_name").each do |singer|

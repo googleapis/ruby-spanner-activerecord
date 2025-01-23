@@ -4,10 +4,15 @@
 
 ![rubocop](https://github.com/googleapis/ruby-spanner-activerecord/workflows/rubocop/badge.svg)
 
+__This adapter only supports GoogleSQL-dialect Cloud Spanner databases. PostgreSQL-dialect
+databases are not supported. You can use the standard PostgreSQL ActiveRecord adapter in
+[combination with PGAdapter](https://github.com/GoogleCloudPlatform/pgadapter/blob/-/samples/ruby/activerecord)
+for Cloud Spanner PostgreSQL-dialect databases.__
+
 This project provides a Cloud Spanner adapter for ActiveRecord. It supports the following versions:
 
-- ActiveRecord 6.0.x with Ruby 2.6 and 2.7.
-- ActiveRecord 6.1.x with Ruby 2.6 and higher.
+- ActiveRecord 6.0.x with Ruby 2.7.
+- ActiveRecord 6.1.x with Ruby 2.7 and higher.
 - ActiveRecord 7.0.x with Ruby 2.7 and higher.
 
 Known limitations are listed in the [Limitations](#limitations) section.
@@ -32,6 +37,14 @@ And then execute:
     $ bundle
 
 ## Usage
+
+### Migrations
+__Use DDL batching when executing migrations for the best possible performance.__
+
+Executing multiple schema changes on Cloud Spanner can take a long time. It is therefore
+strongly recommended that you limit the number of schema change operations. You can do
+this by using DDL batching in your migrations. See [the migrations examples](examples/snippets/migrations)
+for how to do this.
 
 ### Database Connection
 In Rails application `config/database.yml`, make the change as the following:
@@ -64,6 +77,7 @@ __NOTE__: You do need to have [Docker](https://docs.docker.com/get-docker/) inst
 Some noteworthy examples in the snippets directory:
 - [quickstart](examples/snippets/quickstart): A simple application that shows how to create and query a simple database containing two tables.
 - [migrations](examples/snippets/migrations): Shows a best-practice for executing migrations on Cloud Spanner.
+- [bit-reversed-sequences](examples/snippets/bit-reversed-sequence): Shows how to use bit-reversed sequences for primary keys.
 - [read-write-transactions](examples/snippets/read-write-transactions): Shows how to execute transactions on Cloud Spanner.
 - [read-only-transactions](examples/snippets/read-only-transactions): Shows how to execute read-only transactions on Cloud Spanner.
 - [bulk-insert](examples/snippets/bulk-insert): Shows the best way to insert a large number of new records.
@@ -71,18 +85,19 @@ Some noteworthy examples in the snippets directory:
   for inserting, updating and deleting data in a Cloud Spanner database. Mutations can have a significant performance
   advantage compared to DML statements, but do not allow read-your-writes semantics during a transaction.
 - [array-data-type](examples/snippets/array-data-type): Shows how to work with `ARRAY` data types.
-- [interleaved-tables](examples/snippets/interleaved-tables): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
+- [interleaved-tables](examples/snippets/interleaved-tables-before-7.1): Shows how to work with [Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables).
 
 ## Limitations
 
-Limitation|Comment|Resolution
----|---|---
-Interleaved tables require composite primary keys| Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables/README.md) for an example on how to use interleaved tables with ActiveRecord |Use composite primary keys.
-Lack of sequential and auto-assigned IDs|Cloud Spanner doesn't autogenerate IDs and this integration instead creates UUID4 to avoid [hotspotting](https://cloud.google.com/spanner/docs/schema-design#uuid_primary_key) so you SHOULD NOT rely on IDs being sorted| UUID4s are automatically generated for primary keys.
-Table without Primary Key| Cloud Spanner support does not support tables without a primary key.| Always define a primary key for your table.
-Table names CANNOT have spaces within them whether back-ticked or not|Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`|Ensure that your table names don't contain spaces.
-Table names CANNOT have punctuation marks and MUST contain valid UTF-8|Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names|Ensure that your table names don't contain punctuation marks.
-Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index)|Cloud Spanner does not support index with fields length | Ensure that your database definition does not include index definitions with field lengths.
+| Limitation                                                                                                                        | Comment                                                                                                                                                                                                                           | Resolution                                                                                  |
+|-----------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| Interleaved tables require composite primary keys                                                                                 | Cloud Spanner requires composite primary keys for interleaved tables. See [this example](examples/snippets/interleaved-tables/README.md) for an example on how to use interleaved tables with ActiveRecord                        | Use composite primary keys.                                                                 |
+| Lack of sequential IDs                                                                                                            | Cloud Spanner uses either using bit-reversed sequences or UUID4 to generated primary keys to avoid [hotspotting](https://cloud.google.com/spanner/docs/schema-design#uuid_primary_key) so you SHOULD NOT rely on IDs being sorted | Use either UUID4s or bit-reversed sequences to automatically generate primary keys.         |
+| Table without Primary Key                                                                                                         | Cloud Spanner support does not support tables without a primary key.                                                                                                                                                              | Always define a primary key for your table.                                                 |
+| Table names CANNOT have spaces within them whether back-ticked or not                                                             | Cloud Spanner DOES NOT support tables with spaces in them for example `Entity ID`                                                                                                                                                 | Ensure that your table names don't contain spaces.                                          |
+| Table names CANNOT have punctuation marks and MUST contain valid UTF-8                                                            | Cloud Spanner DOES NOT support punctuation marks e.g. periods ".", question marks "?" in table names                                                                                                                              | Ensure that your table names don't contain punctuation marks.                               |
+| Index with fields length [add_index](https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/add_index) | Cloud Spanner does not support index with fields length                                                                                                                                                                           | Ensure that your database definition does not include index definitions with field lengths. |
+| Only GoogleSQL-dialect databases                                                                                                  | Cloud Spanner supports both GoogleSQL- and PostgreSQL-dialect databases. This adapter only supports GoogleSQL-dialect databases.                                                                                                  | Ensure that your database uses the GoogleSQL dialect.                                       |
 
 Also, Cloud Spanner doesn't have an interactive command-line client, so command `rails dbconsole` won't work.
 

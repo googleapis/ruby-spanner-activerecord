@@ -1,5 +1,110 @@
 # Changelog
 
+### 1.8.0 (2024-12-12)
+
+#### Features
+
+* INSERT OR [IGNORE|UPDATE] ([#332](https://github.com/googleapis/ruby-spanner-activerecord/issues/332)) 
+#### Bug Fixes
+
+* Fixed incorrect argument handling. ([#333](https://github.com/googleapis/ruby-spanner-activerecord/issues/333)) 
+
+### 1.7.0 (2024-12-11)
+
+#### Features
+
+* support Rails 7.2.0 ([#328](https://github.com/googleapis/ruby-spanner-activerecord/issues/328)) 
+#### Bug Fixes
+
+* `SpannerAdapter` requires prepared statements to be enabled ([#323](https://github.com/googleapis/ruby-spanner-activerecord/issues/323)) 
+* local emulator test ([#320](https://github.com/googleapis/ruby-spanner-activerecord/issues/320)) 
+
+### 1.6.3 (2024-08-31)
+
+#### Bug Fixes
+
+* a few Ruby DSL schema dump bug fixes ([#308](https://github.com/googleapis/ruby-spanner-activerecord/issues/308)) 
+#### Documentation
+
+* update bit-reversed sequence sample ([#303](https://github.com/googleapis/ruby-spanner-activerecord/issues/303)) 
+
+### 1.6.2 (2024-02-19)
+
+#### Bug Fixes
+
+* failed to convert active model type to spanner type under certain condition ([#299](https://github.com/googleapis/ruby-spanner-activerecord/issues/299)) 
+
+### 1.6.1 (2024-02-05)
+
+#### Bug Fixes
+
+* _insert_record failed for other adapters ([#298](https://github.com/googleapis/ruby-spanner-activerecord/issues/298)) 
+
+### 1.6.0 (2023-12-20)
+
+#### Features
+
+* interleaved tables with built-in composite pk ([#282](https://github.com/googleapis/ruby-spanner-activerecord/issues/282)) 
+* support Query Logs ([#291](https://github.com/googleapis/ruby-spanner-activerecord/issues/291)) 
+* support Rails 7.1 ([#278](https://github.com/googleapis/ruby-spanner-activerecord/issues/278)) 
+
+### 1.5.1 (2023-12-12)
+
+#### Bug Fixes
+
+* more permissive arg passthrough for insert_all and upsert_all ([#283](https://github.com/googleapis/ruby-spanner-activerecord/issues/283)) 
+
+### 1.5.0 (2023-11-03)
+
+#### Features
+
+* Drop support for Ruby 2.6 ([#270](https://github.com/googleapis/ruby-spanner-activerecord/issues/270)) 
+* translate annotate to tags ([#267](https://github.com/googleapis/ruby-spanner-activerecord/issues/267)) 
+#### Documentation
+
+* update README to reference PGAdapter for PG ([#263](https://github.com/googleapis/ruby-spanner-activerecord/issues/263)) 
+* update README to reference PGAdapter for PG ([#263](https://github.com/googleapis/ruby-spanner-activerecord/issues/263)) ([#268](https://github.com/googleapis/ruby-spanner-activerecord/issues/268)) 
+
+### 1.4.4 (2023-09-06)
+
+#### Bug Fixes
+
+* Support for changes in Rails 7.0.7. ([#260](https://github.com/googleapis/ruby-spanner-activerecord/issues/260)) 
+
+### 1.4.3 (2023-06-09)
+
+#### Bug Fixes
+
+* unquote string default value ([#253](https://github.com/googleapis/ruby-spanner-activerecord/issues/253)) 
+
+### 1.4.2 (2023-06-01)
+
+#### Bug Fixes
+
+* allow functions to be default values ([#252](https://github.com/googleapis/ruby-spanner-activerecord/issues/252)) 
+* use original types for composite primary keys ([#246](https://github.com/googleapis/ruby-spanner-activerecord/issues/246)) 
+
+### 1.4.1 (2023-03-01)
+
+#### Bug Fixes
+
+* wrap default values in () as required ([#238](https://github.com/googleapis/ruby-spanner-activerecord/issues/238)) 
+#### Documentation
+
+* call out best practices and dialect compatibility ([#240](https://github.com/googleapis/ruby-spanner-activerecord/issues/240)) 
+
+### 1.4.0 (2023-01-18)
+
+#### Features
+
+* dropped support for Ruby 2.5 ([#236](https://github.com/googleapis/ruby-spanner-activerecord/issues/236)) 
+
+### 1.3.1 (2022-12-15)
+
+#### Bug Fixes
+
+* build error for ruby 2.5 ([#216](https://github.com/googleapis/ruby-spanner-activerecord/issues/216)) 
+
 ### 1.3.0 (2022-12-08)
 
 #### Features

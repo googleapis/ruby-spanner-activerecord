@@ -10,12 +10,25 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       class Column < ConnectionAdapters::Column
-        def has_default? # rubocop:disable Naming/PredicateName
+        # rubocop:disable Style/OptionalBooleanParameter
+        def initialize(name, default, sql_type_metadata = nil, null = true,
+                       default_function = nil, collation: nil, comment: nil,
+                       primary_key: false, **)
+          # rubocop:enable Style/OptionalBooleanParameter
+          super
+          @primary_key = primary_key
+        end
+
+        def has_default?
           super && !virtual?
         end
 
         def virtual?
           sql_type_metadata.generated
+        end
+
+        def primary_key?
+          @primary_key
         end
       end
     end

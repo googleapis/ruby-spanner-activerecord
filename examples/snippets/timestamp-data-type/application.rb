@@ -32,10 +32,6 @@ class Application
     # Simulate that the application is now running in the timezone America/Los_Angeles.
     Time.zone = "America/Los_Angeles"
     puts "#{'Meeting time in the local timezone (America/Los_Angeles):'.ljust 60} #{meeting.local_meeting_time}"
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 

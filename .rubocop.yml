@@ -16,7 +16,7 @@ AllCops:
 
 Documentation:
   Enabled: false
-Layout/AlignHash:
+Layout/HashAlignment:
   Enabled: false
 Metrics/ClassLength:
   Enabled: false
@@ -24,7 +24,7 @@ Metrics/ModuleLength:
   Enabled: false
 Naming/RescuedExceptionsVariableName:
   Enabled: false
-Naming/UncommunicativeMethodParamName:
+Naming/MethodParameterName:
   Enabled: false
 Style/EmptyMethod:
   Enabled: false
@@ -41,6 +41,6 @@ Style/WordArray:
 Style/RegexpLiteral:
   Enabled: false
 Metrics/MethodLength:
-  Max: 40
+  Max: 60
 Metrics/BlockLength:
   Max: 30

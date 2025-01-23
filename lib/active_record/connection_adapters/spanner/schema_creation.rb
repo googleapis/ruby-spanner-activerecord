@@ -11,7 +11,6 @@ module ActiveRecord
         private
 
         # rubocop:disable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
-        # rubocop:disable Metrics/MethodLength
 
         def visit_TableDefinition o
           create_sql = +"CREATE TABLE #{quote_table_name o.name} "
@@ -39,6 +38,14 @@ module ActiveRecord
 
           primary_keys = if o.primary_keys
                            o.primary_keys
+                         elsif o.options[:primary_key]
+                           columns = if o.options[:primary_key].is_a? Array
+                                       o.options[:primary_key]
+                                     else
+                                       [o.options[:primary_key]]
+                                     end
+                           pk_names = columns.map(&:to_s)
+                           PrimaryKeyDefinition.new pk_names
                          else
                            pk_names = o.columns.each_with_object [] do |c, r|
                              if c.type == :primary_key || c.primary_key?
@@ -83,8 +90,8 @@ module ActiveRecord
         end
 
         def visit_DropColumnDefinition o
-          "ALTER TABLE #{quote_table_name o.table_name} DROP" \
-           " COLUMN #{quote_column_name o.name}"
+          "ALTER TABLE #{quote_table_name o.table_name} DROP " \
+            "COLUMN #{quote_column_name o.name}"
         end
 
         def visit_ChangeColumnDefinition o
@@ -122,19 +129,18 @@ module ActiveRecord
         end
 
         # rubocop:enable Naming/MethodName, Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
-        # rubocop:enable Metrics/MethodLength
 
         def add_column_options! column, sql, options
           if options[:null] == false || options[:primary_key] == true
             sql << " NOT NULL"
           end
           if options.key? :default
-            sql << " DEFAULT #{quote_default_expression options[:default], column}"
+            sql << " DEFAULT (#{quote_default_expression options[:default], column})"
           end
 
           if !options[:allow_commit_timestamp].nil? &&
              options[:column].sql_type == "TIMESTAMP"
-            sql << " OPTIONS (allow_commit_timestamp = "\
+            sql << " OPTIONS (allow_commit_timestamp = " \
                    "#{options[:allow_commit_timestamp]})"
           end
 
@@ -144,8 +150,9 @@ module ActiveRecord
             sql << " STORED" if options[:stored]
             unless options[:stored]
               raise ArgumentError, "" \
-                "Cloud Spanner currently does not support generated columns without the STORED option." \
-                "Specify 'stored: true' option for `#{options[:column].name}`"
+                                   "Cloud Spanner currently does not support generated columns" \
+                                   "without the STORED option." \
+                                   "Specify 'stored: true' option for `#{options[:column].name}`"
             end
           end
 

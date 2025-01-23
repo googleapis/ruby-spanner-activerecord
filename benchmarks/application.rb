@@ -12,7 +12,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def self.run # rubocop:disable Metrics/AbcSize
     ActiveRecord::Base.logger.level = Logger::WARN
     config = ActiveRecord::Base.connection_config
     spanner = Google::Cloud::Spanner.new project: config[:project], credentials: config[:credentials]
@@ -63,7 +63,7 @@ class Application
 
     puts ""
     puts "Press any key to end the application"
-    STDIN.getch
+    $stdin.getch
   end
 
   def self.execute_individual_benchmarks singer, client
@@ -120,9 +120,7 @@ class Application
       sql = "SELECT * FROM Singers WHERE id=@id"
       params = { id: singer[:id] }
       param_types = { id: :INT64 }
-      client.execute(sql, params: params, types: param_types).rows.each do |row|
-        return row
-      end
+      client.execute(sql, params: params, types: param_types).rows.first(1)
     else
       Singer.find singer.id
     end
@@ -134,9 +132,7 @@ class Application
       sql = "SELECT * FROM Singers WHERE id=@id"
       params = { id: singer[:id] }
       param_types = { id: :INT64 }
-      client.execute(sql, params: params, types: param_types).rows.each do |row|
-        return row
-      end
+      client.execute(sql, params: params, types: param_types).rows.first(1)
     else
       singer.reload
     end
