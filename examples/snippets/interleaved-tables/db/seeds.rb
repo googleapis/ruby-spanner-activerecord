@@ -1,10 +1,10 @@
-# Copyright 2022 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require_relative "../../config/environment.rb"
+require_relative "../../config/environment"
 require_relative "../models/singer"
 require_relative "../models/album"
 require_relative "../models/track"

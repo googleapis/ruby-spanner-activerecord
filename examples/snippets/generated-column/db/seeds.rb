@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require_relative "../../config/environment.rb"
+require_relative "../../config/environment"
 require_relative "../models/singer"
 
 first_names = %w[Pete Alice John Ethel Trudy Naomi Wendy Ruben Thomas Elly]

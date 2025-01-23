@@ -18,20 +18,16 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        ruby: [2.6, 2.7, 3.0]
-        ar: [6.0.5.1, 6.1.6.1, 7.0.2.4, 7.0.3.1]
+        ruby: ["3.1", "3.2", "3.3"]
+        ar: ["~> 6.1.0", "~> 7.0.0", "~> 7.1.0", "~> 7.2.0", "~> 8.0.0"]
         # Exclude combinations that are not supported.
         exclude:
-          - ruby: 3.0
-            ar: 6.0.5.1
-          - ruby: 2.6
-            ar: 7.0.2.4
-          - ruby: 2.6
-            ar: 7.0.3.1
+          - ruby: "3.1"
+            ar: "~> 8.0.0"
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Ruby
     # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby
     # (see https://github.com/ruby/setup-ruby#versioning):

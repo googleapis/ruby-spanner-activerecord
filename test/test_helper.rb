@@ -4,9 +4,11 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "logger" # https://github.com/rails/rails/issues/54260
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/rg"
+require "ostruct"
 require "google/cloud/spanner"
 require "active_record"
 require "activerecord-spanner-adapter"
@@ -192,11 +194,12 @@ module MockGoogleSpanner
     end
 
     def execute_query sql, params: nil, types: nil, transaction: nil,
-                      partition_token: nil, seqno: nil
+                      partition_token: nil, request_options: nil, seqno: nil
       MockGoogleSpanner.last_executed_sqls OpenStruct.new(
         sql: sql, options: {
           params: params, types: types, transaction: transaction,
-          partition_token: partition_token, seqno: seqno
+          partition_token: partition_token, request_options: request_options,
+          seqno: seqno
         }
       )
       OpenStruct.new(rows: MockGoogleSpanner.mocked_result || [])

@@ -51,6 +51,8 @@ module ActiveRecord
         sessions.each do |session|
           client.delete_session Google::Cloud::Spanner::V1::DeleteSessionRequest.new name: session.name
         end
+        # Wait a bit to ensure that the sessions are really deleted.
+        sleep 5 unless ENV["SPANNER_EMULATOR_HOST"]
       end
 
       def test_single_read

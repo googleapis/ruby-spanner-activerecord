@@ -53,10 +53,6 @@ class Application
     puts ""
     puts "Updated album title: #{album.title}"
     puts "Title somewhere during the last 10 seconds: #{album_max_staleness&.title}"
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 

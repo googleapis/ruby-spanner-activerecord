@@ -4,8 +4,6 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require "composite_primary_keys"
-
 class Album < ActiveRecord::Base
   # Register both primary key columns with composite_primary_keys
   self.primary_keys = :singerid, :albumid

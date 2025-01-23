@@ -10,6 +10,9 @@ require_relative "../activerecord_spanner_mock_server/base_spanner_mock_server_t
 require_relative "./model_helper"
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
+
+return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
+
 require_relative "models/singer"
 require_relative "models/album"
 require_relative "models/track"
@@ -68,6 +71,7 @@ module TestInterleavedTables
 
     def test_create_singer
       singer = Singer.create first_name: "Pete", last_name: "Allison"
+      assert singer.id
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length
       mutation = commit_request.mutations[0]

@@ -6,8 +6,15 @@
 
 module ActiveRecordSpannerAdapter
   class ForeignKey
-    attr_accessor :table_name, :name, :columns, :ref_table, :ref_columns,
-                  :on_delete, :on_update
+    attr_accessor :table_schema
+    attr_accessor :table_name
+    attr_accessor :name
+    attr_accessor :columns
+    attr_accessor :ref_schema
+    attr_accessor :ref_table
+    attr_accessor :ref_columns
+    attr_accessor :on_delete
+    attr_accessor :on_update
 
     def initialize \
         table_name,
@@ -16,10 +23,14 @@ module ActiveRecordSpannerAdapter
         ref_table,
         ref_columns,
         on_delete: nil,
-        on_update: nil
+        on_update: nil,
+        table_schema: "",
+        ref_schema: ""
+      @table_schema = table_schema
       @table_name = table_name
       @name = name
       @columns = Array(columns)
+      @ref_schema = ref_schema
       @ref_table = ref_table
       @ref_columns = Array(ref_columns)
       @on_delete = on_delete unless on_delete == "NO ACTION"

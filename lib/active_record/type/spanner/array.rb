@@ -9,11 +9,15 @@ module ActiveRecord
     module Spanner
       class Array < Type::Value
         attr_reader :element_type
+
         delegate :type, :user_input_in_time_zone, :limit, :precision, :scale, to: :element_type
 
+        # This constructor intentionally does not call super.
+        # rubocop:disable Lint/MissingSuper
         def initialize element_type
           @element_type = element_type
         end
+        # rubocop:enable Lint/MissingSuper
 
         def cast value
           return super if value.nil?

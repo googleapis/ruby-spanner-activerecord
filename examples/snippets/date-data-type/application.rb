@@ -17,7 +17,7 @@ class Application
       puts "#{"#{singer.first_name} #{singer.last_name}".ljust 30}#{singer.birth_date}"
     end
 
-    # Update the birth date of a random singer using the current system time. Any time and timezone information will be
+    # Update the birthdate of a random singer using the current system time. Any time and timezone information will be
     # lost after saving the record as a DATE only contains the year, month and day-of-month information.
     singer = Singer.all.sample
     singer.update birth_date: Time.now
@@ -25,10 +25,6 @@ class Application
     puts ""
     puts "Updated birth date to current system time:"
     puts "#{"#{singer.first_name} #{singer.last_name}".ljust 30}#{singer.birth_date}"
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 

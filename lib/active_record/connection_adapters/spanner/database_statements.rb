@@ -6,14 +6,34 @@
 
 # frozen_string_literal: true
 
+require "active_record/gem_version"
+
 module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
+        VERSION_7_1_0 = Gem::Version.create "7.1.0"
+        RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
+
         # DDL, DML and DQL Statements
 
         def execute sql, name = nil, binds = []
+          internal_execute sql, name, binds
+        end
+
+        def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false, allow_retry: false
+          result = internal_execute sql, name, binds, prepare: prepare, async: async, allow_retry: allow_retry
+          ActiveRecord::Result.new(
+            result.fields.keys.map(&:to_s), result.rows.map(&:values)
+          )
+        end
+
+        def internal_execute sql, name = "SQL", binds = [],
+                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument, /
           statement_type = sql_statement_type sql
+          # Call `transform` to invoke any query transformers that might have been registered.
+          sql = transform sql
+          append_request_tag_from_query_logs sql, binds
 
           if preventing_writes? && [:dml, :ddl].include?(statement_type)
             raise ActiveRecord::ReadOnlyError(
@@ -24,44 +44,131 @@ module ActiveRecord
           if statement_type == :ddl
             execute_ddl sql
           else
-            transaction_required = statement_type == :dml
-            materialize_transactions
+            execute_query_or_dml statement_type, sql, name, binds
+          end
+        end
 
-            # First process and remove any hints in the binds that indicate that
-            # a different read staleness should be used than the default.
-            staleness_hint = binds.find { |b| b.is_a? Arel::Visitors::StalenessHint }
-            if staleness_hint
-              selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
-              binds.delete staleness_hint
-            end
+        def execute_query_or_dml statement_type, sql, name, binds
+          transaction_required = statement_type == :dml
+          materialize_transactions
 
-            log_args = [sql, name]
-            log_args.concat [binds, type_casted_binds(binds)] if log_statement_binds
+          # First process and remove any hints in the binds that indicate that
+          # a different read staleness should be used than the default.
+          staleness_hint = binds.find { |b| b.is_a? Arel::Visitors::StalenessHint }
+          if staleness_hint
+            selector = Google::Cloud::Spanner::Session.single_use_transaction staleness_hint.value
+            binds.delete staleness_hint
+          end
+          request_options = binds.find { |b| b.is_a? RequestOptions }
+          if request_options
+            binds.delete request_options
+          end
 
-            log(*log_args) do
-              types, params = to_types_and_params binds
-              ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-                if transaction_required
-                  transaction do
-                    @connection.execute_query sql, params: params, types: types
-                  end
-                else
-                  @connection.execute_query sql, params: params, types: types, single_use_selector: selector
+          log_args = [sql, name]
+          log_args.push binds, type_casted_binds(binds) if log_statement_binds
+
+          log(*log_args) do
+            types, params = to_types_and_params binds
+            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+              if transaction_required
+                transaction do
+                  @connection.execute_query sql, params: params, types: types, request_options: request_options
                 end
+              else
+                @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                                          request_options: request_options
               end
             end
           end
         end
 
-        def query sql, name = nil
-          exec_query sql, name
+        def append_request_tag_from_query_logs sql, binds
+          possible_prefixes = [
+            "/*request_tag:true,",
+            "/*_request_tag='true',",
+            "/*_request_tag:true,",
+            "/*_request_tag='true',"
+          ]
+          possible_prefixes.each do |prefix|
+            if sql.start_with? prefix
+              append_request_tag_from_query_logs_with_format sql, binds, prefix
+            end
+          end
         end
 
-        def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
-          result = execute sql, name, binds
-          ActiveRecord::Result.new(
-            result.fields.keys.map(&:to_s), result.rows.map(&:values)
-          )
+        def append_request_tag_from_query_logs_with_format sql, binds, prefix
+          end_of_comment = sql.index "*/", prefix.length
+          return unless end_of_comment
+
+          request_tag = sql[prefix.length, end_of_comment - prefix.length]
+          options = binds.find { |bind| bind.is_a? RequestOptions } || RequestOptions.new
+          if options.request_tag == ""
+            options.request_tag = request_tag
+          else
+            options.request_tag += ",#{request_tag}"
+          end
+
+          binds.append options
+        end
+
+        # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
+
+        if ActiveRecord.gem_version >= VERSION_7_1_0
+          def sql_for_insert sql, pk, binds, returning
+            if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
+              returning ||= []
+              returning |= if pk.respond_to? :each
+                             pk
+                           else
+                             [pk]
+                           end
+            end
+            if returning&.any?
+              returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}"
+            end
+
+            [sql, binds]
+          end
+
+          def query sql, name = nil
+            exec_query sql, name
+          end
+        else # ActiveRecord.gem_version < VERSION_7_1_0
+          def query sql, name = nil
+            exec_query sql, name
+          end
+
+          def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
+            result = execute sql, name, binds
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
+          end
+
+          def sql_for_insert sql, pk, binds
+            if pk && !_has_pk_binding(pk, binds)
+              # Add the primary key to the columns that should be returned if there is no value specified for it.
+              returning_columns_statement = if pk.respond_to? :each
+                                              pk.map { |c| quote_column_name c }.join(", ")
+                                            else
+                                              quote_column_name pk
+                                            end
+              sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns_statement
+            end
+            super
+          end
+        end
+
+        def _has_pk_binding pk, binds
+          if pk.respond_to? :each
+            has_value = true
+            pk.each { |col| has_value &&= binds.any? { |bind| bind.name == col } }
+            has_value
+          else
+            binds.any? { |bind| bind.name == pk }
+          end
         end
 
         def exec_mutation mutation
@@ -89,7 +196,7 @@ module ActiveRecord
           # and this RPC can return multiple partial result sets for DML as well. Only the last partial
           # result set will contain the statistics. Although there will never be any rows, this makes
           # sure that the stream is fully consumed.
-          result.rows.each { |_| }
+          result.rows.each { |_| } # rubocop:disable Lint/EmptyBlock
           return result.row_count if result.row_count
 
           raise ActiveRecord::StatementInvalid.new(
@@ -179,12 +286,12 @@ module ActiveRecord
         #
         def begin_isolated_db_transaction isolation
           if isolation.is_a? Hash
-            raise "Unsupported isolation level: #{isolation}" unless \
+            raise "Unsupported isolation level: #{isolation}" unless
               isolation[:timestamp] || isolation[:staleness] || isolation[:strong]
             raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`." \
               if isolation.count != 1
           else
-            raise "Unsupported isolation level: #{isolation}" unless \
+            raise "Unsupported isolation level: #{isolation}" unless
               [:serializable, :read_only, :buffered_mutations, :pdml].include? isolation
           end
 
@@ -209,26 +316,47 @@ module ActiveRecord
 
         # Translates binds to Spanner types and params.
         def to_types_and_params binds
-          types = binds.enum_for(:each_with_index).map do |bind, i|
+          types = to_types binds
+          params = to_params binds
+          [types, params]
+        end
+
+        def to_types binds
+          binds.enum_for(:each_with_index).to_h do |bind, i|
             type = :INT64
             if bind.respond_to? :type
               type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                      .convert_active_model_type_to_spanner(bind.type)
+            elsif bind.instance_of? Symbol
+              # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
+              type = :STRING
+            elsif bind.instance_of?(TrueClass) || bind.instance_of?(FalseClass)
+              type = :BOOL
             end
             [
               # Generates binds for named parameters in the format `@p1, @p2, ...`
               "p#{i + 1}", type
             ]
-          end.to_h
-          params = binds.enum_for(:each_with_index).map do |bind, i|
-            type = bind.respond_to?(:type) ? bind.type : ActiveModel::Type::Integer
+          end
+        end
+
+        def to_params binds
+          binds.enum_for(:each_with_index).to_h do |bind, i|
+            type = if bind.respond_to? :type
+                     bind.type
+                   elsif bind.instance_of? Symbol
+                     # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
+                     :STRING
+                   else
+                     # The Cloud Spanner default type is INT64 if no other type is known.
+                     ActiveModel::Type::Integer
+                   end
             bind_value = bind.respond_to?(:value) ? bind.value : bind
             value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
                     .serialize_with_transaction_isolation_level(type, bind_value, :dml)
 
             ["p#{i + 1}", value]
-          end.to_h
-          [types, params]
+          end
         end
 
         # An insert/update/delete statement could use mutations in some specific circumstances.
@@ -237,7 +365,7 @@ module ActiveRecord
         def should_use_mutation arel
           !@connection.current_transaction.nil? \
             && @connection.current_transaction.isolation == :buffered_mutations \
-            && can_use_mutation(arel) \
+            && can_use_mutation(arel)
         end
 
         def can_use_mutation arel
@@ -267,7 +395,7 @@ module ActiveRecord
           )
         end
 
-        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m.freeze \
+        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m \
             unless defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
         COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX \
             if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX

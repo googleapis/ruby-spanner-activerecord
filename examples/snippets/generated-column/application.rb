@@ -27,10 +27,6 @@ class Application
     singer.reload
     puts ""
     puts "Singer updated: #{singer.full_name}"
-
-    puts ""
-    puts "Press any key to end the application"
-    STDIN.getch
   end
 end
 
