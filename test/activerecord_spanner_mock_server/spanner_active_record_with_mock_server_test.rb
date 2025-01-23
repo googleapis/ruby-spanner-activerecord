@@ -1259,6 +1259,141 @@ module MockServerTests
       assert_equal 1, execute_requests.length
     end
 
+    def test_binary_id
+      user = User.create!(
+        email: "test@example.com",
+        full_name: "Test User"
+      )
+      # Verify that an ID was generated for the User.
+      assert user.id
+      assert user.id.is_a?(StringIO)
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      assert_equal 1, commit_requests[0].mutations.length
+      mutation = commit_requests[0].mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "users", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 3, mutation.insert.values[0].length
+      assert_equal to_base64(user.id), mutation.insert.values[0][0]
+      assert_equal "test@example.com", mutation.insert.values[0][1]
+      assert_equal "Test User", mutation.insert.values[0][2]
+    end
+
+    def test_binary_id_association
+      user = User.create!(
+        email: "test@example.com",
+        full_name: "Test User"
+      )
+      project1 = BinaryProject.create!(
+        name: "Test Project 1",
+        description: "Test Description 1",
+        owner: user
+      )
+      project2 = BinaryProject.create!(
+        name: "Test Project 2",
+        description: "Test Description 2",
+        owner: user
+      )
+      # Verify that an ID was generated for the records.
+      assert user.id
+      assert project1.id
+      assert project2.id
+
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 3, commit_requests.length
+      assert_equal 1, commit_requests[1].mutations.length
+      mutation = commit_requests[1].mutations[0]
+      assert_equal :insert, mutation.operation
+      assert_equal "binary_projects", mutation.insert.table
+
+      assert_equal 1, mutation.insert.values.length
+      assert_equal 4, mutation.insert.values[0].length
+      assert_equal to_base64(project1.id), mutation.insert.values[0][0]
+      assert_equal "Test Project 1", mutation.insert.values[0][1]
+      assert_equal "Test Description 1", mutation.insert.values[0][2]
+      assert_equal to_base64(user.id), mutation.insert.values[0][3]
+    end
+
+    def test_binary_id_association_includes
+      col_id = Field.new name: "id", type: Type.new(code: TypeCode::BYTES)
+      col_email = Field.new name: "email", type: Type.new(code: TypeCode::STRING)
+      col_full_name = Field.new name: "full_name", type: Type.new(code: TypeCode::STRING)
+
+      metadata = ResultSetMetadata.new row_type: StructType.new
+      metadata.row_type.fields.push col_id, col_email, col_full_name
+      result_set = ResultSet.new metadata: metadata
+
+      user_id = to_base64(StringIO.new(SecureRandom.random_bytes(16)))
+      row = ListValue.new
+      row.values.push(
+        Value.new(string_value: user_id),
+        Value.new(string_value: "test_user@example.com"),
+        Value.new(string_value: "Test User")
+      )
+      result_set.rows.push row
+      statement_result = StatementResult.new(result_set)
+
+      sql = "SELECT `users`.* FROM `users` ORDER BY `users`.`id` ASC LIMIT @p1"
+      @mock.put_statement_result sql, statement_result
+
+      col_id = Field.new name: "id", type: Type.new(code: TypeCode::BYTES)
+      col_name = Field.new name: "name", type: Type.new(code: TypeCode::STRING)
+      col_description = Field.new name: "description", type: Type.new(code: TypeCode::STRING)
+      col_owner = Field.new name: "owner_id", type: Type.new(code: TypeCode::BYTES)
+
+      metadata = ResultSetMetadata.new row_type: StructType.new
+      metadata.row_type.fields.push col_id, col_name, col_description, col_owner
+      result_set = ResultSet.new metadata: metadata
+
+      project_count = 3
+      (1..project_count).each { |i|
+        row = ListValue.new
+        row.values.push(
+          Value.new(string_value: to_base64(StringIO.new(SecureRandom.random_bytes(16)))),
+          Value.new(string_value: "Test Project #{i}"),
+          Value.new(string_value: "Test Project Description #{i}"),
+          Value.new(string_value: user_id)
+        )
+        result_set.rows.push row
+      }
+      statement_result = StatementResult.new(result_set)
+      projects_sql = "SELECT `binary_projects`.* FROM `binary_projects` WHERE `binary_projects`.`owner_id` = @p1"
+      @mock.put_statement_result projects_sql, statement_result
+
+      users = User.all.includes(:binary_projects)
+      u1 = users.first
+      found = 0
+      u1.binary_projects.each do |_|
+        found += 1
+      end
+      assert_equal project_count, found
+    end
+
+    def test_skip_binary_deserialization
+      ENV["SPANNER_BYTES_DESERIALIZE_DISABLED"] = "true"
+      begin
+        user = User.create!(
+          email: "test@example.com",
+          full_name: "Test User"
+        )
+        # Verify that the ID is returned as a Base64 string.
+        assert user.id
+        assert user.id.is_a?(String)
+        assert_equal user.id, Base64.strict_encode64(Base64.strict_decode64(user.id))
+      ensure
+        ENV.delete("SPANNER_BYTES_DESERIALIZE_DISABLED")
+      end
+    end
+
+    def to_base64 buffer
+      buffer.rewind
+      value = buffer.read
+      Base64.strict_encode64 value.force_encoding("ASCII-8BIT")
+    end
+
     private
 
     def verify_insert_upsert_all operation
