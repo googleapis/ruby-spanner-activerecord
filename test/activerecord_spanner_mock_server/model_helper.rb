@@ -192,6 +192,24 @@ module MockServerTests
       Value.new(null_value: "NULL_VALUE"),
     )
     result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
+      Value.new(string_value: "users"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
+      Value.new(string_value: "binary_projects"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+    )
+    result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
   end
@@ -724,6 +742,136 @@ module MockServerTests
 
   def self.register_table_with_sequence_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_sequence", parent_keys: true
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_users_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "users"
+
+    sql = table_columns_sql "users"
+
+    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
+    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
+    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
+    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
+    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
+    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
+
+    metadata = ResultSetMetadata.new row_type: StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
+    result_set = ResultSet.new metadata: metadata
+
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "id"),
+      Value.new(string_value: "BYTES(16)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "1")
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "email"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "2")
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "full_name"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "3")
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_users_primary_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "users", parent_keys: false
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_users_primary_and_parent_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "users", parent_keys: true
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_binary_projects_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "binary_projects"
+
+    sql = table_columns_sql "binary_projects"
+
+    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
+    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
+    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
+    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
+    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
+    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
+
+    metadata = ResultSetMetadata.new row_type: StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
+    result_set = ResultSet.new metadata: metadata
+
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "id"),
+      Value.new(string_value: "BYTES(16)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "1")
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "name"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "2")
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "description"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "3")
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "owner_id"),
+      Value.new(string_value: "BYTES(16)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "4")
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_binary_projects_primary_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "binary_projects", parent_keys: false
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_binary_projects_primary_and_parent_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "binary_projects", parent_keys: true
     register_key_columns_result spanner_mock_server, sql
   end
 
