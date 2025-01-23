@@ -286,12 +286,12 @@ module ActiveRecord
         #
         def begin_isolated_db_transaction isolation
           if isolation.is_a? Hash
-            raise "Unsupported isolation level: #{isolation}" unless \
+            raise "Unsupported isolation level: #{isolation}" unless
               isolation[:timestamp] || isolation[:staleness] || isolation[:strong]
             raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`." \
               if isolation.count != 1
           else
-            raise "Unsupported isolation level: #{isolation}" unless \
+            raise "Unsupported isolation level: #{isolation}" unless
               [:serializable, :read_only, :buffered_mutations, :pdml].include? isolation
           end
 
