@@ -1,5 +1,23 @@
 # Changelog
 
+### 2.0.0 (2025-01-23)
+
+### ⚠ BREAKING CHANGES
+
+* drop support for Rails 6.1 ([#346](https://github.com/googleapis/ruby-spanner-activerecord/issues/346))
+* deserialize BYTES to StringIO ([#343](https://github.com/googleapis/ruby-spanner-activerecord/issues/343))
+
+#### Features
+
+* drop support for Rails 6.1 ([#346](https://github.com/googleapis/ruby-spanner-activerecord/issues/346)) 
+* support Rails 8.0 ([#331](https://github.com/googleapis/ruby-spanner-activerecord/issues/331)) 
+#### Bug Fixes
+
+* deserialize BYTES to StringIO ([#343](https://github.com/googleapis/ruby-spanner-activerecord/issues/343)) 
+#### Documentation
+
+* add rails dbconsole to list of limitations ([#224](https://github.com/googleapis/ruby-spanner-activerecord/issues/224)) 
+
 ### 1.8.0 (2024-12-12)
 
 #### Features
