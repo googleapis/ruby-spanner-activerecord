@@ -32,6 +32,7 @@ task :all do
   samples.delete "interleaved-tables" if less_than_7_1
   samples.delete "interleaved-tables-before-7.1" unless less_than_7_1
   samples.delete "bit-reversed-sequence" if less_than_7_1
+  samples.delete "auto-generated-primary-key" if less_than_7_1
   samples.delete "query-logs" if less_than_7_1
   samples.each do |sample|
     run_sample sample

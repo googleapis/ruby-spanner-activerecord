@@ -31,7 +31,7 @@ module Models
         t.column :col_timestamp, :datetime, default: default.col_timestamp
       end
 
-      item = LiteralValue.new
+      item = LiteralValue.new id: connection.next_sequence_value(nil)
       default.each_pair { |col, expected| assert_equal(expected, item[col]) }
       item.save!
       default.each_pair { |col, expected| assert_equal(expected, item[col]) }
@@ -45,7 +45,7 @@ module Models
         t.column :col_timestamp, :datetime, default: -> { "CURRENT_TIMESTAMP()" }
       end
 
-      item = ExpressionValue.create!
+      item = ExpressionValue.create! id: connection.next_sequence_value(nil)
       item.reload
       assert_equal(BigDecimal("1.23"), item.col_numeric)
       assert(item.col_timestamp)

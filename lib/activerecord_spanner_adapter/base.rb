@@ -35,7 +35,7 @@ module ActiveRecord
       return super if active_transaction?
 
       # Only use mutations to create new records if the primary key is generated client-side.
-      isolation = sequence_name ? nil : :buffered_mutations
+      isolation = has_auto_generated_primary_key? ? nil : :buffered_mutations
       transaction isolation: isolation do
         return super
       end
@@ -51,6 +51,17 @@ module ActiveRecord
 
     def self._should_use_standard_insert_record? values
       !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
+    end
+
+    def self.has_auto_generated_primary_key?
+      return true if sequence_name
+      pk = primary_key
+      if pk.is_a? Array
+        return pk.any? do |col|
+          columns_hash[col].auto_incremented_by_db?
+        end
+      end
+      columns_hash[pk].auto_incremented_by_db?
     end
 
     def self._internal_insert_record values
@@ -73,10 +84,13 @@ module ActiveRecord
         return super
       end
 
-      # Mutations cannot be used in combination with a sequence, as mutations do not support a THEN RETURN clause.
-      if buffered_mutations? && sequence_name
-        raise StatementInvalid, "Mutations cannot be used to create records that use a sequence " \
-                                "to generate the primary key. #{self} uses #{sequence_name}."
+      # Mutations cannot be used in combination with an auto-generated primary key,
+      # as mutations do not support a THEN RETURN clause.
+      if buffered_mutations? \
+        && has_auto_generated_primary_key? \
+        && !_has_all_primary_key_values?(primary_key, values) \
+        && !connection.use_client_side_id_for_mutations
+        raise StatementInvalid, "Mutations cannot be used to create records that use an auto-generated primary key."
       end
 
       return _buffer_record values, :insert, returning if buffered_mutations?
@@ -85,7 +99,7 @@ module ActiveRecord
     end
 
     def self._insert_record_dml values, returning
-      primary_key_value = _set_primary_key_value values
+      primary_key_value = _set_primary_key_value values, false
       if ActiveRecord::VERSION::MAJOR >= 7
         im = Arel::InsertManager.new arel_table
         im.insert(values.transform_keys { |name| arel_table[name] })
@@ -97,11 +111,11 @@ module ActiveRecord
       _convert_primary_key result, returning
     end
 
-    def self._set_primary_key_value values
+    def self._set_primary_key_value values, is_mutation
       if primary_key.is_a? Array
         _set_composite_primary_key_values primary_key, values
       else
-        _set_single_primary_key_value primary_key, values
+        _set_single_primary_key_value primary_key, values, is_mutation
       end
     end
 
@@ -194,7 +208,7 @@ module ActiveRecord
         if primary_key.is_a? Array
           _set_composite_primary_key_values primary_key, values
         else
-          _set_single_primary_key_value primary_key, values
+          _set_single_primary_key_value primary_key, values, :buffered_mutations
         end
 
       metadata = TableMetadata.new self, arel_table
@@ -213,9 +227,22 @@ module ActiveRecord
       _convert_primary_key primary_key_value, returning
     end
 
+    def self._has_all_primary_key_values? primary_key, values
+      if primary_key.is_a? Array
+        all = TrueClass
+        primary_key.each do |key|
+          all &&= values.key? key
+        end
+        all
+      else
+        values.key? primary_key
+      end
+    end
+
     def self._set_composite_primary_key_values primary_key, values
       primary_key.map do |col|
-        _set_composite_primary_key_value col, values
+        _set_composite_primary_key_value col, values \
+          unless columns_hash[col].auto_incremented_by_db?
       end
     end
 
@@ -244,10 +271,11 @@ module ActiveRecord
       value
     end
 
-    def self._set_single_primary_key_value primary_key, values
+    def self._set_single_primary_key_value primary_key, values, is_mutation
       primary_key_value = values[primary_key] || values[primary_key.to_sym]
 
-      return primary_key_value if sequence_name
+      return primary_key_value if has_auto_generated_primary_key? \
+        && !(is_mutation && connection.use_client_side_id_for_mutations)
       return primary_key_value unless prefetch_primary_key?
 
       if primary_key_value.nil?

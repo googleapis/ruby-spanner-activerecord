@@ -33,7 +33,9 @@ def connector_config
     "project" => ENV["SPANNER_TEST_PROJECT"],
     "instance" => ENV["SPANNER_TEST_INSTANCE"],
     "credentials" => ENV["SPANNER_TEST_KEYFILE"],
-    "database" => $spanner_test_database
+    "database" => $spanner_test_database,
+    "default_sequence_kind" => "BIT_REVERSED_POSITIVE",
+    "use_client_side_id_for_mutations" => true,
   }
 end
 
