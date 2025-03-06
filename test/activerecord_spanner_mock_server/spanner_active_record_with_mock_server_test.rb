@@ -305,7 +305,56 @@ module MockServerTests
           TableWithSequence.create(name: "Foo")
         end
       end
-      assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. MockServerTests::TableWithSequence uses test_sequence.", err.message
+      assert_equal "Mutations cannot be used to create records that use an auto-generated primary key.", err.message
+    end
+
+    def test_save_with_identity
+      insert_sql = "INSERT INTO `table_with_identity` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithIdentity.transaction do
+        TableWithIdentity.create(name: "Foo")
+      end
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_identity_without_transaction
+      insert_sql = "INSERT INTO `table_with_identity` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result insert_sql, MockServerTests::create_id_returning_result_set(1, 1)
+
+      record = TableWithIdentity.create(name: "Foo")
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_identity_and_mutations
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithIdentity.transaction isolation: :buffered_mutations do
+          TableWithIdentity.create(name: "Foo")
+        end
+      end
+      assert_equal "Mutations cannot be used to create records that use an auto-generated primary key.", err.message
+    end
+
+    def test_save_with_identity_and_mutations_and_preset_primary_key_value
+      record = nil
+      TableWithIdentity.transaction isolation: :buffered_mutations do
+        record = TableWithIdentity.create id: 1, name: "Foo"
+      end
+      assert_equal 1, record.id
+    end
+
+    def test_save_with_identity_and_mutations_and_use_client_side_id_for_mutations
+      reset_value = TableWithIdentity.connection.use_client_side_id_for_mutations
+      begin
+        record = nil
+        TableWithIdentity.connection.use_client_side_id_for_mutations = true
+        TableWithIdentity.transaction isolation: :buffered_mutations do
+          record = TableWithIdentity.create name: "Foo"
+        end
+        assert record.id && record.id > 0, "id should be non-zero, but is #{record.id}"
+      ensure
+        TableWithIdentity.connection.use_client_side_id_for_mutations = reset_value
+      end
     end
 
     def test_after_save

@@ -117,12 +117,28 @@ module MockServerTests
 
   def self.table_columns_sql table_name, column_name: nil
     sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, "
-    sql << "CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION "
+    sql << "CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, "
+    sql << "IS_IDENTITY "
     sql << "FROM INFORMATION_SCHEMA.COLUMNS "
     sql << "WHERE TABLE_NAME='%<table_name>s' AND TABLE_SCHEMA='' "
     sql << "AND COLUMN_NAME='%<column_name>s' " if column_name
     sql << "ORDER BY ORDINAL_POSITION ASC"
     sql % { table_name: table_name, column_name: column_name }
+  end
+
+  def self.create_columns_result_set
+    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
+    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
+    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
+    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
+    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
+    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
+    is_identity = Field.new name: "IS_IDENTITY", type: Type.new(code: TypeCode::STRING)
+
+    metadata = ResultSetMetadata.new row_type: StructType.new
+    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default,
+                                  ordinal_position, is_identity
+    ResultSet.new metadata: metadata
   end
 
   def self.register_select_tables_result spanner_mock_server
@@ -183,6 +199,17 @@ module MockServerTests
       Value.new(null_value: "NULL_VALUE"),
     )
     result_set.rows.push row
+
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: ""),
+      Value.new(string_value: ""),
+      Value.new(string_value: "table_with_identity"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+    )
+    result_set.rows.push row
+
     row = Google::Protobuf::ListValue.new
     row.values.push(
       Value.new(string_value: ""),
@@ -226,17 +253,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, table_name
 
     sql = table_columns_sql table_name
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -245,7 +262,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -255,7 +273,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+    Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -265,7 +284,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -275,7 +295,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "4")
+      Value.new(string_value: "4"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -285,7 +306,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "5")
+      Value.new(string_value: "5"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -295,7 +317,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "6")
+      Value.new(string_value: "6"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     if with_version_column
@@ -306,7 +329,8 @@ module MockServerTests
         Value.new(string_value: "NO"),
         Value.new(null_value: "NULL_VALUE"),
         Value.new(null_value: "NULL_VALUE"),
-        Value.new(string_value: "7")
+        Value.new(string_value: "7"),
+        Value.new(string_value: "NO"),
       )
       result_set.rows.push row
     end
@@ -348,17 +372,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, "albums"
 
     sql = table_columns_sql "albums"
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -367,7 +381,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -377,7 +392,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -387,7 +403,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -408,17 +425,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, "all_types"
 
     sql = table_columns_sql "all_types"
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -427,7 +434,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -437,7 +445,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -447,7 +456,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -457,7 +467,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "4")
+      Value.new(string_value: "4"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -467,7 +478,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "5")
+      Value.new(string_value: "5"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -477,7 +489,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "6")
+      Value.new(string_value: "6"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -487,7 +500,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "7")
+      Value.new(string_value: "7"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -497,7 +511,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "8")
+      Value.new(string_value: "8"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -507,7 +522,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "9")
+      Value.new(string_value: "9"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -517,7 +533,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "10")
+      Value.new(string_value: "10"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -528,7 +545,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "11")
+      Value.new(string_value: "11"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -538,7 +556,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "12")
+      Value.new(string_value: "12"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -548,7 +567,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "13")
+      Value.new(string_value: "13"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -558,7 +578,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "14")
+      Value.new(string_value: "14"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -568,7 +589,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "15")
+      Value.new(string_value: "15"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -578,7 +600,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "16")
+      Value.new(string_value: "16"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -588,7 +611,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "17")
+      Value.new(string_value: "17"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -598,7 +622,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "18")
+      Value.new(string_value: "18"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -608,7 +633,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "19")
+      Value.new(string_value: "19"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -629,17 +655,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, "table_with_commit_timestamps", nil, "last_updated"
 
     sql = table_columns_sql "table_with_commit_timestamps"
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -648,7 +664,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -658,7 +675,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -668,7 +686,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -689,17 +708,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, "table_with_sequence"
 
     sql = table_columns_sql "table_with_sequence"
-
-    column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
-    spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
-    is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
-    generation_expression = Google::Cloud::Spanner::V1::StructType::Field.new name: "GENERATION_EXPRESSION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
-    column_default = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_DEFAULT", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
-    ordinal_position = Google::Cloud::Spanner::V1::StructType::Field.new name: "ORDINAL_POSITION", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
-
-    metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = Google::Protobuf::ListValue.new
     row.values.push(
@@ -708,7 +717,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(string_value: "GET_NEXT_SEQUENCE_VALUE(Sequence test_sequence)"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -718,7 +728,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = Google::Protobuf::ListValue.new
@@ -728,7 +739,8 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -745,21 +757,64 @@ module MockServerTests
     register_key_columns_result spanner_mock_server, sql
   end
 
+  def self.register_table_with_identity_columns_result spanner_mock_server
+    register_commit_timestamps_result spanner_mock_server, "table_with_identity"
+
+    sql = table_columns_sql "table_with_identity"
+    result_set = create_columns_result_set
+
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "id"),
+      Value.new(string_value: "INT64"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "1"),
+      Value.new(string_value: "YES"),
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "name"),
+      Value.new(string_value: "STRING(MAX)"),
+      Value.new(string_value: "NO"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
+    )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "last_updated"),
+      Value.new(string_value: "TIMESTAMP"),
+      Value.new(string_value: "YES"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
+    )
+    result_set.rows.push row
+
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+  end
+
+  def self.register_table_with_identity_primary_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "table_with_identity", parent_keys: false
+    register_key_columns_result spanner_mock_server, sql
+  end
+
+  def self.register_table_with_identity_primary_and_parent_key_columns_result spanner_mock_server
+    sql = primary_key_columns_sql "table_with_identity", parent_keys: true
+    register_key_columns_result spanner_mock_server, sql
+  end
+
   def self.register_users_columns_result spanner_mock_server
     register_commit_timestamps_result spanner_mock_server, "users"
 
     sql = table_columns_sql "users"
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -768,7 +823,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -778,7 +834,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -788,7 +845,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 
@@ -809,17 +867,7 @@ module MockServerTests
     register_commit_timestamps_result spanner_mock_server, "binary_projects"
 
     sql = table_columns_sql "binary_projects"
-
-    column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
-    spanner_type = Field.new name: "SPANNER_TYPE", type: Type.new(code: TypeCode::STRING)
-    is_nullable = Field.new name: "IS_NULLABLE", type: Type.new(code: TypeCode::STRING)
-    generation_expression = Field.new name: "GENERATION_EXPRESSION", type: Type.new(code: TypeCode::STRING)
-    column_default = Field.new name: "COLUMN_DEFAULT", type: Type.new(code: TypeCode::STRING)
-    ordinal_position = Field.new name: "ORDINAL_POSITION", type: Type.new(code: TypeCode::INT64)
-
-    metadata = ResultSetMetadata.new row_type: StructType.new
-    metadata.row_type.fields.push column_name, spanner_type, is_nullable, generation_expression, column_default, ordinal_position
-    result_set = ResultSet.new metadata: metadata
+    result_set = create_columns_result_set
 
     row = ListValue.new
     row.values.push(
@@ -828,7 +876,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "1")
+      Value.new(string_value: "1"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -838,7 +887,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "2")
+      Value.new(string_value: "2"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -848,7 +898,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "3")
+      Value.new(string_value: "3"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
     row = ListValue.new
@@ -858,7 +909,8 @@ module MockServerTests
       Value.new(string_value: "NO"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "4")
+      Value.new(string_value: "4"),
+      Value.new(string_value: "NO"),
     )
     result_set.rows.push row
 

@@ -19,6 +19,10 @@ module ActiveRecord
           @primary_key = primary_key
         end
 
+        def auto_incremented_by_db?
+          sql_type_metadata.is_identity
+        end
+
         def has_default?
           super && !virtual?
         end

@@ -66,7 +66,8 @@ module ActiveRecordSpannerAdapter
     def table_columns table_name, column_name: nil, schema_name: ""
       primary_keys = table_primary_keys(table_name).map(&:name)
       sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION,"
-      sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION"
+      sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION,"
+      sql << " IS_IDENTITY"
       sql << " FROM INFORMATION_SCHEMA.COLUMNS"
       sql << " WHERE TABLE_NAME=%<table_name>s"
       sql << " AND TABLE_SCHEMA=%<schema_name>s"
@@ -114,7 +115,8 @@ module ActiveRecordSpannerAdapter
         default: default,
         default_function: default_function,
         generated: row["GENERATION_EXPRESSION"].present?,
-        primary_key: primary_key
+        primary_key: primary_key,
+        is_identity: row["IS_IDENTITY"] == "YES"
     end
 
     def table_column table_name, column_name, schema_name: ""

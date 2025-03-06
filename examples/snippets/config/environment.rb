@@ -21,6 +21,7 @@ ActiveRecord::Base.establish_connection(
   emulator_host: "localhost:9010",
   project: "test-project",
   instance: "test-instance",
-  database: "testdb"
+  database: "testdb",
+  default_sequence_kind: "BIT_REVERSED_POSITIVE"
 )
 ActiveRecord::Base.logger = nil

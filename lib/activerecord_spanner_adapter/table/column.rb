@@ -19,6 +19,7 @@ module ActiveRecordSpannerAdapter
       attr_accessor :generated
       attr_accessor :primary_key
       attr_accessor :nullable
+      attr_accessor :is_identity
 
       def initialize \
           table_name,
@@ -32,7 +33,8 @@ module ActiveRecordSpannerAdapter
           default: nil,
           default_function: nil,
           generated: nil,
-          primary_key: false
+          primary_key: false,
+          is_identity: false
         @schema_name = schema_name.to_s
         @table_name = table_name.to_s
         @name = name.to_s
@@ -45,6 +47,7 @@ module ActiveRecordSpannerAdapter
         @default_function = default_function
         @generated = generated == true
         @primary_key = primary_key
+        @is_identity = is_identity
       end
 
       def spanner_type

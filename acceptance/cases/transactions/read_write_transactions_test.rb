@@ -260,12 +260,18 @@ module ActiveRecord
       end
 
       def test_create_record_with_sequence_using_mutations
-        err = assert_raises ActiveRecord::StatementInvalid do
-          TableWithSequence.transaction isolation: :buffered_mutations do
-            TableWithSequence.create name: "Foo", age: 50
+        reset_value = TableWithSequence.connection.use_client_side_id_for_mutations
+        begin
+          TableWithSequence.connection.use_client_side_id_for_mutations = false
+          err = assert_raises ActiveRecord::StatementInvalid do
+            TableWithSequence.transaction isolation: :buffered_mutations do
+              TableWithSequence.create name: "Foo", age: 50
+            end
           end
+          assert_equal "Mutations cannot be used to create records that use an auto-generated primary key.", err.message
+        ensure
+          TableWithSequence.connection.use_client_side_id_for_mutations = reset_value
         end
-        assert_equal "Mutations cannot be used to create records that use a sequence to generate the primary key. TableWithSequence uses test_sequence.", err.message
       end
     end
   end
