@@ -208,7 +208,7 @@ module ActiveRecord
         if primary_key.is_a? Array
           _set_composite_primary_key_values primary_key, values
         else
-          _set_single_primary_key_value primary_key, values, :buffered_mutations
+          _set_single_primary_key_value primary_key, values, true
         end
 
       metadata = TableMetadata.new self, arel_table
