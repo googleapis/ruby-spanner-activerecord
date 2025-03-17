@@ -71,7 +71,7 @@ module ActiveRecord
       # Determines whether or not to log query binds when executing statements
       class_attribute :log_statement_binds, instance_writer: false, default: false
 
-      attr_reader :default_sequence_kind
+      attr_accessor :default_sequence_kind
       attr_accessor :use_client_side_id_for_mutations
 
       def initialize config_or_deprecated_connection, deprecated_logger = nil,
@@ -93,8 +93,8 @@ module ActiveRecord
         # in the next major version. The default value is currently DISABLED to prevent
         # breaking changes to existing code.
         @default_sequence_kind = @config.fetch :default_sequence_kind, "DISABLED"
-        @use_auto_increment = @default_sequence_kind.casecmp? "AUTO_INCREMENT"
-        @auto_increment_disabled = @default_sequence_kind.casecmp? "DISABLED"
+        @use_auto_increment = @default_sequence_kind&.casecmp? "AUTO_INCREMENT"
+        @auto_increment_disabled = @default_sequence_kind&.casecmp? "DISABLED"
         @use_client_side_id_for_mutations = self.class.type_cast_config_to_boolean(
           @config.fetch(:use_client_side_id_for_mutations, false)
         )

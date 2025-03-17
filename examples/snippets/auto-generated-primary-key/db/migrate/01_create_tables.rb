@@ -6,6 +6,7 @@
 
 class CreateTables < ActiveRecord::Migration[7.1]
   def change
+    connection.default_sequence_kind = "BIT_REVERSED_POSITIVE"
     # Execute the entire migration as one DDL batch.
     connection.ddl_batch do
       create_table :singers, id: false, primary_key: :singerid do |t|
