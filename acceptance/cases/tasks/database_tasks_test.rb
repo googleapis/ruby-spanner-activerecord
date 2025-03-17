@@ -75,13 +75,9 @@ module ActiveRecord
         create_tables_in_test_schema
 
         db_config =
-          if ActiveRecord.version >= Gem::Version.new("6.1")
-            ActiveRecord::DatabaseConfigurations::HashConfig.new "test",
-                                                                 "primary",
-                                                                 connector_config
-          else
-            connector_config
-          end
+          ActiveRecord::DatabaseConfigurations::HashConfig.new "test",
+                                                               "primary",
+                                                               connector_config
 
         tables = connection.tables.sort
         config_name = "primary"
