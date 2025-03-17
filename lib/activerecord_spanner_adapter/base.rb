@@ -64,6 +64,10 @@ module ActiveRecord
       columns_hash[pk].auto_incremented_by_db?
     end
 
+    def self.is_auto_generated? col
+      columns_hash[col]&.auto_incremented_by_db?
+    end
+
     def self._internal_insert_record values
       if ActiveRecord.gem_version < VERSION_7_2
         _insert_record values
@@ -113,7 +117,7 @@ module ActiveRecord
 
     def self._set_primary_key_value values, is_mutation
       if primary_key.is_a? Array
-        _set_composite_primary_key_values primary_key, values
+        _set_composite_primary_key_values primary_key, values, is_mutation
       else
         _set_single_primary_key_value primary_key, values, is_mutation
       end
@@ -206,7 +210,7 @@ module ActiveRecord
     def self._buffer_record values, method, returning
       primary_key_value =
         if primary_key.is_a? Array
-          _set_composite_primary_key_values primary_key, values
+          _set_composite_primary_key_values primary_key, values, true
         else
           _set_single_primary_key_value primary_key, values, true
         end
@@ -239,14 +243,13 @@ module ActiveRecord
       end
     end
 
-    def self._set_composite_primary_key_values primary_key, values
+    def self._set_composite_primary_key_values primary_key, values, is_mutation
       primary_key.map do |col|
-        _set_composite_primary_key_value col, values \
-          unless columns_hash[col].auto_incremented_by_db?
+        _set_composite_primary_key_value col, values, is_mutation
       end
     end
 
-    def self._set_composite_primary_key_value primary_key, values
+    def self._set_composite_primary_key_value primary_key, values, is_mutation
       value = values[primary_key]
       type = ActiveModel::Type::BigInteger.new
 
@@ -255,6 +258,8 @@ module ActiveRecord
         value = value.value
       end
 
+      return value if is_auto_generated?(primary_key) \
+        && !(is_mutation && connection.use_client_side_id_for_mutations)
       return value unless prefetch_primary_key?
 
       if value.nil?
