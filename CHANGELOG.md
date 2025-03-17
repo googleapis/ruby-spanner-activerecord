@@ -1,5 +1,15 @@
 # Changelog
 
+### 2.1.0 (2025-03-17)
+
+#### Features
+
+* support IDENTITY columns for auto-generated primary keys ([#352](https://github.com/googleapis/ruby-spanner-activerecord/issues/352)) 
+#### Documentation
+
+* add a test to verify that FOR UPDATE can be used ([#348](https://github.com/googleapis/ruby-spanner-activerecord/issues/348)) 
+* update README with the correct supported versions ([#349](https://github.com/googleapis/ruby-spanner-activerecord/issues/349)) 
+
 ### 2.0.0 (2025-01-23)
 
 ### ⚠ BREAKING CHANGES
