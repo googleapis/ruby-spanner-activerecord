@@ -13,6 +13,6 @@ module TestInterleavedTables
     belongs_to :singer, foreign_key: :singerid
 
     # `tracks` is defined as INTERLEAVE IN PARENT `albums`. The primary key of `albums` is (`singerid`, `albumid`).
-    has_many :tracks, foreign_key: [:singerid, :albumid]
+    has_many :tracks, :class_name => "Track", foreign_key: [:singerid, :albumid]
   end
 end
