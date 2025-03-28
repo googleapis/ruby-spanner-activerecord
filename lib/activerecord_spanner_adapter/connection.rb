@@ -14,10 +14,12 @@ module ActiveRecordSpannerAdapter
     attr_reader :database_id
     attr_reader :spanner
     attr_accessor :current_transaction
+    attr_accessor :isolation_level
 
     def initialize config
       @instance_id = config[:instance]
       @database_id = config[:database]
+      @isolation_level = config[:isolation_level]
       @spanner = self.class.spanners config
     end
 
@@ -38,10 +40,21 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def self.mutex
+      @mutex
+    end
+
+    def self.spanners_map
+      @spanners
+    end
+
     # Clears the cached information about the underlying information schemas.
     # Call this method if you drop and recreate a database with the same name
     # to prevent the cached information to be used for the new database.
     def self.reset_information_schemas!
+      @information_schemas.each do |_, info_schema|
+        info_schema.connection.disconnect!
+      end
       @information_schemas = {}
     end
 
@@ -271,7 +284,7 @@ module ActiveRecordSpannerAdapter
 
     def begin_transaction isolation = nil
       raise "Nested transactions are not allowed" if current_transaction&.active?
-      self.current_transaction = Transaction.new self, isolation
+      self.current_transaction = Transaction.new self, isolation || @isolation_level
       current_transaction.begin
       current_transaction
     end

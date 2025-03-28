@@ -188,6 +188,7 @@ module SpannerAdapter
         unless @skip_test_table_create
           connection.drop_table :test_models, if_exists: true
         end
+        ActiveRecord::Base.connection_pool.disconnect!
 
         super
       end
@@ -275,6 +276,16 @@ end
 
 Minitest.after_run do
   drop_test_database
+  ActiveRecordSpannerAdapter::Connection.mutex.synchronize do
+    ActiveRecordSpannerAdapter::Connection.reset_information_schemas!
+    ActiveRecordSpannerAdapter::Connection.spanners_map.each do |_, spanner|
+      if spanner.respond_to?(:service)
+        channel = spanner.service.service.spanner_stub.grpc_stub.instance_variable_get(:@ch)
+        channel.close
+        end
+    end
+    ActiveRecordSpannerAdapter::Connection.spanners_map.clear
+  end
 end
 
 create_test_database

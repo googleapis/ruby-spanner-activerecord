@@ -58,6 +58,16 @@ module TestInterleavedTables_7_1_AndHigher
 
     def teardown
       ActiveRecord::Base.connection_pool.disconnect!
+      ActiveRecordSpannerAdapter::Connection.mutex.synchronize do
+        ActiveRecordSpannerAdapter::Connection.reset_information_schemas!
+        ActiveRecordSpannerAdapter::Connection.spanners_map.each do |_, spanner|
+          if spanner.respond_to?(:service)
+            channel = spanner.service.service.spanner_stub.grpc_stub.instance_variable_get(:@ch)
+            channel.close
+          end
+        end
+        ActiveRecordSpannerAdapter::Connection.spanners_map.clear
+      end
       @server.stop
       @server_thread.exit
       super

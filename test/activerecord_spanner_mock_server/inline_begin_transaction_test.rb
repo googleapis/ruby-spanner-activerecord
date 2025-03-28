@@ -13,43 +13,56 @@ module MockServerTests
     def test_read_write_transaction_uses_inlined_begin
       insert_sql = register_insert_singer_result
 
-      ActiveRecord::Base.transaction do
-        Singer.create(first_name: "Dave", last_name: "Allison")
-      end
+      [:serializable, :repeatable_read, nil].each { |isolation|
+        refute ActiveRecord::Base.connection.isolation_level,
+               "Connection should not have a default isolation level"
+        ActiveRecord::Base.transaction isolation: isolation do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
 
-      # There should be no explicit BeginTransaction request.
-      begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_empty begin_transaction_requests
-      sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
-      assert sql_request.transaction&.begin&.read_write
+        # There should be no explicit BeginTransaction request.
+        begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+        assert_empty begin_transaction_requests
+        sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+        assert sql_request.transaction&.begin&.read_write
+        assert_equal _transaction_isolation_level_to_grpc(isolation),
+                     sql_request.transaction&.begin&.isolation_level
 
-      commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
-      assert_equal 1, commit_requests.length
+        commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+        assert_equal 1, commit_requests.length
+
+        @mock.requests.clear
+      }
     end
 
     def test_read_write_transaction_aborted_dml_is_automatically_retried_with_inline_begin
       insert_sql = register_insert_singer_result
 
-      already_aborted = false
-      ActiveRecord::Base.transaction do
-        already_aborted = @mock.abort_next_transaction unless already_aborted
-        # The following statement will fail with an Aborted error. That will cause the entire
-        # transaction block to be retried.
-        Singer.create(first_name: "Dave", last_name: "Allison")
-      end
+      [:serializable, :repeatable_read, nil].each { |isolation|
+        already_aborted = false
+        ActiveRecord::Base.transaction isolation: isolation do
+          already_aborted = @mock.abort_next_transaction unless already_aborted
+          # The following statement will fail with an Aborted error. That will cause the entire
+          # transaction block to be retried.
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
 
-      # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
-      # Both transaction attempts should use an inlined BeginTransaction.
-      begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
-      assert_empty begin_transaction_requests
-      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
-      assert_equal 2, sql_requests.length
-      sql_requests.each { |req| assert req.transaction&.begin&.read_write }
+        # There should be two transaction attempts, two ExecuteSqlRequests and only one commit.
+        # Both transaction attempts should use an inlined BeginTransaction.
+        begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+        assert_empty begin_transaction_requests
+        sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
+        assert_equal 2, sql_requests.length
+        sql_requests.each { |req| assert req.transaction&.begin&.read_write }
+        sql_requests.each { |req| assert_equal _transaction_isolation_level_to_grpc(isolation), req.transaction&.begin&.isolation_level }
 
-      commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
-      assert_equal 1, commit_requests.length
-      rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
-      assert_empty rollback_requests
+        commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+        assert_equal 1, commit_requests.length
+        rollback_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::RollbackRequest }
+        assert_empty rollback_requests
+
+        @mock.requests.clear
+      }
     end
 
     def test_read_write_transaction_aborted_query_is_automatically_retried_with_inline_begin
@@ -270,6 +283,84 @@ module MockServerTests
       assert_empty commit_requests
     end
 
+    def test_read_write_transaction_uses_default_isolation_level_from_config
+      insert_sql = register_insert_singer_result
+
+      # Close the existing connection pool and create a new one with a different
+      # default isolation level.
+      ActiveRecord::Base.connection_pool.disconnect!
+      ActiveRecord::Base.establish_connection(
+        adapter: "spanner",
+        emulator_host: "localhost:#{@port}",
+        project: "test-project",
+        instance: "test-instance",
+        database: "testdb",
+        default_sequence_kind: "BIT_REVERSED_POSITIVE",
+        isolation_level: :repeatable_read,
+        )
+
+      # Verify the default isolation level.
+      assert_equal :repeatable_read, ActiveRecord::Base.connection.isolation_level
+
+      ActiveRecord::Base.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert sql_request.transaction&.begin&.read_write
+      assert_equal :REPEATABLE_READ,
+                   sql_request.transaction&.begin&.isolation_level
+    end
+
+    def test_read_write_transaction_uses_default_isolation_level
+      insert_sql = register_insert_singer_result
+
+      [:serializable, :repeatable_read, nil].each { |isolation|
+        ActiveRecord::Base.connection.isolation_level = isolation
+
+        ActiveRecord::Base.transaction do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
+
+        # There should be no explicit BeginTransaction request.
+        begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+        assert_empty begin_transaction_requests
+        sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+        assert sql_request.transaction&.begin&.read_write
+        assert_equal _transaction_isolation_level_to_grpc(isolation),
+                     sql_request.transaction&.begin&.isolation_level
+
+        commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+        assert_equal 1, commit_requests.length
+
+        @mock.requests.clear
+      }
+    end
+
+    def test_read_write_transaction_overrides_default_isolation_level
+      insert_sql = register_insert_singer_result
+
+      # Set the default isolation level to :repeatable_read
+      ActiveRecord::Base.connection.isolation_level = :repeatable_read
+
+      # Start a transaction with isolation level :serializable.
+      # This should override the default isolation level.
+      ActiveRecord::Base.transaction isolation: :serializable do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      # There should be no explicit BeginTransaction request.
+      begin_transaction_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+      assert_empty begin_transaction_requests
+      sql_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }.first
+      assert sql_request.transaction&.begin&.read_write
+      assert_equal :SERIALIZABLE,
+                   sql_request.transaction&.begin&.isolation_level
+
+      commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+      assert_equal 1, commit_requests.length
+    end
+
     def register_insert_singer_result
       sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result sql, StatementResult.new(1)
@@ -280,6 +371,17 @@ module MockServerTests
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`id` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)
       sql
+    end
+
+    def _transaction_isolation_level_to_grpc isolation
+      case isolation
+      when :serializable
+        :SERIALIZABLE
+      when :repeatable_read
+        :REPEATABLE_READ
+      else
+        :ISOLATION_LEVEL_UNSPECIFIED
+      end
     end
   end
 end
