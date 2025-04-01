@@ -274,6 +274,15 @@ module SpannerAdapter
   ActiveSupport::Notifications.subscribe("sql.active_record", SQLCounter.new)
 end
 
+module Kernel
+  # Monkey-patch Kernel.exit to call exit! instead.
+  # This prevents the tests from getting stuck after running (probably) due to
+  # gRPC connections that have not been closed yet.
+  def exit status = true
+    exit! status
+  end
+end
+
 Minitest.after_run do
   drop_test_database
   ActiveRecordSpannerAdapter::Connection.mutex.synchronize do
