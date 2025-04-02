@@ -40,14 +40,6 @@ module ActiveRecordSpannerAdapter
       end
     end
 
-    def self.mutex
-      @mutex
-    end
-
-    def self.spanners_map
-      @spanners
-    end
-
     # Clears the cached information about the underlying information schemas.
     # Call this method if you drop and recreate a database with the same name
     # to prevent the cached information to be used for the new database.
