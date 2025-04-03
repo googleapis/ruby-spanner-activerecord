@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.2.0 (2025-04-03)
+
+#### Features
+
+* transaction isolation level ([#355](https://github.com/googleapis/ruby-spanner-activerecord/issues/355)) 
+
 ### 2.1.0 (2025-03-17)
 
 #### Features
