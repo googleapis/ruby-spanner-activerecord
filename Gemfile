@@ -9,7 +9,7 @@ gem "ostruct"
 gem "minitest", "~> 5.25.0"
 gem "minitest-rg", "~> 5.3.0"
 gem "pry", "~> 0.14.2"
-gem "pry-byebug", "~> 3.10.1"
+gem "pry-byebug", "~> 3.11.0"
 # Add sqlite3 for testing for compatibility with other adapters.
 gem 'sqlite3'
 
