@@ -55,11 +55,12 @@ module ActiveRecordSpannerAdapter
         when :pdml
           @grpc_transaction = @connection.session.create_pdml
         else
+          grpc_isolation = _transaction_isolation_level_to_grpc @isolation
           @begin_transaction_selector = Google::Cloud::Spanner::V1::TransactionSelector.new \
             begin: Google::Cloud::Spanner::V1::TransactionOptions.new(
-              read_write: Google::Cloud::Spanner::V1::TransactionOptions::ReadWrite.new
+              read_write: Google::Cloud::Spanner::V1::TransactionOptions::ReadWrite.new,
+              isolation_level: grpc_isolation
             )
-
         end
         @state = :STARTED
       rescue Google::Cloud::NotFoundError => e
@@ -72,6 +73,15 @@ module ActiveRecordSpannerAdapter
       rescue StandardError
         @state = :FAILED
         raise
+      end
+    end
+
+    def _transaction_isolation_level_to_grpc isolation
+      case isolation
+      when :serializable
+        Google::Cloud::Spanner::V1::TransactionOptions::IsolationLevel::SERIALIZABLE
+      when :repeatable_read
+        Google::Cloud::Spanner::V1::TransactionOptions::IsolationLevel::REPEATABLE_READ
       end
     end
 

@@ -300,3 +300,12 @@ module MockGoogleSpanner
     end
   end
 end
+
+module Kernel
+  # Monkey-patch Kernel.exit to call exit! instead.
+  # This prevents the tests from getting stuck after running (probably) due to
+  # gRPC connections that have not been closed yet.
+  def exit status = true
+    exit! status
+  end
+end

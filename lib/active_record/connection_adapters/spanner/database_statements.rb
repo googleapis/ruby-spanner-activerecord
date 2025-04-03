@@ -292,7 +292,7 @@ module ActiveRecord
               if isolation.count != 1
           else
             raise "Unsupported isolation level: #{isolation}" unless
-              [:serializable, :read_only, :buffered_mutations, :pdml].include? isolation
+              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml].include? isolation
           end
 
           log "BEGIN #{isolation}" do

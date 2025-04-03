@@ -150,7 +150,8 @@ module ActiveRecord
       end
 
       # Spanner Connection API
-      delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch, to: :@connection
+      delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch,
+               :isolation_level, :isolation_level=, to: :@connection
 
       def current_spanner_transaction
         @connection.current_transaction
@@ -168,6 +169,10 @@ module ActiveRecord
 
       def supports_explain?
         false
+      end
+
+      def supports_transaction_isolation?
+        true
       end
 
       def supports_foreign_keys?

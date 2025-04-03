@@ -1,0 +1,10 @@
+development:
+  adapter: spanner
+  emulator_host: localhost:9010
+  project: test-project
+  instance: test-instance
+  database: testdb
+  isolation_level: :serializable,
+  pool: 5
+  timeout: 5000
+  schema_dump: false

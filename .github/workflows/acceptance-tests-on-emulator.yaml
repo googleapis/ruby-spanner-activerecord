@@ -38,7 +38,7 @@ jobs:
     - name: Install dependencies
       run: bundle install
     - name: Run acceptance tests on emulator
-      run: bundle exec rake acceptance
+      run: bundle exec rake acceptance TESTOPTS="-v"
       env:
         SPANNER_EMULATOR_HOST: localhost:9010
         SPANNER_TEST_PROJECT: test-project

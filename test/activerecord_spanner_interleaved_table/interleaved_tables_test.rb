@@ -54,6 +54,7 @@ module TestInterleavedTables
 
     def teardown
       ActiveRecord::Base.connection_pool.disconnect!
+      ActiveRecordSpannerAdapter::Connection.reset_information_schemas!
       @server.stop
       @server_thread.exit
       super

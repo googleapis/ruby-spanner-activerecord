@@ -65,9 +65,9 @@ module ActiveRecord
       end
 
       def drop_database
+        spanner_instance.database(@database_id)&.drop
         ActiveRecord::Base.connection_pool.disconnect!
         ActiveRecordSpannerAdapter::Connection.reset_information_schemas!
-        spanner_instance.database(@database_id)&.drop
       end
 
       def test_structure_dump_and_load
