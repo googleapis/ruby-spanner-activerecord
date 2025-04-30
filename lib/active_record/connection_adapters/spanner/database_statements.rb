@@ -29,7 +29,7 @@ module ActiveRecord
         end
 
         def internal_execute sql, name = "SQL", binds = [],
-                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument, /
+                             prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument
           statement_type = sql_statement_type sql
           # Call `transform` to invoke any query transformers that might have been registered.
           sql = transform sql
@@ -406,8 +406,10 @@ module ActiveRecord
         end
 
         DDL_REGX = build_sql_statement_regexp(:create, :alter, :drop).freeze
+        private_constant :DDL_REGX
 
         DML_REGX = build_sql_statement_regexp(:insert, :delete, :update).freeze
+        private_constant :DML_REGX
 
         def sql_statement_type sql
           case sql
