@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.3.0 (2025-05-16)
+
+#### Features
+
+* support ruby 3.4 ([#359](https://github.com/googleapis/ruby-spanner-activerecord/issues/359)) 
+
 ### 2.2.0 (2025-04-03)
 
 #### Features
