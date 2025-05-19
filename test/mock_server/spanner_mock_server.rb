@@ -104,7 +104,30 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
 
   def execute_batch_dml request, _unused_call
     @requests << request
-    raise GRPC::BadStatus.new GRPC::Core::StatusCodes::UNIMPLEMENTED, "Not yet implemented"
+    validate_session request.session
+    created_transaction = do_create_transaction request.session if request.transaction&.begin
+    transaction_id = created_transaction&.id || request.transaction&.id
+    validate_transaction request.session, transaction_id if transaction_id && transaction_id != ""
+
+    status = Google::Rpc::Status.new
+    response = Google::Cloud::Spanner::V1::ExecuteBatchDmlResponse.new
+    first = true
+    request.statements.each do |stmt|
+      result = get_statement_result(stmt.sql).clone
+      if result.result_type == StatementResult::EXCEPTION
+        status.code = result.result.code
+        status.message = result.result.message
+        break
+      end
+      if first
+        response.result_sets << result.result(created_transaction)
+        first = false
+      else
+        response.result_sets << result.result
+      end
+    end
+    response.status = status
+    response
   end
 
   def read request, _unused_call

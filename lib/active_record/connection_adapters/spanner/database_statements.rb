@@ -23,9 +23,13 @@ module ActiveRecord
 
         def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false, allow_retry: false
           result = internal_execute sql, name, binds, prepare: prepare, async: async, allow_retry: allow_retry
-          ActiveRecord::Result.new(
-            result.fields.keys.map(&:to_s), result.rows.map(&:values)
-          )
+          if result
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
+          else
+            ActiveRecord::Result.new [], []
+          end
         end
 
         def internal_execute sql, name = "SQL", binds = [],
@@ -72,11 +76,12 @@ module ActiveRecord
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               if transaction_required
                 transaction do
-                  @connection.execute_query sql, params: params, types: types, request_options: request_options
+                  @connection.execute_query sql, params: params, types: types, request_options: request_options,
+                                            statement_type: statement_type
                 end
               else
                 @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
-                                          request_options: request_options
+                                          request_options: request_options, statement_type: statement_type
               end
             end
           end
@@ -142,9 +147,13 @@ module ActiveRecord
 
           def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
             result = execute sql, name, binds
-            ActiveRecord::Result.new(
-              result.fields.keys.map(&:to_s), result.rows.map(&:values)
-            )
+            if result.respond_to? :fields
+              ActiveRecord::Result.new(
+                result.fields.keys.map(&:to_s), result.rows.map(&:values)
+              )
+            else
+              ActiveRecord::Result.new [], []
+            end
           end
 
           def sql_for_insert sql, pk, binds
@@ -191,6 +200,7 @@ module ActiveRecord
 
         def exec_update sql, name = "SQL", binds = []
           result = execute sql, name, binds
+          return unless result
           # Make sure that we consume the entire result stream before trying to get the stats.
           # This is required because the ExecuteStreamingSql RPC is also used for (Partitioned) DML,
           # and this RPC can return multiple partial result sets for DML as well. Only the last partial
@@ -243,6 +253,9 @@ module ActiveRecord
               retry
             end
             raise
+          rescue Google::Cloud::AbortedError => err
+            sleep(delay_from_aborted(err) || backoff *= 1.3)
+            retry
           end
         end
 
