@@ -91,10 +91,17 @@ module Arel # :nodoc: all
               StalenessHint.new min_read_timestamp: time
             next
           end
-          next unless v.start_with? "read_timestamp:"
-          time = Time.xmlschema v.delete_prefix("read_timestamp:")
-          collector.hints[:staleness] =
-            StalenessHint.new read_timestamp: time
+          if v.start_with? "read_timestamp:"
+            time = Time.xmlschema v.delete_prefix("read_timestamp:")
+            collector.hints[:staleness] =
+              StalenessHint.new read_timestamp: time
+            next
+          end
+          next unless v.start_with? "priority:"
+          priority = v.delete_prefix("priority:").strip.to_sym
+          collector.hints[:request_options] ||=
+            Google::Cloud::Spanner::V1::RequestOptions.new
+          collector.hints[:request_options].priority = priority
         end
         collector
       end

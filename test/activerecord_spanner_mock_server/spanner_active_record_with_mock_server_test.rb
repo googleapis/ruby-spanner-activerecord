@@ -1067,6 +1067,19 @@ module MockServerTests
       assert_equal sql, execute_sql_request.sql
     end
 
+    def test_query_priority_hint
+      sql = "SELECT  `singers`.* FROM `singers`"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.optimizer_hints("priority: PRIORITY_LOW").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal :PRIORITY_LOW, request.request_options.priority
+      end
+    end
+
     def test_query_annotate_request_tag
       sql = "SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
@@ -1076,6 +1089,20 @@ module MockServerTests
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
       select_requests.each do |request|
         assert request.request_options
+        assert_equal "selecting all singers", request.request_options.request_tag
+      end
+    end
+
+    def test_query_priority_hint_and_request_tag
+      sql = "SELECT  `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("request_tag: selecting all singers").optimizer_hints("priority: PRIORITY_LOW").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal :PRIORITY_LOW, request.request_options.priority
         assert_equal "selecting all singers", request.request_options.request_tag
       end
     end
