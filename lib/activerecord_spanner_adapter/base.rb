@@ -49,6 +49,10 @@ module ActiveRecord
       spanner_adapter? && connection&.current_spanner_transaction&.isolation == :buffered_mutations
     end
 
+    def self.dml_batch(&)
+      connection.dml_batch(&)
+    end
+
     def self._should_use_standard_insert_record? values
       !(buffered_mutations? || (primary_key && values.is_a?(Hash))) || !spanner_adapter?
     end

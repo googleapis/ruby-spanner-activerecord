@@ -150,7 +150,8 @@ module ActiveRecord
       end
 
       # Spanner Connection API
-      delegate :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch,
+      delegate :dml_batch, :dml_batch?, :start_batch_dml,
+               :ddl_batch, :ddl_batch?, :start_batch_ddl, :abort_batch, :run_batch,
                :isolation_level, :isolation_level=, to: :@connection
 
       def current_spanner_transaction
