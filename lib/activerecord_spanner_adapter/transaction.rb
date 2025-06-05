@@ -8,15 +8,15 @@ module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
 
-    def initialize connection, isolation, return_commit_stats: nil, max_commit_delay: nil
+    def initialize connection, isolation, options = {}
       @connection = connection
       @isolation = isolation
       @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
-      @return_commit_stats = return_commit_stats
-      @max_commit_delay = max_commit_delay
+      @return_commit_stats = options.fetch :return_commit_stats, false
+      @max_commit_delay = options.fetch :max_commit_delay, 0
     end
 
     def active?
@@ -97,16 +97,26 @@ module ActiveRecordSpannerAdapter
       @sequence_number += 1 if @committable
     end
 
-    def set_commit_options return_commit_stats: nil, max_commit_delay: nil
-      @return_commit_stats = return_commit_stats unless return_commit_stats.nil?
-      @max_commit_delay = max_commit_delay unless max_commit_delay.nil?
+    # @param options [Hash] A hash containing the options to set.
+    # @option options [Boolean] :return_commit_stats Whether to return commit statistics.
+    # @option options [Integer] :max_commit_delay The maximum delay in seconds for the commit.
+    def set_commit_options options = {}
+      return if options.empty?
+
+      if options.key? :return_commit_stats
+        @return_commit_stats = options[:return_commit_stats]
+      end
+
+      return unless options.key? :max_commit_delay
+      @max_commit_delay = options[:max_commit_delay]
     end
 
-    def get_commit_options # rubocop:disable Naming/AccessorMethodName
+    # Returns the commit options that should be used for the commit.
+    def commit_options
       {
         return_commit_stats: @return_commit_stats,
         max_commit_delay: @max_commit_delay
-      }.compact
+      }
     end
 
     def commit
@@ -115,11 +125,11 @@ module ActiveRecordSpannerAdapter
       begin
         # Start a transaction with an explicit BeginTransaction RPC if the transaction only contains mutations.
         force_begin_read_write if @committable && !@mutations.empty? && !@grpc_transaction
-        commit_options = get_commit_options
+        com_options = commit_options
         if @committable && @grpc_transaction
           @connection.session.commit_transaction @grpc_transaction,
                                                  @mutations,
-                                                 commit_options: commit_options
+                                                 commit_options: com_options
         end
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e

@@ -37,7 +37,7 @@ class TransactionTest < TestHelper::MockActiveRecordTest
     transaction.set_commit_options return_commit_stats: true, max_commit_delay: 1000
     transaction.commit
     assert_equal :COMMITTED, transaction.state
-    commit_options = transaction.get_commit_options
+    commit_options = transaction.commit_options
     assert commit_options[:return_commit_stats]
     assert_equal 1000, commit_options[:max_commit_delay]
   end
