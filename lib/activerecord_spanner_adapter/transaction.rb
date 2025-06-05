@@ -103,12 +103,14 @@ module ActiveRecordSpannerAdapter
     def set_commit_options options = {}
       return if options.empty?
 
-      if options.key? :return_commit_stats
-        @return_commit_stats = options[:return_commit_stats]
+      options.each do |key, value|
+        case key
+        when :return_commit_stats
+          @return_commit_stats = value
+        when :max_commit_delay
+          @max_commit_delay = value
+        end
       end
-
-      return unless options.key? :max_commit_delay
-      @max_commit_delay = options[:max_commit_delay]
     end
 
     # Returns the commit options that should be used for the commit.
