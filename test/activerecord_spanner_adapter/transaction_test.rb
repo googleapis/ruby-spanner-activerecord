@@ -32,6 +32,16 @@ class TransactionTest < TestHelper::MockActiveRecordTest
     assert_equal :ROLLED_BACK, transaction.state
   end
 
+  def test_commit_options
+    transaction.begin
+    transaction.set_commit_options return_commit_stats: true, max_commit_delay: 1000
+    transaction.commit
+    assert_equal :COMMITTED, transaction.state
+    commit_options = transaction.get_commit_options
+    assert commit_options[:return_commit_stats]
+    assert_equal 1000, commit_options[:max_commit_delay]
+  end
+
   def test_no_nested_transactions
     transaction.begin
 
