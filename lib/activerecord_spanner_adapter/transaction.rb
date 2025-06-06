@@ -7,16 +7,22 @@
 module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
+    attr_reader :commit_options
 
-    def initialize connection, isolation, options = {}
+    DEFAULT_COMMIT_OPTIONS = {
+      return_commit_stats: false,
+      max_commit_delay: nil # default value is nil
+    }.freeze
+
+
+    def initialize connection, isolation, commit_options = DEFAULT_COMMIT_OPTIONS
       @connection = connection
       @isolation = isolation
       @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
-      @return_commit_stats = options.fetch :return_commit_stats, false
-      @max_commit_delay = options.fetch :max_commit_delay, 0
+      @commit_options = DEFAULT_COMMIT_OPTIONS.merge commit_options
     end
 
     def active?
@@ -97,28 +103,10 @@ module ActiveRecordSpannerAdapter
       @sequence_number += 1 if @committable
     end
 
-    # @param options [Hash] A hash containing the options to set.
-    # @option options [Boolean] :return_commit_stats Whether to return commit statistics.
-    # @option options [Integer] :max_commit_delay The maximum delay in seconds for the commit.
-    def set_commit_options options = {}
-      return if options.empty?
-
-      options.each do |key, value|
-        case key
-        when :return_commit_stats
-          @return_commit_stats = value
-        when :max_commit_delay
-          @max_commit_delay = value
-        end
-      end
-    end
-
-    # Returns the commit options that should be used for the commit.
-    def commit_options
-      {
-        return_commit_stats: @return_commit_stats,
-        max_commit_delay: @max_commit_delay
-      }
+    # Sets the commit options for this transaction.
+    # This is used to set the options for the commit RPC, such as return_commit_stats and max_commit_delay.
+    def set_commit_options commit_options = {}
+      @commit_options.merge! commit_options
     end
 
     def commit
