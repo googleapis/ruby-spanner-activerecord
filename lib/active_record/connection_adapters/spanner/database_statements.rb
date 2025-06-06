@@ -229,30 +229,22 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, commit_options: nil, joinable: true
-          # Create a hash with only the standard options for ActiveRecord.
-          standard_options = {
-            requires_new: requires_new,
-            isolation: isolation,
-            joinable: joinable
-          }
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
+          commit_options = kwargs.delete :commit_options
 
           if !requires_new && current_transaction.joinable?
-            # When joining an existing transaction, we just call super with standard options.
-            return super(**standard_options)
+            return super
           end
 
           backoff = 0.2
           begin
-            # Start the transaction with only the standard options.
-            super(**standard_options) do
+            super do
               # Once the transaction has been started by `super`, apply your custom options
               # to the Spanner transaction object.
               if commit_options && @connection.current_transaction
                 @connection.current_transaction.set_commit_options commit_options
               end
 
-              # Now, yield to the user's code block.
               yield
             end
           rescue ActiveRecord::StatementInvalid => err

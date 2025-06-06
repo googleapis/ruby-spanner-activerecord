@@ -9,20 +9,16 @@ module ActiveRecordSpannerAdapter
     attr_reader :state
     attr_reader :commit_options
 
-    DEFAULT_COMMIT_OPTIONS = {
-      return_commit_stats: false,
-      max_commit_delay: nil # default value is nil
-    }.freeze
 
 
-    def initialize connection, isolation, commit_options = DEFAULT_COMMIT_OPTIONS
+    def initialize connection, isolation, commit_options = nil
       @connection = connection
       @isolation = isolation
       @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
-      @commit_options = DEFAULT_COMMIT_OPTIONS.merge commit_options
+      @commit_options = commit_options
     end
 
     def active?
@@ -105,8 +101,8 @@ module ActiveRecordSpannerAdapter
 
     # Sets the commit options for this transaction.
     # This is used to set the options for the commit RPC, such as return_commit_stats and max_commit_delay.
-    def set_commit_options commit_options = {}
-      @commit_options.merge! commit_options
+    def set_commit_options options # rubocop:disable Naming/AccessorMethodName
+      @commit_options = options&.dup
     end
 
     def commit
@@ -115,11 +111,10 @@ module ActiveRecordSpannerAdapter
       begin
         # Start a transaction with an explicit BeginTransaction RPC if the transaction only contains mutations.
         force_begin_read_write if @committable && !@mutations.empty? && !@grpc_transaction
-        com_options = commit_options
         if @committable && @grpc_transaction
           @connection.session.commit_transaction @grpc_transaction,
                                                  @mutations,
-                                                 commit_options: com_options
+                                                 commit_options: commit_options
         end
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
