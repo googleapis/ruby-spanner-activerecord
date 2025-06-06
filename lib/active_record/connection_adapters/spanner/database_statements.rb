@@ -229,17 +229,27 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, joinable: true
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
+          commit_options = kwargs.delete :commit_options
+
           if !requires_new && current_transaction.joinable?
             return super
           end
 
           backoff = 0.2
           begin
-            super
+            super do
+              # Once the transaction has been started by `super`, apply your custom options
+              # to the Spanner transaction object.
+              if commit_options && @connection.current_transaction
+                @connection.current_transaction.set_commit_options commit_options
+              end
+
+              yield
+            end
           rescue ActiveRecord::StatementInvalid => err
             if err.cause.is_a? Google::Cloud::AbortedError
-              sleep(delay_from_aborted(err) || backoff *= 1.3)
+              sleep(delay_from_aborted(err) || (backoff *= 1.3))
               retry
             end
             raise

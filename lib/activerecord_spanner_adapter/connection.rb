@@ -44,6 +44,8 @@ module ActiveRecordSpannerAdapter
     # Call this method if you drop and recreate a database with the same name
     # to prevent the cached information to be used for the new database.
     def self.reset_information_schemas!
+      return unless @database
+
       @information_schemas.each_value do |info_schema|
         info_schema.connection.disconnect!
       end

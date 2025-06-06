@@ -7,14 +7,18 @@
 module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
+    attr_reader :commit_options
 
-    def initialize connection, isolation
+
+
+    def initialize connection, isolation, commit_options = nil
       @connection = connection
       @isolation = isolation
       @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
       @state = :INITIALIZED
       @sequence_number = 0
       @mutations = []
+      @commit_options = commit_options
     end
 
     def active?
@@ -95,14 +99,23 @@ module ActiveRecordSpannerAdapter
       @sequence_number += 1 if @committable
     end
 
+    # Sets the commit options for this transaction.
+    # This is used to set the options for the commit RPC, such as return_commit_stats and max_commit_delay.
+    def set_commit_options options # rubocop:disable Naming/AccessorMethodName
+      @commit_options = options&.dup
+    end
+
     def commit
       raise "This transaction is not active" unless active?
 
       begin
         # Start a transaction with an explicit BeginTransaction RPC if the transaction only contains mutations.
         force_begin_read_write if @committable && !@mutations.empty? && !@grpc_transaction
-
-        @connection.session.commit_transaction @grpc_transaction, @mutations if @committable && @grpc_transaction
+        if @committable && @grpc_transaction
+          @connection.session.commit_transaction @grpc_transaction,
+                                                 @mutations,
+                                                 commit_options: commit_options
+        end
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
         if @connection.session_not_found? e
