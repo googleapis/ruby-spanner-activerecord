@@ -1335,6 +1335,30 @@ module MockServerTests
       assert_equal 1, execute_requests.length
     end
 
+    def test_upsert_all_dml_with_exclude_from_change_streams
+      sql = "INSERT OR UPDATE INTO `singers` (`id`,`first_name`,`last_name`) " +
+            "VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
+      @mock.put_statement_result sql, StatementResult.new(3)
+      values = [
+        {id: 1, first_name: "Dave", last_name: "Allison"},
+        {id: 2, first_name: "Alice", last_name: "Davidson"},
+        {id: 3, first_name: "Rene", last_name: "Henderson"},
+      ]
+      Singer.transaction(exclude_txn_from_change_streams: true) do
+        Singer.upsert_all values
+      end
+      execute_requests = @mock.requests.select { |req|
+        req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql
+      }
+      assert_equal 1, execute_requests.length
+      exec_req = execute_requests.first
+
+      refute_nil exec_req.transaction
+      begin_opts = exec_req.transaction&.begin
+      refute_nil begin_opts
+      assert_equal true, begin_opts.exclude_txn_from_change_streams
+    end
+
     def test_binary_id
       user = User.create!(
         email: "test@example.com",

@@ -231,7 +231,10 @@ module ActiveRecord
 
         def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
           commit_options = kwargs.delete :commit_options
-
+          exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
+          @_spanner_begin_transaction_options = {
+            exclude_txn_from_change_streams: exclude_from_streams
+          }
           if !requires_new && current_transaction.joinable?
             return super
           end
@@ -253,6 +256,9 @@ module ActiveRecord
               retry
             end
             raise
+          ensure
+            # Clean up the instance variable to avoid leaking options.
+            @_spanner_begin_transaction_options = nil
           end
         end
 
@@ -272,7 +278,8 @@ module ActiveRecord
 
         def begin_db_transaction
           log "BEGIN" do
-            @connection.begin_transaction
+            opts = @_spanner_begin_transaction_options || {}
+            @connection.begin_transaction nil, **opts
           end
         end
 
@@ -306,7 +313,8 @@ module ActiveRecord
           end
 
           log "BEGIN #{isolation}" do
-            @connection.begin_transaction isolation
+            opts = @_spanner_begin_transaction_options || {}
+            @connection.begin_transaction isolation, **opts
           end
         end
 
