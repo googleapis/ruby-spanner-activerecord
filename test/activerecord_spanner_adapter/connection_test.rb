@@ -13,7 +13,8 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
         project: project_id,
         instance: instance_id,
         database: database_id,
-        credentials: credentials
+        credentials: credentials,
+        skip_create_multiplexed_session: true
       })
     end
 

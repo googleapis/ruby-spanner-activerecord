@@ -40,7 +40,8 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
 
   def create_session request, _unused_call
     @requests << request
-    do_create_session request.database
+    multiplexed = request.session&.multiplexed
+    do_create_session request.database, multiplexed: multiplexed
   end
 
   def batch_create_sessions request, _unused_call
@@ -199,9 +200,9 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     end
   end
 
-  def do_create_session database
+  def do_create_session database, multiplexed: false
     name = "#{database}/sessions/#{SecureRandom.uuid}"
-    session = Google::Cloud::Spanner::V1::Session.new name: name
+    session = Google::Cloud::Spanner::V1::Session.new name: name, multiplexed: multiplexed
     @sessions[name] = session
     session
   end

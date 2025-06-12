@@ -57,6 +57,7 @@ module TestHelper
           instance: instance_id,
           database: database_id,
           credentials: credentials,
+          skip_create_multiplexed_session: true
         )
       end
     end
