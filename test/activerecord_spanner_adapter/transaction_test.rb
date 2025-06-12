@@ -42,6 +42,15 @@ class TransactionTest < TestHelper::MockActiveRecordTest
     assert_equal 1000, commit_options[:max_commit_delay]
   end
 
+  def test_exclude_txn_from_change_streams
+    transaction.exclude_txn_from_change_streams = true
+    assert transaction.exclude_txn_from_change_streams
+    transaction.begin
+    assert_equal true, transaction.begin_transaction_selector.begin.exclude_txn_from_change_streams
+    transaction.commit
+    assert_equal :COMMITTED, transaction.state
+  end
+
   def test_no_nested_transactions
     transaction.begin
 

@@ -8,10 +8,12 @@ module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
     attr_reader :commit_options
+    attr_reader :begin_transaction_selector
+    attr_accessor :exclude_txn_from_change_streams
 
 
 
-    def initialize connection, isolation, commit_options = nil
+    def initialize connection, isolation, commit_options = nil, exclude_txn_from_change_streams: false
       @connection = connection
       @isolation = isolation
       @committable = ![:read_only, :pdml].include?(isolation) && !isolation.is_a?(Hash)
@@ -19,6 +21,7 @@ module ActiveRecordSpannerAdapter
       @sequence_number = 0
       @mutations = []
       @commit_options = commit_options
+      @exclude_txn_from_change_streams = exclude_txn_from_change_streams
     end
 
     def active?
@@ -63,7 +66,8 @@ module ActiveRecordSpannerAdapter
           @begin_transaction_selector = Google::Cloud::Spanner::V1::TransactionSelector.new \
             begin: Google::Cloud::Spanner::V1::TransactionOptions.new(
               read_write: Google::Cloud::Spanner::V1::TransactionOptions::ReadWrite.new,
-              isolation_level: grpc_isolation
+              isolation_level: grpc_isolation,
+              exclude_txn_from_change_streams: @exclude_txn_from_change_streams
             )
         end
         @state = :STARTED

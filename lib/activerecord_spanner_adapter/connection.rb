@@ -276,9 +276,11 @@ module ActiveRecordSpannerAdapter
 
     # Transactions
 
-    def begin_transaction isolation = nil
+    def begin_transaction isolation = nil, **options
       raise "Nested transactions are not allowed" if current_transaction&.active?
-      self.current_transaction = Transaction.new self, isolation || @isolation_level
+      exclude_from_streams = options.fetch :exclude_txn_from_change_streams, false
+      self.current_transaction = Transaction.new self, isolation || @isolation_level,
+                                                 exclude_txn_from_change_streams: exclude_from_streams
       current_transaction.begin
       current_transaction
     end

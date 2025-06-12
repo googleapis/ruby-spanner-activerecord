@@ -1335,6 +1335,28 @@ module MockServerTests
       assert_equal 1, execute_requests.length
     end
 
+    def test_create_with_sequence_and_exclude_from_change_streams
+      sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result sql, MockServerTests::create_id_returning_result_set(1, 1)
+      
+      record = TableWithSequence.transaction(exclude_txn_from_change_streams: true) do
+        TableWithSequence.create(name: "Foo")
+      end
+
+      assert_equal 1, record.id
+      execute_requests = @mock.requests.select do |req|
+        req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql
+      end
+
+      assert_equal 1, execute_requests.length
+      exec_req = execute_requests.first
+
+      refute_nil exec_req.transaction
+      begin_opts = exec_req.transaction&.begin
+      refute_nil begin_opts
+      assert_equal true, begin_opts.exclude_txn_from_change_streams
+    end
+
     def test_binary_id
       user = User.create!(
         email: "test@example.com",
