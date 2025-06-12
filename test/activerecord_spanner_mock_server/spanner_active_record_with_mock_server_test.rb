@@ -1335,21 +1335,19 @@ module MockServerTests
       assert_equal 1, execute_requests.length
     end
 
-    def test_upsert_all_dml_with_exclude_from_change_streams
-      sql = "INSERT OR UPDATE INTO `singers` (`id`,`first_name`,`last_name`) " +
-            "VALUES (1, 'Dave', 'Allison'), (2, 'Alice', 'Davidson'), (3, 'Rene', 'Henderson')"
-      @mock.put_statement_result sql, StatementResult.new(3)
-      values = [
-        {id: 1, first_name: "Dave", last_name: "Allison"},
-        {id: 2, first_name: "Alice", last_name: "Davidson"},
-        {id: 3, first_name: "Rene", last_name: "Henderson"},
-      ]
-      Singer.transaction(exclude_txn_from_change_streams: true) do
-        Singer.upsert_all values
+    def test_create_with_sequence_and_exclude_from_change_streams
+      sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result sql, MockServerTests::create_id_returning_result_set(1, 1)
+      
+      record = TableWithSequence.transaction(exclude_txn_from_change_streams: true) do
+        TableWithSequence.create(name: "Foo")
       end
-      execute_requests = @mock.requests.select { |req|
+
+      assert_equal 1, record.id
+      execute_requests = @mock.requests.select do |req|
         req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql
-      }
+      end
+
       assert_equal 1, execute_requests.length
       exec_req = execute_requests.first
 

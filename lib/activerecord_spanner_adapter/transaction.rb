@@ -8,6 +8,7 @@ module ActiveRecordSpannerAdapter
   class Transaction
     attr_reader :state
     attr_reader :commit_options
+    attr_reader :begin_transaction_selector
     attr_accessor :exclude_txn_from_change_streams
 
 
@@ -117,8 +118,7 @@ module ActiveRecordSpannerAdapter
         if @committable && @grpc_transaction
           @connection.session.commit_transaction @grpc_transaction,
                                                  @mutations,
-                                                 commit_options: commit_options,
-                                                 exclude_txn_from_change_streams: exclude_txn_from_change_streams
+                                                 commit_options: commit_options
         end
         @state = :COMMITTED
       rescue Google::Cloud::NotFoundError => e
