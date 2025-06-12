@@ -1,5 +1,12 @@
 # Changelog
 
+### 2.4.0 (2025-06-12)
+
+#### Features
+
+* Adding support for exclude_txn_from_change_streams option ([#368](https://github.com/googleapis/ruby-spanner-activerecord/issues/368)) ([1b04c70](https://github.com/googleapis/ruby-spanner-activerecord/commit/1b04c70b4ecec62403449af11827d0f3587acfd0)), closes [#367](https://github.com/googleapis/ruby-spanner-activerecord/issues/367)
+* support commit_options ([#364](https://github.com/googleapis/ruby-spanner-activerecord/issues/364)) ([0a1020a](https://github.com/googleapis/ruby-spanner-activerecord/commit/0a1020ac60ff9ddaae1634a2178a71bc0de9480c)), closes [#365](https://github.com/googleapis/ruby-spanner-activerecord/issues/365)
+
 ### 2.3.0 (2025-05-30)
 
 #### Features
