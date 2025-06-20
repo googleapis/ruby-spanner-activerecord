@@ -72,10 +72,11 @@ module ActiveRecord
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               if transaction_required
                 transaction do
-                  @connection.execute_query sql, params: params, types: types, request_options: request_options
+                  @connection.execute_query sql, statement_type: statement_type, params: params, types: types,
+request_options: request_options
                 end
               else
-                @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                @connection.execute_query sql, statement_type: statement_type, params: params, types: types, single_use_selector: selector,
                                           request_options: request_options
               end
             end
@@ -232,6 +233,7 @@ module ActiveRecord
         def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
+          fallback_to_pdml_enabled = kwargs.delete :fallback_to_pdml_enabled || false
           @_spanner_begin_transaction_options = {
             exclude_txn_from_change_streams: exclude_from_streams
           }
@@ -246,6 +248,9 @@ module ActiveRecord
               # to the Spanner transaction object.
               if commit_options && @connection.current_transaction
                 @connection.current_transaction.set_commit_options commit_options
+              end
+              if fallback_to_pdml_enabled && @connection.current_transaction
+                @connection.current_transaction.fallback_to_pdml_enabled = fallback_to_pdml_enabled
               end
 
               yield
