@@ -72,11 +72,18 @@ module ActiveRecord
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               if transaction_required
                 transaction do
-                  @connection.execute_query sql, statement_type: statement_type, params: params, types: types,
-request_options: request_options
+                  @connection.execute_query sql,
+                                            statement_type: statement_type,
+                                            params: params,
+                                            types: types,
+                                            request_options: request_options
                 end
               else
-                @connection.execute_query sql, statement_type: statement_type, params: params, types: types, single_use_selector: selector,
+                @connection.execute_query sql,
+                                          statement_type: statement_type,
+                                          params: params,
+                                          types: types,
+                                          single_use_selector: selector,
                                           request_options: request_options
               end
             end
@@ -230,7 +237,7 @@ request_options: request_options
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
           fallback_to_pdml_enabled = kwargs.delete :fallback_to_pdml_enabled || false
