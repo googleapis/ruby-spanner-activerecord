@@ -212,7 +212,7 @@ module ActiveRecordSpannerAdapter
 
     # DQL, DML Statements
 
-    def execute_query sql, statement_type: nil, params: nil, types: nil, single_use_selector: nil, request_options: nil
+    def execute_query sql, params: nil, types: nil, single_use_selector: nil, request_options: nil
       if params
         converted_params, types =
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
@@ -226,12 +226,11 @@ module ActiveRecordSpannerAdapter
       end
 
       selector = transaction_selector || single_use_selector
-      execute_sql_request sql, statement_type, converted_params, types, selector, request_options
+      execute_sql_request sql, converted_params, types, selector, request_options
     end
 
     # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-    def execute_sql_request sql, statement_type, converted_params, types, selector, request_options = nil
-      current_transaction&.increment_dml_counter if statement_type == :dml && current_transaction&.active?
+    def execute_sql_request sql, converted_params, types, selector, request_options = nil
       res = session.execute_query \
         sql,
         params: converted_params,
@@ -256,28 +255,8 @@ module ActiveRecordSpannerAdapter
       end
       raise
     rescue Google::Cloud::Error => e
-      # If the error is a TransactionMutationLimitExceededError, check if it is safe to fallback to a PDML transaction.
-      # If it is safe, create a PDML transaction and retry the request.
       if TransactionMutationLimitExceededError.is_mutation_limit_error? e
-        is_safe_to_fallback =
-          current_transaction&.dml_statement_count == 1 && current_transaction&.mutations&.empty?
-
-        if current_transaction&.fallback_to_pdml_enabled && is_safe_to_fallback
-          pdml_transaction = ActiveRecordSpannerAdapter::Transaction.new self, :pdml
-          pdml_transaction.begin
-          pdml_selector = pdml_transaction.transaction_selector
-
-          result = session.execute_query(
-            sql,
-            params: converted_params,
-            types: types,
-            transaction: pdml_selector,
-            request_options: request_options
-          )
-          return result
-        end
-        # If it is not safe to fallback, raise a TransactionMutationLimitExceededError.
-        raise ::ActiveRecordSpannerAdapter::TransactionMutationLimitExceededError
+        raise
       end
       # Check if it was the first statement in a transaction that included a BeginTransaction
       # option in the request. If so, execute an explicit BeginTransaction and then retry the

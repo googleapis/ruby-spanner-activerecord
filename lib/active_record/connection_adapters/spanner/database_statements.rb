@@ -7,6 +7,7 @@
 # frozen_string_literal: true
 
 require "active_record/gem_version"
+require "active_record/connection_adapters/spanner/errors/transaction_mutation_limit_exceeded_error"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -14,6 +15,7 @@ module ActiveRecord
       module DatabaseStatements
         VERSION_7_1_0 = Gem::Version.create "7.1.0"
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
+        TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
 
         # DDL, DML and DQL Statements
 
@@ -73,14 +75,12 @@ module ActiveRecord
               if transaction_required
                 transaction do
                   @connection.execute_query sql,
-                                            statement_type: statement_type,
                                             params: params,
                                             types: types,
                                             request_options: request_options
                 end
               else
                 @connection.execute_query sql,
-                                          statement_type: statement_type,
                                           params: params,
                                           types: types,
                                           single_use_selector: selector,
@@ -237,10 +237,9 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs, &block # rubocop:disable Metrics/PerceivedComplexity
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
-          fallback_to_pdml_enabled = kwargs.delete :fallback_to_pdml_enabled || false
           @_spanner_begin_transaction_options = {
             exclude_txn_from_change_streams: exclude_from_streams
           }
@@ -256,9 +255,6 @@ module ActiveRecord
               if commit_options && @connection.current_transaction
                 @connection.current_transaction.set_commit_options commit_options
               end
-              if fallback_to_pdml_enabled && @connection.current_transaction
-                @connection.current_transaction.fallback_to_pdml_enabled = fallback_to_pdml_enabled
-              end
 
               yield
             end
@@ -266,8 +262,17 @@ module ActiveRecord
             if err.cause.is_a? Google::Cloud::AbortedError
               sleep(delay_from_aborted(err) || (backoff *= 1.3))
               retry
+            elsif TransactionMutationLimitExceededError.is_mutation_limit_error? err.cause
+              raise err unless isolation == :fallback_to_pdml
+              transaction(
+                requires_new: true,
+                isolation: :pdml,
+                joinable: false,
+                **kwargs, &block
+              )
+            else
+              raise err
             end
-            raise
           ensure
             # Clean up the instance variable to avoid leaking options.
             @_spanner_begin_transaction_options = nil
@@ -284,7 +289,8 @@ module ActiveRecord
             # These are not really isolation levels, but it is the only (best) way to pass in additional
             # transaction options to the connection.
             read_only:          "READ_ONLY",
-            buffered_mutations: "BUFFERED_MUTATIONS"
+            buffered_mutations: "BUFFERED_MUTATIONS",
+            fallback_to_pdml: "FALLBACK_TO_PDML"
           }
         end
 
@@ -321,13 +327,37 @@ module ActiveRecord
               if isolation.count != 1
           else
             raise "Unsupported isolation level: #{isolation}" unless
-              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml].include? isolation
+              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml,
+               :fallback_to_pdml].include? isolation
           end
 
           log "BEGIN #{isolation}" do
             opts = @_spanner_begin_transaction_options || {}
             @connection.begin_transaction isolation, **opts
           end
+        end
+
+        def create_savepoint name = "active_record_1"
+          if @connection.current_transaction&.is_pdml?
+            # PDML transactions do not support savepoints. Silently ignore the
+            # request. This allows methods like `update_all` to proceed
+            # without crashing when they are run in a PDML fallback context.
+            return
+          end
+          super
+        end
+
+        def release_savepoint name = "active_record_1"
+          # We must also override release_savepoint to be consistent. If we
+          # ignore the creation of a savepoint, we must also ignore its release.
+          return if @connection.current_transaction&.is_pdml?
+          super
+        end
+
+        def rollback_to_savepoint name = "active_record_1"
+          # And we must override rollback_to_savepoint for consistency.
+          return if @connection.current_transaction&.is_pdml?
+          super
         end
 
         def commit_db_transaction

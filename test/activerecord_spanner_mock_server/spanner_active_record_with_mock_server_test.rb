@@ -200,7 +200,7 @@ module MockServerTests
       @mock.push_error(update_sql, mutation_limit_error)
       @mock.put_statement_result update_sql, StatementResult.new(1)
 
-      TableWithSequence.transaction(fallback_to_pdml_enabled: true) do
+      TableWithSequence.transaction isolation: :fallback_to_pdml do
         TableWithSequence.where(id: 1).update_all(name: "New Foo Name")
       end
 
@@ -227,10 +227,30 @@ module MockServerTests
         end
       end
 
-      assert_kind_of Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError, err.cause
+      assert_kind_of Google::Cloud::InvalidArgumentError, err.cause
 
       update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
       assert_equal 1, update_requests.length, "Should only have been one attempt for the UPDATE DML"
+
+      pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
+      assert_nil pdml_begin_request, "No PDML transaction should have been started"
+    end
+
+    def test_no_fallback_to_pdml_on_table_with_sequence_when_error_is_not_valid
+
+      update_sql_regex = /UPDATE `table_with_sequence`/
+      other_error = GRPC::AlreadyExists.new("This is some other database error")
+      @mock.push_error(update_sql_regex, other_error)
+
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithSequence.transaction isolation: :fallback_to_pdml do
+          TableWithSequence.where(id: 1).update_all(name: "This name will not be updated")
+        end
+      end
+
+      assert_kind_of Google::Cloud::InvalidArgumentError, err.cause
+      update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql.match(update_sql_regex) }
+      assert_equal 2, update_requests.length, "Should only have been one attempt for the UPDATE DML"
 
       pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
       assert_nil pdml_begin_request, "No PDML transaction should have been started"

@@ -10,9 +10,6 @@ module ActiveRecordSpannerAdapter
     attr_reader :commit_options
     attr_reader :begin_transaction_selector
     attr_accessor :exclude_txn_from_change_streams
-    attr_accessor :fallback_to_pdml_enabled
-    attr_reader :dml_statement_count
-    attr_reader :mutations
 
 
 
@@ -25,8 +22,6 @@ module ActiveRecordSpannerAdapter
       @mutations = []
       @commit_options = commit_options
       @exclude_txn_from_change_streams = exclude_txn_from_change_streams
-      @fallback_to_pdml_enabled = false
-      @dml_statement_count = 0
     end
 
     def active?
@@ -40,10 +35,6 @@ module ActiveRecordSpannerAdapter
 
     def buffer mutation
       @mutations << mutation
-    end
-
-    def increment_dml_counter
-      @dml_statement_count += 1
     end
 
     # Begins the transaction.
@@ -165,6 +156,10 @@ module ActiveRecordSpannerAdapter
 
     def mark_aborted
       @state = :ABORTED
+    end
+
+    def is_pdml?
+      @isolation == :pdml
     end
 
     # Sets the underlying gRPC transaction to use for this Transaction.

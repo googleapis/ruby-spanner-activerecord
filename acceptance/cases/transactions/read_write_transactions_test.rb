@@ -273,6 +273,34 @@ module ActiveRecord
           TableWithSequence.connection.use_client_side_id_for_mutations = reset_value
         end
       end
+      def test_single_dml_succeeds_with_fallback_to_pdml_enabled
+        # This test verifies that a normal, successful DML statement works as
+        # expected when the fallback isolation is enabled. Because no mutation
+        # limit error occurs, the fallback to PDML should NOT be triggered.
+        create_test_records
+        assert_equal 1, Author.count
+
+        Author.transaction isolation: :fallback_to_pdml do
+          Author.where(name: "David").delete_all
+        end
+
+        assert_equal 0, Author.count, "The record should have been deleted"
+      end
+
+      def test_other_errors_do_not_trigger_fallback
+        # This test ensures that if a transaction with fallback enabled fails
+        # for a reason OTHER than the mutation limit, it fails normally and
+        # does not attempt to fall back to PDML.
+        create_test_records
+        initial_author_count = Author.count
+
+        assert_raises ActiveRecord::StatementInvalid do
+          Author.transaction isolation: :fallback_to_pdml do
+            Author.create! name: nil
+          end
+        end
+        assert_equal initial_author_count, Author.count, "Transaction should have rolled back"
+      end
     end
   end
 end
