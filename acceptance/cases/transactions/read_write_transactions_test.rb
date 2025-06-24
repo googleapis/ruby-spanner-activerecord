@@ -273,6 +273,7 @@ module ActiveRecord
           TableWithSequence.connection.use_client_side_id_for_mutations = reset_value
         end
       end
+
       def test_single_dml_succeeds_with_fallback_to_pdml_enabled
         # This test verifies that a normal, successful DML statement works as
         # expected when the fallback isolation is enabled. Because no mutation

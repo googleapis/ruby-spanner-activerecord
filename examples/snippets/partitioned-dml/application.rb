@@ -10,7 +10,7 @@ require_relative "models/singer"
 require_relative "models/album"
 
 class Application
-  def self.run
+  def self.run # rubocop:disable Metrics/AbcSize
     singer_count = Singer.all.count
     album_count = Album.all.count
     puts ""
@@ -19,9 +19,64 @@ class Application
 
     puts ""
     puts "Deleting all albums in the database using Partitioned DML"
+    # Note that a Partitioned DML transaction can contain ONLY ONE DML statement.
+    # If we want to delete all data in two different tables, we need to do so in two different PDML transactions.
     Album.transaction isolation: :pdml do
       count = Album.delete_all
       puts "Deleted #{count} albums"
+    end
+    puts ""
+    puts "Deleting all singers in the database using normal Read-Write transaction with PDML fallback"
+    #
+    # This example demonstrates using `isolation: :fallback_to_pdml`.
+    #
+    # --- HOW IT WORKS ---
+    # 1. Initial Attempt: The transaction starts as a normal, atomic, read-write transaction.
+    #
+    # 2. The Trigger: If that transaction fails with a `TransactionMutationLimitExceededError`,
+    #    the adapter automatically catches the error.
+    #
+    # 3. The Fallback: The adapter then retries the ENTIRE code block in a new,
+    #    non-atomic Partitioned DML (PDML) transaction.
+    #
+    # --- WARNING: CRITICAL USAGE REQUIREMENTS ---
+    # This implementation retries the whole transaction block without checking its contents.
+    # The user of this feature is responsible for ensuring the following:
+    #
+    # 1. SINGLE DML STATEMENT: The block SHOULD contain only ONE DML statement.
+    #    If it contains more, the PDML retry will fail with a low-level `seqno` error.
+    #
+    # 2. IDEMPOTENCY: The block MUST be "idempotent" (safe to run multiple times),
+    #    as the code may be executed more than once.
+    #
+    # 3. NON-ATOMIC: The retried PDML transaction is NOT atomic. Do not use this
+    #    for multi-step operations that must all succeed or fail together.
+    #
+    Singer.transaction isolation: :fallback_to_pdml do
+      count = Singer.delete_all
+      puts "Deleted #{count} singers"
+    end
+    Singer.transaction isolation: :fallback_to_pdml do
+      begin
+        singers_to_create = (1..10).map { |i| { first_name: "Test", last_name: "Singer #{i}" } }
+        Singer.create singers_to_create
+        puts "  #{Singer.count} singers now in database."
+
+        puts "\n  Running a large delete operation with 'isolation: :fallback_to_pdml'..."
+        puts "  NOTE: A real operation of this type on millions of rows could fail with a mutation limit error."
+        puts "  The adapter would catch this error and automatically retry with a PDML transaction."
+
+        Singer.transaction isolation: :fallback_to_pdml do
+          Singer.where("last_name LIKE 'Singer %'").delete_all
+        end
+
+        puts "\n  SUCCESS: The transaction completed successfully thanks to the PDML fallback."
+        puts "  Remaining singers: #{Singer.count}"
+      rescue StandardError => e
+        puts "\n  FAILED: The transaction unexpectedly failed with error: #{e.message}"
+      ensure
+        Singer.delete_all
+      end
     end
 
     puts ""
@@ -37,64 +92,6 @@ class Application
     puts "Singers in the database: #{singer_count}"
     puts "Albums in the database: #{album_count}"
   end
-
-  def self.run_two_dmls_in_pdml_transaction_test
-    begin
-      Singer.transaction isolation: :pdml do
-        Album.delete_all
-        Singer.delete_all
-      end
-    rescue ActiveRecord::StatementInvalid
-      puts "  SUCCESS: As expected, the transaction failed because PDML only supports one DML statement."
-    ensure
-      Album.delete_all
-      Singer.delete_all
-    end
-  end
-
-  def self.demonstrate_successful_fallback
-    begin
-      singers_to_create = (1..10).map { |i| { first_name: "Test", last_name: "Singer #{i}" } }
-      Singer.create singers_to_create
-      puts "  #{Singer.count} singers now in database."
-
-      puts "\n  Running a large delete operation with 'isolation: :fallback_to_pdml'..."
-      puts "  NOTE: A real operation of this type on millions of rows could fail with a mutation limit error."
-      puts "  The adapter would catch this error and automatically retry with a PDML transaction."
-
-      Singer.transaction isolation: :fallback_to_pdml do
-        Singer.where("last_name LIKE 'Singer %'").delete_all
-      end
-
-      puts "\n  SUCCESS: The transaction completed successfully thanks to the PDML fallback."
-      puts "  Remaining singers: #{Singer.count}"
-    rescue StandardError => e
-      puts "\n  FAILED: The transaction unexpectedly failed with error: #{e.message}"
-    ensure
-      Singer.delete_all
-    end
-  end
-
-  def self.demonstrate_no_fallback_when_disabled
-    begin
-      puts "  Running a transaction that will fail, without enabling the fallback..."
-
-      Singer.transaction do
-        # To demonstrate this, we simulate what Active Record would do if Spanner
-        # returned a mutation limit error. It would raise a generic StatementInvalid error.
-        puts "  Simulating a DML operation that exceeds the mutation limit..."
-        raise ActiveRecordSpannerAdapter::TransactionMutationLimitExceededError,
-              "Simulated: The transaction contains too many mutations"
-      end
-    rescue ActiveRecord::StatementInvalid
-      puts "  SUCCESS: As expected, the transaction failed with a generic ActiveRecord::StatementInvalid."
-      puts "  No fallback was attempted."
-    end
-  end
 end
 
 Application.run
-Application.run_two_dmls_in_pdml_transaction_test
-
-Application.demonstrate_successful_fallback
-Application.demonstrate_no_fallback_when_disabled
