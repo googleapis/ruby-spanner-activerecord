@@ -158,10 +158,6 @@ module ActiveRecordSpannerAdapter
       @state = :ABORTED
     end
 
-    def is_pdml?
-      @isolation == :pdml
-    end
-
     # Sets the underlying gRPC transaction to use for this Transaction.
     # This is used for queries/DML statements that inlined the BeginTransaction option and returned
     # a transaction in the metadata.

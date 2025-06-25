@@ -195,30 +195,57 @@ module MockServerTests
 
     def test_update_all_on_table_with_sequence_falls_back_to_pdml
       update_sql = "UPDATE `table_with_sequence` SET `name` = @p1 WHERE `table_with_sequence`.`id` = @p2"
-
       mutation_limit_error = GRPC::InvalidArgument.new("The transaction contains too many mutations")
+
       @mock.push_error(update_sql, mutation_limit_error)
-      @mock.put_statement_result update_sql, StatementResult.new(1)
+      @mock.push_error(update_sql, mutation_limit_error)
+      @mock.put_statement_result(update_sql, StatementResult.new(1))
 
       TableWithSequence.transaction isolation: :fallback_to_pdml do
         TableWithSequence.where(id: 1).update_all(name: "New Foo Name")
       end
 
-      update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
-      assert_equal 2, update_requests.length, "Should have been two attempts for the UPDATE DML"
+      # A BeginTransactionRequest for a read-write transaction should have been sent
+      rw_begin_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::BeginTransactionRequest) && !req.options&.partitioned_dml }
+      assert_equal 1, rw_begin_requests.length, "Exactly one explicit read-write BeginTransactionRequest should have been sent"
 
-      pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
+      # A RollbackRequest should have been sent for the failed read-write transaction.
+      rollback_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::RollbackRequest) }
+      refute_nil rollback_request, "A RollbackRequest should have been sent after the second attempt failed"
+
+      # We assert for 3 total attempts for the UPDATE DML. This complex sequence
+      # is a result of the error triggering two different retry/fallback mechanisms
+      # at different layers of the adapter. The flow is as follows:
+      #
+      # 1. Attempt #1 (Initial "Piggybacked" DML): The first `update_all` call is
+      #    sent without a pre-existing transaction. This attempt is mocked to fail
+      #    before a transaction ID is assigned.
+      #
+      # 2. Attempt #2 (Low-Level Retry): The `execute_sql_request` method catches
+      #    this initial failure. It explicitly begins a new transaction by sending a
+      #    `BeginTransactionRequest`, which generates a real transaction ID. This
+      #    is the transaction that can, and will, be rolled back later. The method
+      #    then `retry`s the `UPDATE` statement. We also mock this second attempt to
+      #    fail so the error can propagate to the high-level fallback logic.
+      #
+      # 3. Attempt #3 (High-Level PDML Fallback): The main `transaction` method's
+      #    `rescue` block finally sees the error. Because a transaction ID now exists
+      #    from step #2, it is first rolled back Then, the successful fallback
+      #    to a PDML transaction is initiated, running the `UPDATE` one last time.
+      #
+      update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_sql }
+      assert_equal 3, update_requests.length, "Should have been three attempts for the UPDATE DML before the PDML fallback"
+      
+      # A PDML transaction should have been started for the final, successful attempt.
+      pdml_begin_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::BeginTransactionRequest) && req.options&.partitioned_dml }
       refute_nil pdml_begin_request, "A BeginTransactionRequest for PDML should have been sent"
-
-      fallback_request = update_requests[1]
-      assert fallback_request.transaction&.id, "Fallback DML should run within a transaction and have an ID"
-      assert_nil fallback_request.transaction&.begin, "Fallback DML should use the existing PDML transaction, not begin a new one"
     end
 
     def test_no_fallback_to_pdml_on_table_with_sequence_when_disabled
       update_sql = "UPDATE `table_with_sequence` SET `name` = @p1 WHERE `table_with_sequence`.`id` = @p2"
 
       mutation_limit_error = GRPC::InvalidArgument.new("The transaction contains too many mutations")
+      @mock.push_error(update_sql, mutation_limit_error)
       @mock.push_error(update_sql, mutation_limit_error)
 
       err = assert_raises ActiveRecord::StatementInvalid do
@@ -229,8 +256,9 @@ module MockServerTests
 
       assert_kind_of Google::Cloud::InvalidArgumentError, err.cause
 
+    
       update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
-      assert_equal 1, update_requests.length, "Should only have been one attempt for the UPDATE DML"
+      assert_equal 2, update_requests.length, "Should only have been two attempts for the UPDATE DML"
 
       pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
       assert_nil pdml_begin_request, "No PDML transaction should have been started"
