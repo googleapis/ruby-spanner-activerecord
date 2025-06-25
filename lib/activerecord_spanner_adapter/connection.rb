@@ -255,16 +255,15 @@ module ActiveRecordSpannerAdapter
       end
       raise
     rescue Google::Cloud::Error => e
+      if TransactionMutationLimitExceededError.is_mutation_limit_error? e
+        raise
+      end
       # Check if it was the first statement in a transaction that included a BeginTransaction
       # option in the request. If so, execute an explicit BeginTransaction and then retry the
       # request without the BeginTransaction option.
       if current_transaction && selector&.begin&.read_write
         selector = create_transaction_after_failed_first_statement e
         retry
-      end
-
-      if TransactionMutationLimitExceededError.is_mutation_limit_error? e
-        raise
       end
       # It was not the first statement, so propagate the error.
       raise
