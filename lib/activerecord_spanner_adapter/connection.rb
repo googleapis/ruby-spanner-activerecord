@@ -7,8 +7,11 @@
 require "google/cloud/spanner"
 require "spanner_client_ext"
 require "activerecord_spanner_adapter/information_schema"
+require_relative "../active_record/connection_adapters/spanner/errors/transaction_mutation_limit_exceeded_error"
 
 module ActiveRecordSpannerAdapter
+  TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
+
   class Connection
     attr_reader :instance_id
     attr_reader :database_id
@@ -252,6 +255,9 @@ module ActiveRecordSpannerAdapter
       end
       raise
     rescue Google::Cloud::Error => e
+      if TransactionMutationLimitExceededError.is_mutation_limit_error? e
+        raise
+      end
       # Check if it was the first statement in a transaction that included a BeginTransaction
       # option in the request. If so, execute an explicit BeginTransaction and then retry the
       # request without the BeginTransaction option.

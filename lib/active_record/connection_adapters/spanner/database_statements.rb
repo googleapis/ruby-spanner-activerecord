@@ -7,6 +7,7 @@
 # frozen_string_literal: true
 
 require "active_record/gem_version"
+require "active_record/connection_adapters/spanner/errors/transaction_mutation_limit_exceeded_error"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -14,6 +15,7 @@ module ActiveRecord
       module DatabaseStatements
         VERSION_7_1_0 = Gem::Version.create "7.1.0"
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
+        TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
 
         # DDL, DML and DQL Statements
 
@@ -72,10 +74,16 @@ module ActiveRecord
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               if transaction_required
                 transaction do
-                  @connection.execute_query sql, params: params, types: types, request_options: request_options
+                  @connection.execute_query sql,
+                                            params: params,
+                                            types: types,
+                                            request_options: request_options
                 end
               else
-                @connection.execute_query sql, params: params, types: types, single_use_selector: selector,
+                @connection.execute_query sql,
+                                          params: params,
+                                          types: types,
+                                          single_use_selector: selector,
                                           request_options: request_options
               end
             end
@@ -229,7 +237,7 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs, &block # rubocop:disable Metrics/PerceivedComplexity
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
           @_spanner_begin_transaction_options = {
@@ -254,8 +262,14 @@ module ActiveRecord
             if err.cause.is_a? Google::Cloud::AbortedError
               sleep(delay_from_aborted(err) || (backoff *= 1.3))
               retry
+            elsif TransactionMutationLimitExceededError.is_mutation_limit_error? err.cause
+              is_fallback_enabled = isolation == :fallback_to_pdml
+              raise unless is_fallback_enabled
+              @_spanner_begin_transaction_options[:isolation] = :pdml
+              retry
+            else
+              raise
             end
-            raise
           ensure
             # Clean up the instance variable to avoid leaking options.
             @_spanner_begin_transaction_options = nil
@@ -272,7 +286,8 @@ module ActiveRecord
             # These are not really isolation levels, but it is the only (best) way to pass in additional
             # transaction options to the connection.
             read_only:          "READ_ONLY",
-            buffered_mutations: "BUFFERED_MUTATIONS"
+            buffered_mutations: "BUFFERED_MUTATIONS",
+            fallback_to_pdml: "FALLBACK_TO_PDML"
           }
         end
 
@@ -302,19 +317,22 @@ module ActiveRecord
         #                          (this is the same as :read_only)
         #
         def begin_isolated_db_transaction isolation
-          if isolation.is_a? Hash
-            raise "Unsupported isolation level: #{isolation}" unless
-              isolation[:timestamp] || isolation[:staleness] || isolation[:strong]
+          opts = @_spanner_begin_transaction_options || {}
+          # If isolation level is specified in the options, use that instead of the default isolation level.
+          isolation_option = opts[:isolation] || isolation
+          if isolation_option.is_a? Hash
+            raise "Unsupported isolation level: #{isolation_option}" unless
+              isolation_option[:timestamp] || isolation_option[:staleness] || isolation_option[:strong]
             raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`." \
-              if isolation.count != 1
+              if isolation_option.count != 1
           else
-            raise "Unsupported isolation level: #{isolation}" unless
-              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml].include? isolation
+            raise "Unsupported isolation level: #{isolation_option}" unless
+              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml,
+               :fallback_to_pdml].include? isolation_option
           end
 
-          log "BEGIN #{isolation}" do
-            opts = @_spanner_begin_transaction_options || {}
-            @connection.begin_transaction isolation, **opts
+          log "BEGIN #{isolation_option}" do
+            @connection.begin_transaction isolation_option, **opts.except(:isolation)
           end
         end
 

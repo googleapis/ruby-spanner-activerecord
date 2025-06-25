@@ -27,6 +27,37 @@ class Application
     end
 
     puts ""
+    puts "Deleting all singers in the database using normal Read-Write transaction with PDML fallback"
+    #
+    # This example demonstrates using `isolation: :fallback_to_pdml`.
+    #
+    # --- HOW IT WORKS ---
+    # 1. Initial Attempt: The transaction starts as a normal, atomic, read-write transaction.
+    #
+    # 2. The Trigger: If that transaction fails with a `TransactionMutationLimitExceededError`,
+    #    the adapter automatically catches the error.
+    #
+    # 3. The Fallback: The adapter then retries the ENTIRE code block in a new,
+    #    non-atomic Partitioned DML (PDML) transaction.
+    #
+    # --- USAGE REQUIREMENTS ---
+    # This implementation retries the whole transaction block without checking its contents.
+    # The user of this feature is responsible for ensuring the following:
+    #
+    # 1. SINGLE DML STATEMENT: The block should contain only ONE DML statement.
+    #    If it contains more, the PDML retry will fail with a low-level `seqno` error.
+    #
+    # 2. IDEMPOTENCY: The DML statement must be idempotent. See https://cloud.google.com/spanner/docs/dml-partitioned#partitionable-idempotent for more information. # rubocop:disable Layout/LineLength
+    #
+    # 3. NON-ATOMIC: The retried PDML transaction is NOT atomic. Do not use this
+    #    for multi-step operations that must all succeed or fail together.
+    #
+    Singer.transaction isolation: :fallback_to_pdml do
+      count = Singer.delete_all
+      puts "Deleted #{count} singers"
+    end
+
+    puts ""
     puts "Deleting all singers in the database using Partitioned DML"
     Singer.transaction isolation: :pdml do
       count = Singer.delete_all
