@@ -212,7 +212,6 @@ module ActiveRecord
           if @connection.dml_batch?
             # This call buffers the SQL.
             execute sql, name, binds
-            # Return 1 to satisfy the ActiveRecord::Persistence contract for instance methods like .save
             return
           end
           result = execute sql, name, binds
