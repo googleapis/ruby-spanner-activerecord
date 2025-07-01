@@ -25,9 +25,13 @@ module ActiveRecord
 
         def internal_exec_query sql, name = "SQL", binds = [], prepare: false, async: false, allow_retry: false
           result = internal_execute sql, name, binds, prepare: prepare, async: async, allow_retry: allow_retry
-          ActiveRecord::Result.new(
-            result.fields.keys.map(&:to_s), result.rows.map(&:values)
-          )
+          if result
+            ActiveRecord::Result.new(
+              result.fields.keys.map(&:to_s), result.rows.map(&:values)
+            )
+          else
+            ActiveRecord::Result.new [], []
+          end
         end
 
         def internal_execute sql, name = "SQL", binds = [],
@@ -77,14 +81,16 @@ module ActiveRecord
                   @connection.execute_query sql,
                                             params: params,
                                             types: types,
-                                            request_options: request_options
+                                            request_options: request_options,
+                                            statement_type: statement_type
                 end
               else
                 @connection.execute_query sql,
                                           params: params,
                                           types: types,
                                           single_use_selector: selector,
-                                          request_options: request_options
+                                          request_options: request_options,
+                                          statement_type: statement_type
               end
             end
           end
@@ -150,9 +156,13 @@ module ActiveRecord
 
           def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
             result = execute sql, name, binds
-            ActiveRecord::Result.new(
-              result.fields.keys.map(&:to_s), result.rows.map(&:values)
-            )
+            if result.respond_to? :fields
+              ActiveRecord::Result.new(
+                result.fields.keys.map(&:to_s), result.rows.map(&:values)
+              )
+            else
+              ActiveRecord::Result.new [], []
+            end
           end
 
           def sql_for_insert sql, pk, binds
@@ -198,6 +208,13 @@ module ActiveRecord
         alias delete update
 
         def exec_update sql, name = "SQL", binds = []
+          # Check if a DML batch is active on the connection.
+          if @connection.dml_batch?
+            # This call buffers the SQL.
+            execute sql, name, binds
+            # Return 1 to satisfy the ActiveRecord::Persistence contract for instance methods like .save
+            return 1
+          end
           result = execute sql, name, binds
           # Make sure that we consume the entire result stream before trying to get the stats.
           # This is required because the ExecuteStreamingSql RPC is also used for (Partitioned) DML,
@@ -237,7 +254,7 @@ module ActiveRecord
 
         # Transaction
 
-        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs, &block # rubocop:disable Metrics/PerceivedComplexity
+        def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs, &block # rubocop:disable Metrics/PerceivedComplexity,Metrics/CyclomaticComplexity
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
           @_spanner_begin_transaction_options = {
@@ -270,6 +287,9 @@ module ActiveRecord
             else
               raise
             end
+          rescue Google::Cloud::AbortedError => err
+            sleep(delay_from_aborted(err) || backoff *= 1.3)
+            retry
           ensure
             # Clean up the instance variable to avoid leaking options.
             @_spanner_begin_transaction_options = nil

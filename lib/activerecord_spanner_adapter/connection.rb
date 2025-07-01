@@ -164,6 +164,12 @@ module ActiveRecordSpannerAdapter
       false
     end
 
+    # Returns true if this connection is currently executing a DML batch, and otherwise false.
+    def dml_batch?
+      return true if @dml_batch
+      false
+    end
+
     ##
     # Starts a manual DDL batch. The batch must be ended by calling either run_batch or abort_batch.
     #
@@ -178,10 +184,30 @@ module ActiveRecordSpannerAdapter
     #     raise
     #   end
     def start_batch_ddl
-      if @ddl_batch
-        raise Google::Cloud::FailedPreconditionError, "A DDL batch is already active on this connection"
+      if @ddl_batch && @dml_batch
+        raise Google::Cloud::FailedPreconditionError, "Batch is already active on this connection"
       end
       @ddl_batch = []
+    end
+
+    ##
+    # Starts a manual DML batch. The batch must be ended by calling either run_batch or abort_batch.
+    #
+    # @example
+    #   begin
+    #     connection.start_batch_dml
+    #     connection.execute_query "insert into `Users` (Id, Name) VALUES (1, 'Test 1')"
+    #     connection.execute_query "insert into `Users` (Id, Name) VALUES (2, 'Test 2')"
+    #     connection.run_batch
+    #   rescue StandardError
+    #     connection.abort_batch
+    #     raise
+    #   end
+    def start_batch_dml
+      if @ddl_batch || @dml_batch
+        raise Google::Cloud::FailedPreconditionError, "A batch is already active on this connection"
+      end
+      @dml_batch = []
     end
 
     ##
@@ -190,6 +216,7 @@ module ActiveRecordSpannerAdapter
     # @see start_batch_ddl
     def abort_batch
       @ddl_batch = nil
+      @dml_batch = nil
     end
 
     ##
@@ -198,10 +225,21 @@ module ActiveRecordSpannerAdapter
     #
     # @see start_batch_ddl
     def run_batch
-      unless @ddl_batch
+      unless @ddl_batch || @dml_batch
         raise Google::Cloud::FailedPreconditionError, "There is no batch active on this connection"
       end
       # Just return if the batch is empty.
+      return true if @ddl_batch&.empty? || @dml_batch&.empty?
+      begin
+        if @ddl_batch
+          run_ddl_batch
+        else
+          run_dml_batch
+        end
+      end
+    end
+
+    def run_ddl_batch
       return true if @ddl_batch.empty?
       begin
         execute_ddl_statements @ddl_batch, nil, true
@@ -210,19 +248,48 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def run_dml_batch
+      return true if @dml_batch.empty?
+      begin
+        # Execute the DML statements in the batch.
+        execute_dml_statements_in_batch @dml_batch
+      ensure
+        @dml_batch = nil
+      end
+    end
+
+    ##
+    # Executes a set of DML statements as one batch. This method raises an error if no block is given.
+    def dml_batch
+      raise Google::Cloud::FailedPreconditionError, "No block given for the DML batch" unless block_given?
+      begin
+        start_batch_dml
+        yield
+        run_batch
+      rescue StandardError
+        abort_batch
+        raise
+      ensure
+        @dml_batch = nil
+      end
+    end
+
     # DQL, DML Statements
 
-    def execute_query sql, params: nil, types: nil, single_use_selector: nil, request_options: nil
+    def execute_query sql, params: nil, types: nil, single_use_selector: nil, request_options: nil, statement_type: nil
+      # Clear the transaction from the previous statement.
+      unless current_transaction&.active?
+        self.current_transaction = nil
+      end
+      if statement_type == :dml && dml_batch?
+        @dml_batch.push({ sql: sql, params: params, types: types })
+        return
+      end
       if params
         converted_params, types =
           Google::Cloud::Spanner::Convert.to_input_params_and_types(
             params, types
           )
-      end
-
-      # Clear the transaction from the previous statement.
-      unless current_transaction&.active?
-        self.current_transaction = nil
       end
 
       selector = transaction_selector || single_use_selector
@@ -352,6 +419,42 @@ module ActiveRecordSpannerAdapter
       raise Google::Cloud::Error.from_error job.error if job.error?
       job.done?
     end
+
+    # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    def execute_dml_statements_in_batch statements
+      selector = transaction_selector
+      response = session.batch_update selector, current_transaction&.next_sequence_number do |batch|
+        statements.each do |statement|
+          batch.batch_update statement[:sql], params: statement[:params], types: statement[:types]
+        end
+      end
+      batch_update_results = Google::Cloud::Spanner::BatchUpdateResults.new response
+      first_res = response.result_sets.first
+      current_transaction.grpc_transaction = first_res.metadata.transaction \
+        if current_transaction && first_res&.metadata&.transaction
+      batch_update_results.row_counts
+    rescue Google::Cloud::AbortedError
+      # Mark the current transaction as aborted to prevent any unnecessary further requests on the transaction.
+      current_transaction&.mark_aborted
+      raise
+    rescue Google::Cloud::Spanner::BatchUpdateError => e
+      # Check if the status is ABORTED, and if it is, just propagate an AbortedError.
+      if e.cause&.code == GRPC::Core::StatusCodes::ABORTED
+        current_transaction&.mark_aborted
+        raise e.cause
+      end
+
+      # Check if the request returned a transaction or not.
+      # BatchDML is capable of returning BOTH an error and a transaction.
+      if current_transaction && !current_transaction.grpc_transaction? && selector&.begin&.read_write
+        selector = create_transaction_after_failed_first_statement e
+        retry
+      end
+      # It was not the first statement, or it returned a transaction, so propagate the error.
+      raise
+    end
+    # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
 
     ##
     # Retrieves the delay value from Google::Cloud::AbortedError or
