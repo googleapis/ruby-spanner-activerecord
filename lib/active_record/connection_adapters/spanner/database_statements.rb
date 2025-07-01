@@ -213,7 +213,7 @@ module ActiveRecord
             # This call buffers the SQL.
             execute sql, name, binds
             # Return 1 to satisfy the ActiveRecord::Persistence contract for instance methods like .save
-            return 1
+            return
           end
           result = execute sql, name, binds
           # Make sure that we consume the entire result stream before trying to get the stats.
