@@ -1,3 +1,5 @@
+# Batch DML Example Configuration File
+# This file is used to configure the database connection for the batch DML example.
 development:
   adapter: spanner
   emulator_host: localhost:9010
