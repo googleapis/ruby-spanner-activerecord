@@ -165,6 +165,10 @@ module ActiveRecordSpannerAdapter
       @grpc_transaction = Google::Cloud::Spanner::Transaction.from_grpc grpc, @connection.session
     end
 
+    def grpc_transaction?
+      @grpc_transaction if @grpc_transaction
+    end
+
     def transaction_selector
       return unless active?
 
