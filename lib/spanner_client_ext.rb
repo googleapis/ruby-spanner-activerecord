@@ -20,6 +20,30 @@ module Google
           )
           Session.from_grpc grpc, @service
         end
+
+        def create_multiplexed_session instance_id, database_id
+          ensure_service!
+
+          grpc = @service._create_multiplexed_session(
+            Admin::Database::V1::DatabaseAdmin::Paths.database_path(
+              project: project, instance: instance_id, database: database_id
+            )
+          )
+          Session.from_grpc grpc, @service
+        end
+      end
+
+      class Service
+        def _create_multiplexed_session database_name, database_role: nil
+          route_to_leader = LARHeaders.create_session
+          opts = default_options session_name: database_name,
+                                 route_to_leader: route_to_leader
+          session = Google::Cloud::Spanner::V1::Session.new multiplexed: true,
+                                                            creator_role: database_role
+          service.create_session(
+            { database: database_name, session: session }, opts
+          )
+        end
       end
 
       class Session

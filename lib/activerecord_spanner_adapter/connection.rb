@@ -20,14 +20,22 @@ module ActiveRecordSpannerAdapter
     attr_accessor :isolation_level
 
     def initialize config
+      config = config.symbolize_keys
+      @config = config
       @instance_id = config[:instance]
       @database_id = config[:database]
       @isolation_level = config[:isolation_level]
       @spanner = self.class.spanners config
+      begin
+        @mux_session = self.class.mux_sessions @spanner, config unless config[:skip_create_multiplexed_session]
+      rescue Google::Cloud::NotFoundError
+        @mux_session = nil
+      rescue Google::Cloud::UnimplementedError
+        @mux_session_unimplemented = true
+      end
     end
 
     def self.spanners config
-      config = config.symbolize_keys
       @spanners ||= {}
       @mutex ||= Mutex.new
       @mutex.synchronize do
@@ -40,6 +48,17 @@ module ActiveRecordSpannerAdapter
           lib_name: "spanner-activerecord-adapter",
           lib_version: ActiveRecordSpannerAdapter::VERSION
         )
+      end
+    end
+
+    def self.mux_sessions spanner, config
+      instance_id = config[:instance]
+      database_id = config[:database]
+      @mux_sessions ||= {}
+      @mutex ||= Mutex.new
+      @mutex.synchronize do
+        @mux_sessions[database_path(config)] ||=
+          spanner.create_multiplexed_session instance_id, database_id
       end
     end
 
@@ -101,6 +120,9 @@ module ActiveRecordSpannerAdapter
       job = spanner.create_database instance_id, database_id
       job.wait_until_done!
       raise Google::Cloud::Error.from_error job.error if job.error?
+      unless @config[:skip_create_multiplexed_session] || @mux_session_unimplemented
+        @mux_session = self.class.mux_sessions @spanner, @config
+      end
       job.database
     end
 
