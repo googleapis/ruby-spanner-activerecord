@@ -457,7 +457,7 @@ module ActiveRecord
 
         private_class_method def self.build_sql_statement_regexp *parts # :nodoc:
           parts = parts.map { |part| /#{part}/i }
-          /\A(?:[\(\s]|#{COMMENT_REGEX})*#{Regexp.union(*parts)}/
+          /\A(?:[(\s]|#{COMMENT_REGEX})*#{Regexp.union(*parts)}/
         end
 
         DDL_REGX = build_sql_statement_regexp(:create, :alter, :drop).freeze
