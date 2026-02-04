@@ -106,18 +106,20 @@ module ActiveRecord
           assert_equal expected_schema_sql_on_production, sql, msg = sql
         end
 
-        puts "Dropping and re-creating database"
-        drop_database
-        create_database
-        puts "Loading schema"
-        begin
-          ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql, file = filename
-        rescue StandardError => e
-          puts "Loading schema failed: #{e}"
+        # Skip the drop-and-recreate test on production, for two reasons:
+        # 1. It is relatively slow.
+        # 2. Dropping and re-creating a database with the same name while keeping the connection open
+        #    causes 'Database not found' errors to be returned (by the session that is used?)
+        if ENV["SPANNER_EMULATOR_HOST"]
+          drop_database
+          create_database
+          begin
+            ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql, file = filename
+          rescue StandardError => e
+            puts "Loading schema failed: #{e}"
+          end
+          assert_equal tables, connection.tables.sort
         end
-        puts "Loaded schema from #{filename}"
-        assert_equal tables, connection.tables.sort
-        puts "Schema comparison succeeded"
       end
 
       def expected_schema_sql_on_emulator
