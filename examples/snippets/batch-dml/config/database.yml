@@ -1,0 +1,11 @@
+# Batch DML Example Configuration File
+# This file is used to configure the database connection for the batch DML example.
+development:
+  adapter: spanner
+  emulator_host: localhost:9010
+  project: test-project
+  instance: test-instance
+  database: testdb
+  pool: 5
+  timeout: 5000
+  schema_dump: false

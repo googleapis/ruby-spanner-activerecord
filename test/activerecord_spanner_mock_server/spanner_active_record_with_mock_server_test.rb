@@ -13,6 +13,8 @@ require_relative "models/other_adapter"
 module MockServerTests
   CommitRequest = Google::Cloud::Spanner::V1::CommitRequest
   ExecuteSqlRequest = Google::Cloud::Spanner::V1::ExecuteSqlRequest
+  BeginTransactionRequest = Google::Cloud::Spanner::V1::BeginTransactionRequest
+  ExecuteBatchDmlRequest = Google::Cloud::Spanner::V1::ExecuteBatchDmlRequest
 
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
     VERSION_7_1_0 = Gem::Version.create('7.1.0')
@@ -147,6 +149,179 @@ module MockServerTests
       assert_equal "id", mutation.insert_or_update.columns[2]
     end
 
+    def test_insert_batch_dml
+      sql1 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      sql2 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Pete', 'Etep')"
+      @mock.put_statement_result sql1, StatementResult.new(1)
+      @mock.put_statement_result sql2, StatementResult.new(1)
+
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+      ActiveRecord::Base.transaction do
+        ActiveRecord::Base.dml_batch do
+          Singer.insert(singer1)
+          Singer.insert(singer2)
+        end
+      end
+
+      # This test should use BatchDML instead of individual ExecuteSqlRequests.
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql1 }
+      assert_equal 0, execute_requests.length
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql2 }
+      assert_equal 0, execute_requests.length
+      batch_requests = @mock.requests.select { |req| req.is_a?(ExecuteBatchDmlRequest) }
+      assert_equal 1, batch_requests.length
+      assert_equal 2, batch_requests.first.statements.length
+      assert_equal sql1, batch_requests.first.statements[0].sql
+      assert_equal sql2, batch_requests.first.statements[1].sql
+
+      # There should be only one transaction with no mutations.
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 0, mutations.length
+    end
+
+    def test_update_batch_dml
+      num_rows = 4
+      select_sql = "SELECT `singers`.* FROM `singers`"
+      @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(num_rows)
+      update_sql = "UPDATE `singers` SET `picture` = @p1 WHERE `singers`.`id` = @p2"
+      @mock.put_statement_result update_sql, StatementResult.new(1)
+
+      ActiveRecord::Base.transaction do
+        ActiveRecord::Base.dml_batch do
+          Singer.all.each do |singer|
+            singer.picture = Base64.encode64(SecureRandom.alphanumeric(SecureRandom.random_number(10..200)))
+            singer.save
+          end
+        end
+      end
+
+      # This test should use BatchDML instead of individual ExecuteSqlRequests.
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
+      assert_equal 0, execute_requests.length
+      batch_requests = @mock.requests.select { |req| req.is_a?(ExecuteBatchDmlRequest) }
+      assert_equal 1, batch_requests.length
+      assert_equal num_rows, batch_requests.first.statements.length
+
+      # There should be only one transaction with no mutations.
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 0, mutations.length
+    end
+
+    def test_insert_batch_dml_error
+      sql1 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      sql2 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Pete', 'Etep')"
+      error = GRPC::BadStatus.new GRPC::Core::StatusCodes::INVALID_ARGUMENT, "Invalid value"
+      @mock.put_statement_result sql1, StatementResult.new(1)
+      @mock.put_statement_result sql2, StatementResult.new(error)
+
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+      ActiveRecord::Base.transaction do
+        err = assert_raises Google::Cloud::Spanner::BatchUpdateError do
+          ActiveRecord::Base.dml_batch do
+            Singer.insert(singer1)
+            Singer.insert(singer2)
+          end
+        end
+        # Batch DML returns an error with an array that contains the update counts
+        # of the successful statements. In this case, only the first statement
+        # succeeded.
+        assert_equal 1, err.row_counts.length
+      end
+
+      # This test should use BatchDML instead of individual ExecuteSqlRequests.
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql1 }
+      assert_equal 0, execute_requests.length
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql2 }
+      assert_equal 0, execute_requests.length
+      batch_requests = @mock.requests.select { |req| req.is_a?(ExecuteBatchDmlRequest) }
+      # The BatchDML request is NOT retried, because it returns the first result, a transaction AND an error.
+      assert_equal 1, batch_requests.length
+      assert_equal 2, batch_requests.first.statements.length
+      assert_equal sql1, batch_requests.first.statements[0].sql
+      assert_equal sql2, batch_requests.first.statements[1].sql
+
+      # There should be only one transaction with no mutations.
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 0, mutations.length
+    end
+
+    def test_insert_batch_dml_error_on_first
+      sql = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      error = GRPC::BadStatus.new GRPC::Core::StatusCodes::INVALID_ARGUMENT, "Invalid value"
+      @mock.put_statement_result sql, StatementResult.new(error)
+
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+      ActiveRecord::Base.transaction do
+        err = assert_raises Google::Cloud::Spanner::BatchUpdateError do
+          ActiveRecord::Base.dml_batch do
+            Singer.insert(singer1)
+            Singer.insert(singer2)
+          end
+        end
+        # Batch DML returns an error with an array that contains the update counts
+        # of the successful statements. In this case, non succeeded.
+        assert_equal 0, err.row_counts.length
+      end
+
+      # This test should use BatchDML instead of individual ExecuteSqlRequests.
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
+      assert_equal 0, execute_requests.length
+      batch_requests = @mock.requests.select { |req| req.is_a?(ExecuteBatchDmlRequest) }
+      # The BatchDML request is retried, because it does not return any results or a transaction.
+      assert_equal 2, batch_requests.length
+    end
+
+    def test_insert_batch_dml_aborted
+      sql1 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      sql2 = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Pete', 'Etep')"
+      error = GRPC::BadStatus.new GRPC::Core::StatusCodes::ABORTED, "Transaction aborted"
+      @mock.put_statement_result sql1, StatementResult.new(1)
+      @mock.put_statement_result sql2, StatementResult.new(error)
+
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+      first = true
+      ActiveRecord::Base.transaction do
+        # Update the results of the second statement from ABORTED to success on the second attempt.
+        if first
+          first = false
+        else
+          @mock.put_statement_result sql2, StatementResult.new(1)
+        end
+        ActiveRecord::Base.dml_batch do
+          Singer.insert(singer1)
+          Singer.insert(singer2)
+        end
+      end
+
+      # This test should use BatchDML instead of individual ExecuteSqlRequests.
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql1 }
+      assert_equal 0, execute_requests.length
+      execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql2 }
+      assert_equal 0, execute_requests.length
+      batch_requests = @mock.requests.select { |req| req.is_a?(ExecuteBatchDmlRequest) }
+      # The BatchDML request is retried, because the transaction is aborted.
+      assert_equal 2, batch_requests.length
+      assert_equal 2, batch_requests[1].statements.length
+      assert_equal sql1, batch_requests[1].statements[0].sql
+      assert_equal sql2, batch_requests[1].statements[1].sql
+
+      # There should be only one transaction with no mutations.
+      commit_requests = @mock.requests.select { |req| req.is_a?(CommitRequest) }
+      assert_equal 1, commit_requests.length
+      mutations = commit_requests[0].mutations
+      assert_equal 0, mutations.length
+    end
+
     def test_selects_all_singers_without_transaction
       sql = "SELECT `singers`.* FROM `singers`"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
@@ -190,6 +365,75 @@ module MockServerTests
         assert_equal :INT64, request.param_types["p2"].code
         assert_equal :INT64, request.param_types["p1"].code
       end
+    end
+
+    def test_update_all_on_table_with_sequence_falls_back_to_pdml
+      update_sql = "UPDATE `table_with_sequence` SET `name` = @p1 WHERE `table_with_sequence`.`id` = @p2"
+
+      mutation_limit_error = GRPC::InvalidArgument.new("The transaction contains too many mutations")
+
+      @mock.push_error(update_sql, mutation_limit_error)
+      @mock.put_statement_result(update_sql, StatementResult.new(1))
+
+      TableWithSequence.transaction isolation: :fallback_to_pdml do
+        TableWithSequence.where(id: 1).update_all(name: "New Foo Name")
+      end
+
+      # The first attempt should have failed with a TransactionMutationLimitExceededError.
+      #  The second attempt should have succeeded with a PDML transaction.
+      #  So we should have two requests for the same DML statement.
+      update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
+      assert_equal 2, update_requests.length, "Should have been two attempts for the UPDATE DML"
+      
+      # A PDML transaction should have been started for the final, successful attempt.
+      pdml_begin_request = @mock.requests.find { |req| req.is_a?(Google::Cloud::Spanner::V1::BeginTransactionRequest) && req.options&.partitioned_dml }
+      refute_nil pdml_begin_request, "A BeginTransactionRequest for PDML should have been sent"
+
+      fallback_request = update_requests[1]
+      assert fallback_request.transaction&.id, "Fallback DML should run within a transaction that has an ID (created by the PDML transaction)"
+      assert_nil fallback_request.transaction&.begin, "Fallback DML should use the existing PDML transaction, not begin a new one"
+    end
+
+    def test_no_fallback_to_pdml_on_table_with_sequence_when_disabled
+      update_sql = "UPDATE `table_with_sequence` SET `name` = @p1 WHERE `table_with_sequence`.`id` = @p2"
+
+      mutation_limit_error = GRPC::InvalidArgument.new("The transaction contains too many mutations")
+      @mock.push_error(update_sql, mutation_limit_error)
+
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithSequence.transaction do
+          TableWithSequence.where(id: 1).update_all(name: "This name will not be updated")
+        end
+      end
+
+      assert_kind_of Google::Cloud::InvalidArgumentError, err.cause
+
+    
+      update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == update_sql }
+      assert_equal 1, update_requests.length, "Should only have been two attempts for the UPDATE DML"
+
+      pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
+      assert_nil pdml_begin_request, "No PDML transaction should have been started"
+    end
+
+    def test_no_fallback_to_pdml_on_table_with_sequence_when_error_is_not_valid
+
+      update_sql_regex = /UPDATE `table_with_sequence`/
+      other_error = GRPC::AlreadyExists.new("This is some other database error")
+      @mock.push_error(update_sql_regex, other_error)
+
+      err = assert_raises ActiveRecord::StatementInvalid do
+        TableWithSequence.transaction isolation: :fallback_to_pdml do
+          TableWithSequence.where(id: 1).update_all(name: "This name will not be updated")
+        end
+      end
+
+      assert_kind_of Google::Cloud::InvalidArgumentError, err.cause
+      update_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql.match(update_sql_regex) }
+      assert_equal 2, update_requests.length, "Should only have been one attempt for the UPDATE DML"
+
+      pdml_begin_request = @mock.requests.find { |req| req.is_a?(BeginTransactionRequest) && req.options&.partitioned_dml }
+      assert_nil pdml_begin_request, "No PDML transaction should have been started"
     end
 
     def test_selects_singers_with_condition
@@ -1067,6 +1311,19 @@ module MockServerTests
       assert_equal sql, execute_sql_request.sql
     end
 
+    def test_query_priority_hint
+      sql = "SELECT  `singers`.* FROM `singers`"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.optimizer_hints("priority: PRIORITY_LOW").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal :PRIORITY_LOW, request.request_options.priority
+      end
+    end
+
     def test_query_annotate_request_tag
       sql = "SELECT `singers`.* FROM `singers` /* request_tag: selecting all singers */"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
@@ -1076,6 +1333,20 @@ module MockServerTests
       select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
       select_requests.each do |request|
         assert request.request_options
+        assert_equal "selecting all singers", request.request_options.request_tag
+      end
+    end
+
+    def test_query_priority_hint_and_request_tag
+      sql = "SELECT  `singers`.* FROM `singers` /* request_tag: selecting all singers */"
+      @mock.put_statement_result sql, MockServerTests::create_random_singers_result(4)
+      Singer.annotate("request_tag: selecting all singers").optimizer_hints("priority: PRIORITY_LOW").all.each do |singer|
+        refute_nil singer.id, "singer.id should not be nil"
+      end
+      select_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql }
+      select_requests.each do |request|
+        assert request.request_options
+        assert_equal :PRIORITY_LOW, request.request_options.priority
         assert_equal "selecting all singers", request.request_options.request_tag
       end
     end
@@ -1306,6 +1577,28 @@ module MockServerTests
       assert_equal 0, commit_requests[0].mutations.length
       execute_requests = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == sql }
       assert_equal 1, execute_requests.length
+    end
+
+    def test_create_with_sequence_and_exclude_from_change_streams
+      sql = "INSERT INTO `table_with_sequence` (`name`) VALUES (@p1) THEN RETURN `id`"
+      @mock.put_statement_result sql, MockServerTests::create_id_returning_result_set(1, 1)
+      
+      record = TableWithSequence.transaction(exclude_txn_from_change_streams: true) do
+        TableWithSequence.create(name: "Foo")
+      end
+
+      assert_equal 1, record.id
+      execute_requests = @mock.requests.select do |req|
+        req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == sql
+      end
+
+      assert_equal 1, execute_requests.length
+      exec_req = execute_requests.first
+
+      refute_nil exec_req.transaction
+      begin_opts = exec_req.transaction&.begin
+      refute_nil begin_opts
+      assert_equal true, begin_opts.exclude_txn_from_change_streams
     end
 
     def test_binary_id

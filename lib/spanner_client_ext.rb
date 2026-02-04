@@ -47,13 +47,14 @@ module Google
       end
 
       class Session
-        def commit_transaction transaction, mutations = []
+        def commit_transaction transaction, mutations = [], commit_options: nil
           ensure_service!
 
           resp = service.commit(
             path,
             mutations,
-            transaction_id: transaction.transaction_id
+            transaction_id: transaction.transaction_id,
+            commit_options: commit_options
           )
           @last_updated_at = Time.now
           Convert.timestamp_to_time resp.commit_timestamp

@@ -1,5 +1,12 @@
 # Changelog
 
+### 2.3.0 (2025-05-30)
+
+#### Features
+
+* Add optimizer hint syntax to set a priority in request options ([#363](https://github.com/googleapis/ruby-spanner-activerecord/issues/363)) 
+* support ruby 3.4 ([#359](https://github.com/googleapis/ruby-spanner-activerecord/issues/359)) 
+
 ### 2.2.0 (2025-04-03)
 
 #### Features

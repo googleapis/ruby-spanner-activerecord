@@ -35,6 +35,25 @@ module MockServerTests
       }
     end
 
+    def test_read_write_transaction_with_commit_options
+      insert_sql = register_insert_singer_result
+      options_to_test = { return_commit_stats: true, max_commit_delay: 1000 }
+      # Start a transaction, passing the commit_options.
+      ActiveRecord::Base.transaction commit_options: options_to_test do
+        Singer.create(first_name: "Test", last_name: "User")
+      end
+      # Find the CommitRequest sent to the mock server.
+      commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
+      assert_equal 1, commit_requests.length
+      commit_request = commit_requests.first
+      refute_nil commit_request
+
+      # Assert that the commit_options are present and have the correct values.
+      assert_equal true, commit_request.return_commit_stats
+      refute_nil commit_request.max_commit_delay
+      assert_equal 1, commit_request.max_commit_delay.seconds
+    end
+
     def test_read_write_transaction_aborted_dml_is_automatically_retried_with_inline_begin
       insert_sql = register_insert_singer_result
 
