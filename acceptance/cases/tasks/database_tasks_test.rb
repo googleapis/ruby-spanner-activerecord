@@ -72,7 +72,9 @@ module ActiveRecord
 
       def test_structure_dump_and_load
         require_relative "../../schema/schema"
+        puts "Creating test schema"
         create_tables_in_test_schema
+        puts "Finished creating test schema"
 
         db_config =
           ActiveRecord::DatabaseConfigurations::HashConfig.new "test",
@@ -86,9 +88,14 @@ module ActiveRecord
           filename = ActiveRecord::Tasks::DatabaseTasks.dump_filename(config_name, :sql)
         elsif ActiveRecord::Tasks::DatabaseTasks.respond_to?(:schema_dump_path)
           filename = ActiveRecord::Tasks::DatabaseTasks.schema_dump_path(db_config, :sql)
+        else
+          raise "No schema file specified"
         end
+        puts "Dumping database schema"
         ActiveRecord::Tasks::DatabaseTasks.dump_schema db_config, :sql
+        puts "Reading expected sql from file #{filename}"
         sql = File.read(filename)
+        puts "Verifying that schema equals #{sql}"
         if ENV["SPANNER_EMULATOR_HOST"] && is_7_1_or_higher?
           assert_equal expected_schema_sql_on_emulator_7_1, sql, msg = sql
         elsif ENV["SPANNER_EMULATOR_HOST"]
@@ -98,10 +105,19 @@ module ActiveRecord
         else
           assert_equal expected_schema_sql_on_production, sql, msg = sql
         end
+
+        puts "Dropping and re-creating database"
         drop_database
         create_database
-        ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql
+        puts "Loading schema"
+        begin
+          ActiveRecord::Tasks::DatabaseTasks.load_schema db_config, :sql, file = filename
+        rescue StandardError => e
+          puts "Loading schema failed: #{e}"
+        end
+        puts "Loaded schema from #{filename}"
         assert_equal tables, connection.tables.sort
+        puts "Schema comparison succeeded"
       end
 
       def expected_schema_sql_on_emulator
