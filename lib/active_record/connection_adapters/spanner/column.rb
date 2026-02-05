@@ -10,13 +10,26 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       class Column < ConnectionAdapters::Column
-        # rubocop:disable Style/OptionalBooleanParameter
-        def initialize(name, default, sql_type_metadata = nil, null = true,
-                       default_function = nil, collation: nil, comment: nil,
-                       primary_key: false, **)
-          # rubocop:enable Style/OptionalBooleanParameter
-          super
-          @primary_key = primary_key
+        VERSION_8_1 = Gem::Version.create "8.1.0"
+
+        if ActiveRecord.gem_version < VERSION_8_1
+          # rubocop:disable Style/OptionalBooleanParameter
+          def initialize(name, default, sql_type_metadata = nil, null = true,
+                         default_function = nil, collation: nil, comment: nil,
+                         primary_key: false, **)
+            # rubocop:enable Style/OptionalBooleanParameter
+            super
+            @primary_key = primary_key
+          end
+        else
+          # rubocop:disable Style/OptionalBooleanParameter
+          def initialize(name, cast_type, default, sql_type_metadata = nil, null = true,
+                         default_function = nil, collation: nil, comment: nil,
+                         primary_key: false, **)
+            # rubocop:enable Style/OptionalBooleanParameter
+            super
+            @primary_key = primary_key
+          end
         end
 
         def auto_incremented_by_db?

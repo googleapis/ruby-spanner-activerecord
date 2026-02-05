@@ -13,6 +13,7 @@ require "active_record/connection_adapters/spanner/database_statements"
 require "active_record/connection_adapters/spanner/schema_statements"
 require "active_record/connection_adapters/spanner/schema_cache"
 require "active_record/connection_adapters/spanner/schema_definitions"
+require "active_record/connection_adapters/spanner/type_mapping"
 require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
 require "active_record/type/spanner/array"
@@ -46,23 +47,6 @@ module ActiveRecord
   module ConnectionAdapters
     class SpannerAdapter < AbstractAdapter
       ADAPTER_NAME = "spanner".freeze
-      NATIVE_DATABASE_TYPES = {
-        primary_key:  "INT64",
-        parent_key:   "INT64",
-        string:       { name: "STRING", limit: "MAX" },
-        text:         { name: "STRING", limit: "MAX" },
-        integer:      { name: "INT64" },
-        bigint:       { name: "INT64" },
-        float:        { name: "FLOAT64" },
-        decimal:      { name: "NUMERIC" },
-        numeric:      { name: "NUMERIC" },
-        datetime:     { name: "TIMESTAMP" },
-        time:         { name: "TIMESTAMP" },
-        date:         { name: "DATE" },
-        binary:       { name: "BYTES", limit: "MAX" },
-        boolean:      { name: "BOOL" },
-        json:         { name: "JSON" }
-      }.freeze
 
       include Spanner::Quoting
       include Spanner::DatabaseStatements
@@ -115,6 +99,10 @@ module ActiveRecord
       end
 
       def native_database_types
+        NATIVE_DATABASE_TYPES
+      end
+
+      def self.native_database_types
         NATIVE_DATABASE_TYPES
       end
 
