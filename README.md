@@ -15,6 +15,7 @@ This project provides a Spanner adapter for ActiveRecord. It supports the follow
 - ActiveRecord 7.1.x with Ruby 3.1 and higher.
 - ActiveRecord 7.2.x with Ruby 3.1 and higher.
 - ActiveRecord 8.0.x with Ruby 3.2 and higher.
+- ActiveRecord 8.1.x with Ruby 3.2 and higher.
 
 Known limitations are listed in the [Limitations](#limitations) section.
 Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/ruby-spanner-activerecord/issues/new).
