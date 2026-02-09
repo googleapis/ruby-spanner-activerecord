@@ -20,6 +20,7 @@ require "active_record/type/spanner/array"
 require "active_record/type/spanner/bytes"
 require "active_record/type/spanner/spanner_active_record_converter"
 require "active_record/type/spanner/time"
+require "active_record/type/spanner/uuid"
 require "arel/visitors/spanner"
 require "activerecord_spanner_adapter/base"
 require "activerecord_spanner_adapter/connection"
@@ -250,6 +251,7 @@ module ActiveRecord
           register_class_with_limit m, %r{^STRING}i, Type::String
           m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
           m.register_type "JSON", ActiveRecord::Type::Json.new
+          m.register_type "UUID", ActiveRecord::Type::Spanner::Uuid.new
 
           register_array_types m
         end
@@ -265,6 +267,7 @@ module ActiveRecord
           m.register_type %r{^ARRAY<STRING\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::String.new)
           m.register_type %r{^ARRAY<TIMESTAMP>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Time.new)
           m.register_type %r{^ARRAY<JSON>}i, Type::Spanner::Array.new(ActiveRecord::Type::Json.new)
+          m.register_type %r{^ARRAY<UUID>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Uuid.new)
         end
 
         def extract_limit sql_type

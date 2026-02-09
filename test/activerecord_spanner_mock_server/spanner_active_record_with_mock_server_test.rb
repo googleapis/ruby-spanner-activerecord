@@ -6,6 +6,7 @@
 #
 # frozen_string_literal: true
 
+require "securerandom"
 require "sqlite3"
 require_relative "./base_spanner_mock_server_test"
 require_relative "models/other_adapter"
@@ -960,10 +961,13 @@ module MockServerTests
     end
 
     def test_create_all_types_using_mutation
+      uuid_value = SecureRandom.uuid
+      uuid_array = [SecureRandom.uuid, nil, SecureRandom.uuid]
       AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
                       col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
                       col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
                       col_json: { kind: "user_renamed", change: %w[jack john]},
+                      col_uuid: uuid_value,
                       col_array_string: ["string1", nil, "string2"],
                       col_array_int64: [100, nil, 200],
                       col_array_float64: [3.14, nil, 2.0/3.0],
@@ -974,7 +978,8 @@ module MockServerTests
                       col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
                                             ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
                       col_array_json: [{ kind: "user_renamed", change: %w[jack john]}, nil, \
-                                       { kind: "user_renamed", change: %w[alice meredith]}]
+                                       { kind: "user_renamed", change: %w[alice meredith]}],
+                      col_array_uuid: uuid_array
 
       commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
       assert_equal 1, commit_requests.length
@@ -994,6 +999,7 @@ module MockServerTests
       assert_equal "col_date", mutation.insert.columns[col_index += 1]
       assert_equal "col_timestamp", mutation.insert.columns[col_index += 1]
       assert_equal "col_json", mutation.insert.columns[col_index += 1]
+      assert_equal "col_uuid", mutation.insert.columns[col_index += 1]
 
       assert_equal "col_array_string", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_int64", mutation.insert.columns[col_index += 1]
@@ -1004,6 +1010,7 @@ module MockServerTests
       assert_equal "col_array_date", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_timestamp", mutation.insert.columns[col_index += 1]
       assert_equal "col_array_json", mutation.insert.columns[col_index += 1]
+      assert_equal "col_array_uuid", mutation.insert.columns[col_index += 1]
 
       value_index = -1
       assert_equal 1, mutation.insert.values.length
@@ -1016,6 +1023,7 @@ module MockServerTests
       assert_equal "2021-06-23", mutation.insert.values[0][value_index += 1]
       assert_equal "2021-06-23T15:08:21.000000000Z", mutation.insert.values[0][value_index += 1]
       assert_equal "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", mutation.insert.values[0][value_index += 1]
+      assert_equal uuid_value, mutation.insert.values[0][value_index += 1]
 
       assert_equal create_list_value(["string1", nil, "string2"]), mutation.insert.values[0][value_index += 1]
       assert_equal create_list_value(["100", nil, "200"]), mutation.insert.values[0][value_index += 1]
@@ -1035,34 +1043,33 @@ module MockServerTests
           nil,
           "2021-06-24T15:08:21.000000000Z"
         ]), mutation.insert.values[0][value_index += 1]
-      json_list = create_list_value([
-                                      "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}",
-                                      nil,
-                                      "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"
-                                    ])
       assert_equal create_list_value([
           "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}",
           nil,
           "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"
         ]), mutation.insert.values[0][value_index += 1]
+      assert_equal create_list_value(uuid_array), mutation.insert.values[0][value_index += 1]
     end
 
     def test_create_all_types_using_dml
       sql = "INSERT INTO `all_types` (`col_string`, `col_int64`, `col_float64`, `col_numeric`, `col_bool`, " \
-            "`col_bytes`, `col_date`, `col_timestamp`, `col_json`, `col_array_string`, `col_array_int64`, " \
+            "`col_bytes`, `col_date`, `col_timestamp`, `col_json`, `col_uuid`, `col_array_string`, `col_array_int64`, " \
             "`col_array_float64`, `col_array_numeric`, `col_array_bool`, `col_array_bytes`, `col_array_date`, "\
-            "`col_array_timestamp`, `col_array_json`, `id`) "\
+            "`col_array_timestamp`, `col_array_json`, `col_array_uuid`, `id`) "\
             "VALUES (@p1, @p2, @p3, @p4, @p5, @p6, " \
             "@p7, @p8, @p9, @p10, @p11, " \
             "@p12, @p13, @p14, @p15, " \
-            "@p16, @p17, @p18, @p19)"
+            "@p16, @p17, @p18, @p19, @p20, @p21)"
       @mock.put_statement_result sql, StatementResult.new(1)
 
+      uuid_value = SecureRandom.uuid
+      uuid_array = [SecureRandom.uuid, nil, SecureRandom.uuid]
       AllTypes.transaction do
         AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
                         col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
                         col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
                         col_json: { kind: "user_renamed", change: %w[jack john]},
+                        col_uuid: uuid_value,
                         col_array_string: ["string1", nil, "string2"],
                         col_array_int64: [100, nil, 200],
                         col_array_float64: [3.14, nil, 2.0/3.0],
@@ -1073,7 +1080,8 @@ module MockServerTests
                         col_array_timestamp: [::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"), nil, \
                                               ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00")],
                         col_array_json: [{ kind: "user_renamed", change: %w[jack john]}, nil, \
-                                         { kind: "user_renamed", change: %w[alice meredith]}]
+                                         { kind: "user_renamed", change: %w[alice meredith]}],
+                        col_array_uuid: uuid_array
       end
 
       commit_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }
@@ -1101,40 +1109,43 @@ module MockServerTests
       assert_equal :TIMESTAMP, request.param_types["p8"].code
       assert_equal "{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", request.params["p9"]
       assert_equal :JSON, request.param_types["p9"].code
+      assert_equal uuid_value, request.params["p10"]
+      assert_equal :UUID, request.param_types["p10"].code
 
-      assert_equal create_list_value(["string1", nil, "string2"]), request.params["p10"]
-      assert_equal :ARRAY, request.param_types["p10"].code
-      assert_equal :STRING, request.param_types["p10"].array_element_type.code
-      assert_equal create_list_value(["100", nil, "200"]), request.params["p11"]
+      assert_equal create_list_value(["string1", nil, "string2"]), request.params["p11"]
       assert_equal :ARRAY, request.param_types["p11"].code
-      assert_equal :INT64, request.param_types["p11"].array_element_type.code
-      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["p12"]
+      assert_equal :STRING, request.param_types["p11"].array_element_type.code
+      assert_equal create_list_value(["100", nil, "200"]), request.params["p12"]
       assert_equal :ARRAY, request.param_types["p12"].code
-      assert_equal :FLOAT64, request.param_types["p12"].array_element_type.code
-      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["p13"]
+      assert_equal :INT64, request.param_types["p12"].array_element_type.code
+      assert_equal create_list_value([3.14, nil, 2.0/3.0]), request.params["p13"]
       assert_equal :ARRAY, request.param_types["p13"].code
-      assert_equal :NUMERIC, request.param_types["p13"].array_element_type.code
-      assert_equal create_list_value([true, nil, false]), request.params["p14"]
+      assert_equal :FLOAT64, request.param_types["p13"].array_element_type.code
+      assert_equal create_list_value(["6.626", nil, "3.2"]), request.params["p14"]
       assert_equal :ARRAY, request.param_types["p14"].code
-      assert_equal :BOOL, request.param_types["p14"].array_element_type.code
-      assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
-                   request.params["p15"]
+      assert_equal :NUMERIC, request.param_types["p14"].array_element_type.code
+      assert_equal create_list_value([true, nil, false]), request.params["p15"]
       assert_equal :ARRAY, request.param_types["p15"].code
-      assert_equal :BYTES, request.param_types["p15"].array_element_type.code
-      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["p16"]
+      assert_equal :BOOL, request.param_types["p15"].array_element_type.code
+      assert_equal create_list_value([Base64.urlsafe_encode64("bytes1"), nil, Base64.urlsafe_encode64("bytes2")]),
+                   request.params["p16"]
       assert_equal :ARRAY, request.param_types["p16"].code
-      assert_equal :DATE, request.param_types["p16"].array_element_type.code
-      assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
-                   request.params["p17"]
+      assert_equal :BYTES, request.param_types["p16"].array_element_type.code
+      assert_equal create_list_value(["2021-06-23", nil, "2021-06-24"]), request.params["p17"]
       assert_equal :ARRAY, request.param_types["p17"].code
-      assert_equal :TIMESTAMP, request.param_types["p17"].array_element_type.code
+      assert_equal :DATE, request.param_types["p17"].array_element_type.code
       assert_equal create_list_value(["2021-06-23T15:08:21.000000000Z", nil, "2021-06-24T15:08:21.000000000Z"]),
-                   request.params["p17"]
+                   request.params["p18"]
       assert_equal :ARRAY, request.param_types["p18"].code
-      assert_equal :JSON, request.param_types["p18"].array_element_type.code
+      assert_equal :TIMESTAMP, request.param_types["p18"].array_element_type.code
       assert_equal create_list_value(["{\"kind\":\"user_renamed\",\"change\":[\"jack\",\"john\"]}", nil, \
                                       "{\"kind\":\"user_renamed\",\"change\":[\"alice\",\"meredith\"]}"]),
-                   request.params["p18"]
+                   request.params["p19"]
+      assert_equal :ARRAY, request.param_types["p19"].code
+      assert_equal :JSON, request.param_types["p19"].array_element_type.code
+      assert_equal create_list_value(uuid_array), request.params["p20"]
+      assert_equal :ARRAY, request.param_types["p20"].code
+      assert_equal :UUID, request.param_types["p20"].array_element_type.code
     end
 
     def test_get_json
@@ -1166,6 +1177,39 @@ module MockServerTests
       row = AllTypes.find_by col_int64: 1
       assert_equal ({"key"=>"value"}), row.col_json
       assert_equal [{"key1"=>"value1"}, nil, {"key2"=>"value2"}], row.col_array_json
+    end
+
+    def test_get_uuid
+      uuid_value = SecureRandom.uuid
+      uuid_array_value = [SecureRandom.uuid, nil, SecureRandom.uuid]
+      sql = "SELECT `all_types`.* FROM `all_types` WHERE `all_types`.`col_int64` = @p1 LIMIT @p2"
+      col_id = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_int64", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
+      col_uuid = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_uuid", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::UUID)
+      col_uuid_array = Google::Cloud::Spanner::V1::StructType::Field.new name: "col_array_uuid", type: Google::Cloud::Spanner::V1::Type.new(
+        code: Google::Cloud::Spanner::V1::TypeCode::ARRAY,
+        array_element_type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::UUID)
+      )
+      metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new
+      metadata.row_type.fields.push(col_id, col_uuid, col_uuid_array)
+      result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
+      row = Google::Protobuf::ListValue.new
+      uuid_array = Google::Protobuf::ListValue.new
+      uuid_array.values.push(
+        Google::Protobuf::Value.new(string_value: uuid_array_value[0]),
+        Google::Protobuf::Value.new(null_value: "NULL_VALUE"),
+        Google::Protobuf::Value.new(string_value: uuid_array_value[2])
+      )
+      row.values.push(
+        Google::Protobuf::Value.new(string_value: "1"),
+        Google::Protobuf::Value.new(string_value: uuid_value),
+        Google::Protobuf::Value.new(list_value: uuid_array)
+      )
+      result_set.rows.push row
+      @mock.put_statement_result sql, StatementResult.new(result_set)
+
+      row = AllTypes.find_by col_int64: 1
+      assert_equal uuid_value, row.col_uuid
+      assert_equal uuid_array_value, row.col_array_uuid
     end
 
     def test_delete_associated_records

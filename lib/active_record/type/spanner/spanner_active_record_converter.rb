@@ -37,6 +37,7 @@ module ActiveRecord
           when ActiveModel::Type::DateTime, ActiveModel::Type::Time, ActiveRecord::Type::Spanner::Time then :TIMESTAMP
           when ActiveModel::Type::Date then :DATE
           when ActiveRecord::Type::Json then :JSON
+          when ActiveRecord::Type::Spanner::Uuid then :UUID
           when ActiveRecord::Type::Spanner::Array then [convert_active_model_type_to_spanner(type.element_type)]
           end
         end

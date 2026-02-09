@@ -30,7 +30,8 @@ module ActiveRecord
         AllTypes.create col_string: "string", col_int64: 100, col_float64: 3.14, col_numeric: 6.626, col_bool: true,
           col_bytes: StringIO.new("bytes"), col_date: ::Date.new(2021, 6, 23),
           col_timestamp: ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00"),
-          col_json: { kind: "user_renamed", change: %w[jack john]},
+          col_json: { kind: "user_renamed", change: %w[jack john] },
+          col_uuid: "3840ba25-55df-4cb7-a210-1fe37278954f",
           col_array_string: ["string1", nil, "string2"],
           col_array_int64: [100, nil, 200, "300"],
           col_array_float64: [3.14, nil, 2.0/3.0, "3.14"],
@@ -42,7 +43,8 @@ module ActiveRecord
                                 ::Time.new(2021, 6, 24, 17, 8, 21, "+02:00"), "2021-06-25 17:08:21 +02:00"],
           col_array_json: [{ kind: "user_renamed", change: %w[jack john]}, nil, \
                              { kind: "user_renamed", change: %w[alice meredith]},
-                             "{\"kind\":\"user_renamed\",\"change\":[\"bob\",\"carol\"]}"]
+                             "{\"kind\":\"user_renamed\",\"change\":[\"bob\",\"carol\"]}"],
+          col_array_uuid: ["e986c19c-9bf3-44f8-851d-710ad3d0067b", nil, "a02f50b6-2860-48dc-acd6-49b42abc3094"]
       end
 
       def test_create_record
@@ -67,6 +69,7 @@ module ActiveRecord
           assert_equal ::Time.new(2021, 6, 23, 17, 8, 21, "+02:00").utc, record.col_timestamp.utc
           assert_equal ({"kind" => "user_renamed", "change" => %w[jack john]}),
                        record.col_json
+          assert_equal "3840ba25-55df-4cb7-a210-1fe37278954f", record.col_uuid
 
           assert_equal ["string1", nil, "string2"], record.col_array_string
           assert_equal [100, nil, 200, 300], record.col_array_int64
@@ -85,6 +88,7 @@ module ActiveRecord
                         {"kind" => "user_renamed", "change" => %w[alice meredith]}, \
                         "{\"kind\":\"user_renamed\",\"change\":[\"bob\",\"carol\"]}"],
                        record.col_array_json
+          assert_equal ["e986c19c-9bf3-44f8-851d-710ad3d0067b", nil, "a02f50b6-2860-48dc-acd6-49b42abc3094"], record.col_array_uuid
         end
       end
 
@@ -100,6 +104,7 @@ module ActiveRecord
                           col_date: ::Date.new(2021, 6, 28),
                           col_timestamp: ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00"),
                           col_json: { kind: "user_created", change: %w[jack alice]},
+                          col_uuid: "b493579f-f4f6-41f6-a520-8373ecf1cde4",
                           col_array_string: ["new string 1", "new string 2"],
                           col_array_int64: [300, 200, 100],
                           col_array_float64: [1.1, 2.2, 3.3],
@@ -108,7 +113,8 @@ module ActiveRecord
                           col_array_bytes: [StringIO.new("new bytes 1"), StringIO.new("new bytes 2")],
                           col_array_date: [::Date.new(2021, 6, 28)],
                           col_array_timestamp: [::Time.utc(2020, 12, 31, 0, 0, 0)],
-                          col_array_json: [{ kind: "user_created", change: %w[jack alice]}]
+                          col_array_json: [{ kind: "user_created", change: %w[jack alice]}],
+                          col_array_uuid: ["a664b1eb-4dc7-4795-9ed8-28fab6644cea", nil, "1c794d81-bc6d-4771-9c92-a920d28a7aaa"]
           end
 
           # Verify that the record was updated.
@@ -123,6 +129,7 @@ module ActiveRecord
           assert_equal ::Time.new(2021, 6, 28, 11, 22, 21, "+02:00").utc, record.col_timestamp.utc
           assert_equal ({"kind" => "user_created", "change" => %w[jack alice]}),
                      record.col_json
+          assert_equal "b493579f-f4f6-41f6-a520-8373ecf1cde4", record.col_uuid
 
           assert_equal ["new string 1", "new string 2"], record.col_array_string
           assert_equal [300, 200, 100], record.col_array_int64
@@ -135,6 +142,8 @@ module ActiveRecord
           assert_equal [::Time.utc(2020, 12, 31, 0, 0, 0)], record.col_array_timestamp.map(&:utc)
           assert_equal [{"kind" => "user_created", "change" => %w[jack alice]}],
                        record.col_array_json
+          assert_equal ["a664b1eb-4dc7-4795-9ed8-28fab6644cea", nil, "1c794d81-bc6d-4771-9c92-a920d28a7aaa"],
+                       record.col_array_uuid
         end
       end
 
@@ -151,7 +160,8 @@ module ActiveRecord
               col_array_bytes: [],
               col_array_date: [],
               col_array_timestamp: [],
-              col_array_json: []
+              col_array_json: [],
+              col_array_uuid: []
           end
 
           record = AllTypes.find record.id
@@ -164,6 +174,7 @@ module ActiveRecord
           assert_equal [], record.col_array_date
           assert_equal [], record.col_array_timestamp
           assert_equal [], record.col_array_json
+          assert_equal [], record.col_array_uuid
         end
       end
     end

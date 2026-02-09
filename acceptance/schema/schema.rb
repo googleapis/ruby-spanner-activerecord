@@ -24,6 +24,7 @@ def create_tables_in_test_schema
         t.column :col_date, :date
         t.column :col_timestamp, :datetime
         t.column :col_json, :json
+        t.column :col_uuid, :uuid
 
         t.column :col_array_string, :string, array: true
         t.column :col_array_int64, :bigint, array: true
@@ -34,6 +35,7 @@ def create_tables_in_test_schema
         t.column :col_array_date, :date, array: true
         t.column :col_array_timestamp, :datetime, array: true
         t.column :col_array_json, :json, array: true
+        t.column :col_array_uuid, :uuid, array: true
       end
 
       create_table :firms do |t|
