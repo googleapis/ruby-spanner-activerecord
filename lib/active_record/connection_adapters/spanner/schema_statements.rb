@@ -22,6 +22,7 @@ module ActiveRecord
       #
       module SchemaStatements
         VERSION_7_2 = Gem::Version.create "7.2.0"
+        VERSION_8_1 = Gem::Version.create "8.1.0"
 
         def current_database
           @connection.database_id
@@ -116,18 +117,37 @@ module ActiveRecord
           information_schema { |i| i.table_columns table_name }
         end
 
-        def new_column_from_field _table_name, field, _definitions = nil
-          Spanner::Column.new \
-            field.name,
-            field.default,
-            fetch_type_metadata(field.spanner_type,
-                                field.ordinal_position,
-                                field.allow_commit_timestamp,
-                                field.generated,
-                                is_identity: field.is_identity),
-            field.nullable,
-            field.default_function,
-            primary_key: field.primary_key
+        if ActiveRecord.gem_version < VERSION_8_1
+          def new_column_from_field _table_name, field, _definitions = nil
+            Spanner::Column.new \
+              field.name,
+              field.default,
+              fetch_type_metadata(field.spanner_type,
+                                  field.ordinal_position,
+                                  field.allow_commit_timestamp,
+                                  field.generated,
+                                  is_identity: field.is_identity),
+              field.nullable,
+              field.default_function,
+              primary_key: field.primary_key
+          end
+        else
+          def new_column_from_field _table_name, field, _definitions = nil
+            cast_type = type_map.lookup field.type
+            raise ArgumentError, "unknown type: `#{field.type}`" if cast_type.nil?
+            Spanner::Column.new \
+              field.name,
+              cast_type,
+              field.default,
+              fetch_type_metadata(field.spanner_type,
+                                  field.ordinal_position,
+                                  field.allow_commit_timestamp,
+                                  field.generated,
+                                  is_identity: field.is_identity),
+              field.nullable,
+              field.default_function,
+              primary_key: field.primary_key
+          end
         end
 
         def fetch_type_metadata sql_type, ordinal_position = nil, allow_commit_timestamp = nil, generated = nil,

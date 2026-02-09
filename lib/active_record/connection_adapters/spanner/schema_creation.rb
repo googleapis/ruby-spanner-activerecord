@@ -138,7 +138,11 @@ module ActiveRecord
             sql << " NOT NULL"
           end
           if options.key? :default
-            sql << " DEFAULT (#{quote_default_expression options[:default], column})"
+            sql << if respond_to? :quote_default_expression_for_column_definition, :include_private
+                     " DEFAULT (#{quote_default_expression_for_column_definition options[:default], column})"
+                   else
+                     " DEFAULT (#{quote_default_expression options[:default], column})"
+                   end
           elsif column.type == :primary_key
             if @connection.use_auto_increment?
               sql << " AUTO_INCREMENT"

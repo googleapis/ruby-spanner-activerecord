@@ -6,6 +6,7 @@
 
 require "google/cloud/spanner"
 require "spanner_client_ext"
+require "active_record/connection_adapters/spanner/type_mapping"
 require "activerecord_spanner_adapter/information_schema"
 require_relative "../active_record/connection_adapters/spanner/errors/transaction_mutation_limit_exceeded_error"
 
@@ -41,6 +42,10 @@ module ActiveRecordSpannerAdapter
           lib_version: ActiveRecordSpannerAdapter::VERSION
         )
       end
+    end
+
+    def native_database_types
+      NATIVE_DATABASE_TYPES
     end
 
     # Clears the cached information about the underlying information schemas.
