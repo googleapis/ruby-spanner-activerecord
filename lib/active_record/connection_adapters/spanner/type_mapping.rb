@@ -21,5 +21,6 @@ NATIVE_DATABASE_TYPES = {
   date:         { name: "DATE" },
   binary:       { name: "BYTES", limit: "MAX" },
   boolean:      { name: "BOOL" },
-  json:         { name: "JSON" }
+  json:         { name: "JSON" },
+  uuid:         { name: "UUID" }
 }.freeze

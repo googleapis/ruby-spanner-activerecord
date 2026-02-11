@@ -537,6 +537,17 @@ module MockServerTests
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "col_uuid"),
+      Value.new(string_value: "UUID"),
+      Value.new(string_value: "YES"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "11"),
+      Value.new(string_value: "NO"),
+      )
+    result_set.rows.push row
 
     row = ListValue.new
     row.values.push(
@@ -545,7 +556,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "11"),
+      Value.new(string_value: "12"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -556,7 +567,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "12"),
+      Value.new(string_value: "13"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -567,7 +578,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "13"),
+      Value.new(string_value: "14"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -578,7 +589,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "14"),
+      Value.new(string_value: "15"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -589,7 +600,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "15"),
+      Value.new(string_value: "16"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -600,7 +611,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "16"),
+      Value.new(string_value: "17"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -611,7 +622,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "17"),
+      Value.new(string_value: "18"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -622,7 +633,7 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "18"),
+      Value.new(string_value: "19"),
       Value.new(string_value: "NO"),
     )
     result_set.rows.push row
@@ -633,9 +644,20 @@ module MockServerTests
       Value.new(string_value: "YES"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-      Value.new(string_value: "19"),
+      Value.new(string_value: "20"),
       Value.new(string_value: "NO"),
     )
+    result_set.rows.push row
+    row = ListValue.new
+    row.values.push(
+      Value.new(string_value: "col_array_uuid"),
+      Value.new(string_value: "ARRAY<UUID>"),
+      Value.new(string_value: "YES"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(null_value: "NULL_VALUE"),
+      Value.new(string_value: "21"),
+      Value.new(string_value: "NO"),
+      )
     result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
