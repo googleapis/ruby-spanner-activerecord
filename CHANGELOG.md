@@ -1,5 +1,15 @@
 # Changelog
 
+### 2.5.0 (2026-02-11)
+
+#### Features
+
+* add support for the UUID data type ([#387](https://github.com/googleapis/ruby-spanner-activerecord/issues/387)) 
+* support ActiveRecord 8.1.x ([#385](https://github.com/googleapis/ruby-spanner-activerecord/issues/385)) 
+#### Documentation
+
+* update README to reflect support for Rails 8.1.x ([#388](https://github.com/googleapis/ruby-spanner-activerecord/issues/388)) 
+
 ### 2.4.0 (2026-02-04)
 
 #### Features
