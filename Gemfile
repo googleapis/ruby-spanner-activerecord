@@ -8,7 +8,7 @@ gem "activerecord", ar_version
 gem "ostruct"
 gem "minitest", "~> 5.27.0"
 gem "minitest-rg", "~> 5.4.0"
-gem "pry", "~> 0.14.2"
+gem "pry", "~> 0.16.0"
 gem "pry-byebug", "~> 3.11.0"
 gem "mutex_m"
 # Add sqlite3 for testing for compatibility with other adapters.
