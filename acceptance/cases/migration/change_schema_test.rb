@@ -300,7 +300,7 @@ module ActiveRecord
 
         column = connection.columns(:testings).find { |c| c.name == "foo" }
 
-        assert_equal :time, column.type
+        assert_equal :datetime, column.type
         assert_equal "TIMESTAMP", column.sql_type
       end
 

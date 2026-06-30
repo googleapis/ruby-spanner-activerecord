@@ -9,7 +9,24 @@
 module ActiveRecord
   module Type
     module Spanner
-      class Time < ActiveRecord::Type::Time
+      class Time < ActiveRecord::Type::DateTime
+        def cast_value value
+          if value.is_a? ::String
+            return if value.empty?
+            begin
+              if ActiveRecord.default_timezone == :utc
+                ::DateTime.parse(value).to_time.getutc
+              else
+                ::Time.parse(value).getlocal
+              end
+            rescue StandardError
+              super
+            end
+          else
+            super
+          end
+        end
+
         def serialize_with_isolation_level value, isolation_level
           if value == :commit_timestamp
             return "PENDING_COMMIT_TIMESTAMP()" if isolation_level == :dml
@@ -24,18 +41,14 @@ module ActiveRecord
           val.acts_like?(:time) ? val.utc.rfc3339(9) : val
         end
 
-        def user_input_in_time_zone value
-          return value.in_time_zone if value.is_a? ::Time
-          super value
+        def value_from_multiparameter_assignment values
+          defaults = { 1 => 2000, 2 => 1, 3 => 1 }
+          super defaults.merge(values)
         end
 
         private
 
-        def cast_value value
-          if value.is_a? ::String
-            value = value.empty? ? nil : ::Time.parse(value)
-          end
-
+        def apply_seconds_precision value
           value
         end
       end

@@ -22,3 +22,8 @@ end
 # Required for samples
 gem "docker-api"
 gem "sinatra-activerecord"
+
+# Force google-protobuf to compile from source to avoid ABI issues in CI
+if ENV["CI"]
+  gem "google-protobuf", force_ruby_platform: true
+end
