@@ -6,6 +6,7 @@
 
 require_relative "config/environment"
 require "docker"
+require "google/cloud/spanner"
 
 def fetch_samples
   Dir.entries(".").select do |entry|
@@ -50,6 +51,25 @@ task :run, [:sample] do |_t, args|
   run_sample sample
 end
 
+def wait_for_emulator
+  puts "Waiting for Spanner emulator to be ready..."
+  spanner = Google::Cloud::Spanner.new project: "test-project", emulator_host: "127.0.0.1:9010"
+  retries = 20
+  begin
+    # Make a cheap API call to verify the emulator is actually responding
+    spanner.instances
+    puts "Spanner emulator is ready."
+  rescue StandardError => e
+    if retries > 0
+      retries -= 1
+      sleep 0.5
+      retry
+    else
+      puts "Timed out waiting for Spanner emulator. Last error: #{e.message}"
+    end
+  end
+end
+
 def run_sample sample
   puts "Running #{sample}"
   puts "Downloading Spanner emulator image..."
@@ -68,6 +88,7 @@ def run_sample sample
   begin
     puts "Starting Spanner emulator..."
     container.start!
+    wait_for_emulator
     Dir.chdir sample do
       sh "ruby ../bin/create_emulator_instance.rb"
       sh "rake db:migrate"
