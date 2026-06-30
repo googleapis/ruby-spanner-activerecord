@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.5.1 (2026-06-30)
+
+#### Bug Fixes
+
+* use DateTime instead of Time for time data type ([#395](https://github.com/googleapis/ruby-spanner-activerecord/issues/395)) 
+
 ### 2.5.0 (2026-02-11)
 
 #### Features
