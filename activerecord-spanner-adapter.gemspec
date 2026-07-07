@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename f }
   spec.require_paths = ["lib"]
 
-  spec.required_ruby_version = ">= 3.1"
+  spec.required_ruby_version = ">= 3.2"
 
   spec.add_dependency "google-cloud-spanner", "~> 2.25"
   spec.add_dependency "google-cloud-spanner-v1", "~> 1.7"
@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency "autotest-suffix", "~> 1.1"
   spec.add_development_dependency "bundler", [">= 2.0", "< 5.0"]
-  spec.add_development_dependency "google-style", "~> 1.31.0"
+  spec.add_development_dependency "google-style", "~> 1.32.0"
   spec.add_development_dependency "minitest", "~> 5.10"
   spec.add_development_dependency "minitest-autotest", "~> 1.0"
   spec.add_development_dependency "minitest-focus", "~> 1.1"

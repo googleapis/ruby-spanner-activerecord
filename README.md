@@ -11,9 +11,9 @@ for Spanner PostgreSQL-dialect databases.__
 
 This project provides a Spanner adapter for ActiveRecord. It supports the following versions:
 
-- ActiveRecord 7.0.x with Ruby 3.1 and higher.
-- ActiveRecord 7.1.x with Ruby 3.1 and higher.
-- ActiveRecord 7.2.x with Ruby 3.1 and higher.
+- ActiveRecord 7.0.x with Ruby 3.2 and higher.
+- ActiveRecord 7.1.x with Ruby 3.2 and higher.
+- ActiveRecord 7.2.x with Ruby 3.2 and higher.
 - ActiveRecord 8.0.x with Ruby 3.2 and higher.
 - ActiveRecord 8.1.x with Ruby 3.2 and higher.
 
