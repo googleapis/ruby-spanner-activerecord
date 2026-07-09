@@ -1,6 +1,10 @@
+name: samples
+
+permissions:
+  contents: read
+
 on:
   pull_request:
-name: samples
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,9 +31,11 @@ jobs:
     env:
       AR_VERSION: ${{ matrix.ar }}
     steps:
-    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        persist-credentials: false
     - name: Set up Ruby
-      uses: ruby/setup-ruby@9eb537ca036ebaed86729dcb9309076e4c5c3b74 # v1
+      uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
       with:
         bundler-cache: false
         ruby-version: ${{ matrix.ruby }}
