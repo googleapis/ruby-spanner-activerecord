@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.6.0 (2026-07-09)
+
+#### Features
+
+* Ruby 3.2 minimum and Ruby 4.0 support ([#397](https://github.com/googleapis/ruby-spanner-activerecord/issues/397)) 
+
 ### 2.5.1 (2026-06-30)
 
 #### Bug Fixes
