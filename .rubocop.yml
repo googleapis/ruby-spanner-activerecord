@@ -4,7 +4,9 @@ inherit_gem:
 AllCops:
   Exclude:
     - "activerecord-spanner-adapter.gemspec"
+    - "Appraisals"
     - "Gemfile"
+    - "gemfiles/*"
     - "Rakefile"
     - "bin/*"
     - "test/**/*"

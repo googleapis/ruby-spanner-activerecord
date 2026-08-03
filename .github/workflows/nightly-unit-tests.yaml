@@ -16,23 +16,23 @@ jobs:
       matrix:
         # Run acceptance tests all supported combinations of Ruby and ActiveRecord.
         ruby: ["3.2", "3.3", "3.4", "4.0"]
-        ar: ["~> 7.0.0", "~> 7.1.0", "~> 7.2.0", "~> 8.0.0", "~> 8.1.0"]
+        ar: ["7.0", "7.1", "7.2", "8.0", "8.1"]
         # Exclude combinations that are not supported.
         exclude:
           - ruby: "3.4"
-            ar: "~> 7.0.0"
+            ar: "7.0"
           - ruby: "3.4"
-            ar: "~> 7.1.0"
+            ar: "7.1"
           - ruby: "3.4"
-            ar: "~> 7.2.0"
+            ar: "7.2"
           - ruby: "4.0"
-            ar: "~> 7.0.0"
+            ar: "7.0"
           - ruby: "4.0"
-            ar: "~> 7.1.0"
+            ar: "7.1"
           - ruby: "4.0"
-            ar: "~> 7.2.0"
+            ar: "7.2"
     env:
-      AR_VERSION: ${{ matrix.ar }}
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.ar }}.gemfile
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
