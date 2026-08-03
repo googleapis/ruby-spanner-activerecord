@@ -55,9 +55,9 @@ class Application
       application:  "example-app",
       action:       "run-test-application",
       pid:          -> { Process.pid.to_s },
-      socket:       ->(context) { context[:connection].pool.db_config.socket },
-      db_host:      ->(context) { context[:connection].pool.db_config.host },
-      database:     ->(context) { context[:connection].pool.db_config.database }
+      socket:       ->(context) { (context[:connection] || ActiveRecord::Base.connection).pool.db_config.socket },
+      db_host:      ->(context) { (context[:connection] || ActiveRecord::Base.connection).pool.db_config.host },
+      database:     ->(context) { (context[:connection] || ActiveRecord::Base.connection).pool.db_config.database }
     }
   end
 end
