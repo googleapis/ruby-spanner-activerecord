@@ -6,6 +6,7 @@
 #
 # frozen_string_literal: true
 
+require_relative "../activerecord_spanner_mock_server/base_spanner_mock_server_test"
 require_relative "./model_helper"
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
@@ -407,6 +408,32 @@ module TestInterleavedTables
         assert_equal singer.singerid, req.params["p2"].to_i
         assert_equal album.albumid, req.params["p3"].to_i
       end
+    end
+
+    def test_create_child_records
+      select_singer_sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
+      insert_album_sql = "INSERT INTO `albums` (`singerid`, `title`, `albumid`) VALUES (@p1, @p2, @p3)"
+      insert_track_sql = "INSERT INTO `tracks` (`trackid`, `singerid`, `albumid`) VALUES (@p1, @p2, @p3)"
+      @mock.put_statement_result select_singer_sql, TestInterleavedTables::create_random_singers_result(1)
+      @mock.put_statement_result insert_album_sql, StatementResult.new(1)
+      @mock.put_statement_result insert_track_sql, StatementResult.new(1)
+
+      singer = Singer.find 1
+
+      album = Album.new title: "Album 1", singer: singer
+      album.save!
+
+      # Create a new track for an existing album.
+      track = album.tracks.create trackid: 3
+
+      commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
+      assert_empty commit_request.mutations
+
+      insert_track_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_track_sql }
+      assert_equal 1, insert_track_requests.length
+      assert_equal track.trackid, insert_track_requests[0].params["p1"].to_i
+      assert_equal singer.singerid, insert_track_requests[0].params["p2"].to_i
+      assert_equal album.albumid, insert_track_requests[0].params["p3"].to_i
     end
 
     def test_delete_all

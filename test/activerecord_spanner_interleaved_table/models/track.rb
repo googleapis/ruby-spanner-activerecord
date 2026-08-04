@@ -10,8 +10,8 @@ module TestInterleavedTables
   class Track < ActiveRecord::Base
     self.primary_keys = :singerid, :albumid, :trackid
 
-    belongs_to :album, foreign_key: [:singerid, :albumid]
-    belongs_to :singer, foreign_key: :singerid
+    belongs_to :album, :class_name => "Album", foreign_key: [:singerid, :albumid]
+    belongs_to :singer, :class_name => "Singer", foreign_key: :singerid
 
     def album=value
       super
