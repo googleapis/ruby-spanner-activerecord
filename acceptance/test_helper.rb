@@ -17,7 +17,6 @@ require "active_support/testing/stream"
 require "activerecord-spanner-adapter"
 require "active_record/connection_adapters/spanner_adapter"
 require "securerandom"
-require "composite_primary_keys" if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
 
 # rubocop:disable Style/GlobalVars
 #
@@ -27,27 +26,16 @@ end
 $spanner_test_database = "ar-test-#{SecureRandom.hex 4}"
 
 def connector_config
-  if ActiveRecord.gem_version >= Gem::Version.create("7.1.0")
-    {
-      "adapter" => "spanner",
-      "emulator_host" => ENV["SPANNER_EMULATOR_HOST"],
-      "project" => ENV["SPANNER_TEST_PROJECT"],
-      "instance" => ENV["SPANNER_TEST_INSTANCE"],
-      "credentials" => ENV["SPANNER_TEST_KEYFILE"],
-      "database" => $spanner_test_database,
-      "default_sequence_kind" => "BIT_REVERSED_POSITIVE",
-      "use_client_side_id_for_mutations" => true,
-    }
-  else
-    {
-      "adapter" => "spanner",
-      "emulator_host" => ENV["SPANNER_EMULATOR_HOST"],
-      "project" => ENV["SPANNER_TEST_PROJECT"],
-      "instance" => ENV["SPANNER_TEST_INSTANCE"],
-      "credentials" => ENV["SPANNER_TEST_KEYFILE"],
-      "database" => $spanner_test_database,
-    }
-  end
+  {
+    "adapter" => "spanner",
+    "emulator_host" => ENV["SPANNER_EMULATOR_HOST"],
+    "project" => ENV["SPANNER_TEST_PROJECT"],
+    "instance" => ENV["SPANNER_TEST_INSTANCE"],
+    "credentials" => ENV["SPANNER_TEST_KEYFILE"],
+    "database" => $spanner_test_database,
+    "default_sequence_kind" => "BIT_REVERSED_POSITIVE",
+    "use_client_side_id_for_mutations" => true,
+  }
 end
 
 def spanner

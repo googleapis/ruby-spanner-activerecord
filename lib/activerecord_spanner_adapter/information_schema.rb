@@ -15,8 +15,6 @@ module ActiveRecordSpannerAdapter
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
 
-    IsRails71OrLater = ActiveRecord.gem_version >= Gem::Version.create("7.1.0")
-
     attr_reader :connection
 
     def initialize connection
@@ -128,7 +126,7 @@ module ActiveRecordSpannerAdapter
     # ActiveRecord. The parent primary key columns are filtered out by default to allow interleaved tables to be
     # considered as tables with a single-column primary key by ActiveRecord. The actual primary key of the table will
     # include both the parent primary key columns and the 'own' primary key columns of a table.
-    def table_primary_keys table_name, include_parent_keys = IsRails71OrLater, schema_name: ""
+    def table_primary_keys table_name, include_parent_keys = true, schema_name: "" # rubocop:disable Style/OptionalBooleanParameter
       sql = +"WITH TABLE_PK_COLS AS ( "
       sql << "SELECT C.TABLE_CATALOG, C.TABLE_SCHEMA, C.TABLE_NAME, C.COLUMN_NAME, "
       sql << "C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION "

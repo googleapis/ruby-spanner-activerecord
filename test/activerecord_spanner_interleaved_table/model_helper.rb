@@ -1,4 +1,4 @@
-# Copyright 2021 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
@@ -8,8 +8,6 @@
 
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
-
-return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
 
 require_relative "../activerecord_spanner_mock_server/model_helper"
 require_relative "models/singer"
@@ -127,7 +125,7 @@ module TestInterleavedTables
       Value.new(string_value: "singers"),
       Value.new(null_value: "NULL_VALUE"),
       Value.new(null_value: "NULL_VALUE"),
-    )
+      )
     result_set.rows.push row
     row = ListValue.new
     row.values.push(
@@ -136,7 +134,7 @@ module TestInterleavedTables
       Value.new(string_value: "albums"),
       Value.new(string_value: "singers"),
       Value.new(string_value: "NO ACTION"),
-    )
+      )
     result_set.rows.push row
     row = ListValue.new
     row.values.push(
@@ -207,7 +205,7 @@ module TestInterleavedTables
   end
 
   def self.register_singers_primary_and_parent_key_columns_result spanner_mock_server
-    sql = "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_NAME) WHERE TABLE_NAME = 'singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+    sql = MockServerTests.primary_key_columns_sql "singers", parent_keys: true
     register_singers_key_columns_result spanner_mock_server, sql
   end
 
@@ -310,7 +308,7 @@ module TestInterleavedTables
         Value.new(string_value: "singerid"),
         Value.new(string_value: "ASC"),
         Value.new(string_value: "1"),
-      )
+        )
       result_set.rows.push row
     end
     row = ListValue.new
@@ -319,7 +317,7 @@ module TestInterleavedTables
       Value.new(string_value: "albumid"),
       Value.new(string_value: "ASC"),
       Value.new(string_value: "2"),
-    )
+      )
     result_set.rows.push row
 
     spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)

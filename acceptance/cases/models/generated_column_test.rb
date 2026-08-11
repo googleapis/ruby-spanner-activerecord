@@ -76,37 +76,23 @@ module ActiveRecord
         end
       end
 
-      VERSION_7 = ActiveRecord.gem_version >= Gem::Version.create("7.0.0")
-
-      def assert_raises_below_ar_7(ex, &test)
-        if VERSION_7
-          assert_nothing_raised &test
-        else
-          assert_raises ex, &test
-        end
-      end
-
       def test_create_with_value_for_generated_column
         # Note: The statement itself will not fail for an explicit transaction that uses buffered transactions.
         # Instead, the commit will fail. That is tested in a separate test case.
         [nil, :serializable].each do |isolation|
           run_in_transaction isolation do
-            assert_raises_below_ar_7 ActiveRecord::StatementInvalid do
-              singer = Singer.create first_name: "Pete", last_name: "Allison", full_name: "Alice Peterson"
-              assert_equal "Pete Allison", singer.reload.full_name
-            end
+            singer = Singer.create first_name: "Pete", last_name: "Allison", full_name: "Alice Peterson"
+            assert_equal "Pete Allison", singer.reload.full_name
           end
         end
       end
 
       def test_create_with_value_for_generated_column_buffered_mutations
         # The transaction itself will raise an error, as the failure occurs during the commit.
-        assert_raises_below_ar_7 ActiveRecord::StatementInvalid do
-          singer = run_in_transaction :buffered_mutations do
-            Singer.create first_name: "Pete", last_name: "Allison", full_name: "Alice Peterson"
-          end
-          assert_equal "Pete Allison", singer.reload.full_name
+        singer = run_in_transaction :buffered_mutations do
+          Singer.create first_name: "Pete", last_name: "Allison", full_name: "Alice Peterson"
         end
+        assert_equal "Pete Allison", singer.reload.full_name
       end
 
       def test_update_with_value_for_generated_column
@@ -116,9 +102,7 @@ module ActiveRecord
           singer = Singer.create first_name: "Pete", last_name: "Allison"
           singer.reload # reload to ensure the full_name attribute is populated.
           run_in_transaction isolation do
-            assert_raises_below_ar_7 ActiveRecord::StatementInvalid do
-              Singer.update full_name: "Alice Peterson"
-            end
+            Singer.update full_name: "Alice Peterson"
           end
           assert_equal "Pete Allison", singer.reload.full_name
         end
@@ -128,10 +112,8 @@ module ActiveRecord
         singer = Singer.create first_name: "Pete", last_name: "Allison"
         singer.reload # reload to ensure the full_name attribute is populated.
         # The transaction itself will raise an error, as the failure occurs during the commit.
-        assert_raises_below_ar_7 ActiveRecord::StatementInvalid do
-          run_in_transaction :buffered_mutations do
-            Singer.update full_name: "Alice Peterson"
-          end
+        run_in_transaction :buffered_mutations do
+          Singer.update full_name: "Alice Peterson"
         end
         assert_equal "Pete Allison", singer.reload.full_name
       end

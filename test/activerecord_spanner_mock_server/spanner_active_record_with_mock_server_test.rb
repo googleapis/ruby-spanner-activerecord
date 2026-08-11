@@ -18,8 +18,6 @@ module MockServerTests
   ExecuteBatchDmlRequest = Google::Cloud::Spanner::V1::ExecuteBatchDmlRequest
 
   class SpannerActiveRecordMockServerTest < BaseSpannerMockServerTest
-    VERSION_7_1_0 = Gem::Version.create('7.1.0')
-
     def test_insert
       sql = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
       @mock.put_statement_result sql, StatementResult.new(1)
@@ -661,8 +659,6 @@ module MockServerTests
     end
 
     def test_create_singer_with_last_performance_as_non_iso_string
-      return if "#{RUBY_VERSION}" < "3" && ActiveRecord::gem_version >= VERSION_7_1_0
-
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `last_performance`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
 
@@ -1219,7 +1215,7 @@ module MockServerTests
       @mock.put_statement_result albums_sql, MockServerTests::create_random_albums_result(2)
       singer = Singer.find_by id: 1
 
-      update_albums_sql = ActiveRecord::gem_version < VERSION_7_1_0 || ActiveRecord::VERSION::MAJOR >= 8 \
+      update_albums_sql = ActiveRecord::VERSION::MAJOR >= 8 \
                      ? "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND `albums`.`id` IN (@p3, @p4)"
                      : "UPDATE `albums` SET `singer_id` = @p1 WHERE `albums`.`singer_id` = @p2 AND (`albums`.`id` = @p3 OR `albums`.`id` = @p4)"
       @mock.put_statement_result update_albums_sql, StatementResult.new(2)
@@ -1442,8 +1438,6 @@ module MockServerTests
     end
 
     def test_query_logs
-      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
-
       begin
         current_query_transformers = _enable_query_logs
 
@@ -1463,8 +1457,6 @@ module MockServerTests
     end
 
     def test_query_logs_combined_with_request_tag
-      skip "Requires Rails version 7.0 or higher" if ActiveRecord::VERSION::MAJOR < 7
-
       begin
         current_query_transformers = _enable_query_logs
 

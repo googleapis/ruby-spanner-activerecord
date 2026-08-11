@@ -1,16 +1,18 @@
-# Copyright 2021 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require "composite_primary_keys"
-
 module TestInterleavedTables
   class Track < ActiveRecord::Base
-    self.primary_keys = :singerid, :albumid, :trackid
+    # self.primary_keys = :singerid, :albumid, :trackid
 
-    belongs_to :album, foreign_key: [:singerid, :albumid]
+    if ActiveRecord::VERSION::MAJOR >= 8
+      belongs_to :album, foreign_key: [:singerid, :albumid]
+    else
+      belongs_to :album, query_constraints: [:singerid, :albumid]
+    end
     belongs_to :singer, foreign_key: :singerid
 
     def album=value

@@ -1,8 +1,3 @@
-appraise "7.0" do
-  gem "activerecord", "~> 7.0.0"
-  gem "composite_primary_keys" unless ENV["SKIP_COMPOSITE_PK"]
-end
-
 appraise "7.1" do
   gem "activerecord", "~> 7.1.0"
 end

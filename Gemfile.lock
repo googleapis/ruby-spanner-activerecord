@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     activerecord-spanner-adapter (2.6.0)
-      activerecord (>= 7.0, < 9)
+      activerecord (>= 7.1, < 9)
       google-cloud-spanner (~> 2.25)
       google-cloud-spanner-v1 (~> 1.7)
 

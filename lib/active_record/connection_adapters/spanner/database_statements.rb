@@ -13,7 +13,6 @@ module ActiveRecord
   module ConnectionAdapters
     module Spanner
       module DatabaseStatements
-        VERSION_7_1_0 = Gem::Version.create "7.1.0"
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
         TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
 
@@ -125,58 +124,26 @@ module ActiveRecord
           binds.append options
         end
 
-        # The method signatures for executing queries and DML statements changed between Rails 7.0 and 7.1.
-
-        if ActiveRecord.gem_version >= VERSION_7_1_0
-          def sql_for_insert sql, pk, binds, returning
-            if pk && !_has_pk_binding(pk, binds)
-              # Add the primary key to the columns that should be returned if there is no value specified for it.
-              returning ||= []
-              returning |= if pk.respond_to? :each
-                             pk
-                           else
-                             [pk]
-                           end
-            end
-            if returning&.any?
-              returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
-              sql = "#{sql} THEN RETURN #{returning_columns_statement}"
-            end
-
-            [sql, binds]
+        def sql_for_insert sql, pk, binds, returning
+          if pk && !_has_pk_binding(pk, binds)
+            # Add the primary key to the columns that should be returned if there is no value specified for it.
+            returning ||= []
+            returning |= if pk.respond_to? :each
+                           pk
+                         else
+                           [pk]
+                         end
+          end
+          if returning&.any?
+            returning_columns_statement = returning.map { |c| quote_column_name c }.join(", ")
+            sql = "#{sql} THEN RETURN #{returning_columns_statement}"
           end
 
-          def query sql, name = nil
-            exec_query sql, name
-          end
-        else # ActiveRecord.gem_version < VERSION_7_1_0
-          def query sql, name = nil
-            exec_query sql, name
-          end
+          [sql, binds]
+        end
 
-          def exec_query sql, name = "SQL", binds = [], prepare: false # rubocop:disable Lint/UnusedMethodArgument
-            result = execute sql, name, binds
-            if result.respond_to? :fields
-              ActiveRecord::Result.new(
-                result.fields.keys.map(&:to_s), result.rows.map(&:values)
-              )
-            else
-              ActiveRecord::Result.new [], []
-            end
-          end
-
-          def sql_for_insert sql, pk, binds
-            if pk && !_has_pk_binding(pk, binds)
-              # Add the primary key to the columns that should be returned if there is no value specified for it.
-              returning_columns_statement = if pk.respond_to? :each
-                                              pk.map { |c| quote_column_name c }.join(", ")
-                                            else
-                                              quote_column_name pk
-                                            end
-              sql = "#{sql} THEN RETURN #{returning_columns_statement}" if returning_columns_statement
-            end
-            super
-          end
+        def query sql, name = nil
+          exec_query sql, name
         end
 
         def _has_pk_binding pk, binds

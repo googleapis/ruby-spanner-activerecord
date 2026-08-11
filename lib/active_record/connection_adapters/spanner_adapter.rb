@@ -278,29 +278,23 @@ module ActiveRecord
         end
       end
 
-      if ActiveRecord::VERSION::MAJOR >= 7
-        class << self
-          include TypeMapBuilder
-        end
-
-        TYPE_MAP = Type::TypeMap.new.tap { |m| initialize_type_map m }
-
-        private
-
-        def type_map
-          TYPE_MAP
-        end
-      else
+      class << self
         include TypeMapBuilder
+      end
+
+      TYPE_MAP = Type::TypeMap.new.tap { |m| initialize_type_map m }
+
+      private
+
+      def type_map
+        TYPE_MAP
       end
 
       def transform sql
         if ActiveRecord::VERSION::MAJOR >= 8
           preprocess_query sql
-        elsif ActiveRecord::VERSION::MAJOR == 7
-          transform_query sql
         else
-          sql
+          transform_query sql
         end
       end
 

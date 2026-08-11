@@ -19,10 +19,3 @@ gem "readline"
 gem "sinatra-activerecord"
 # Add sqlite3 for testing for compatibility with other adapters.
 gem "sqlite3"
-
-# Required for samples and testing.
-unless ENV["APPRAISAL_INITIALIZED"] || ENV["APPRAISAL_UNDER_TEST"] || (ENV["BUNDLE_GEMFILE"] && ENV["BUNDLE_GEMFILE"].include?("gemfiles/"))
-  if ar_version.dup.to_s.sub("~>", "").strip < "7.1.0" && !ENV["SKIP_COMPOSITE_PK"]
-    gem "composite_primary_keys"
-  end
-end

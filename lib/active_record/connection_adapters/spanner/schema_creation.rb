@@ -21,23 +21,11 @@ module ActiveRecord
           create_sql = +"CREATE TABLE #{quote_table_name o.name} "
           statements = o.columns.map { |c| accept c }
 
-          if ActiveRecord::VERSION::MAJOR >= 7
-            o.foreign_keys.each do |fk|
-              statements << accept(fk)
-            end
-          else
-            o.foreign_keys.each do |to_table, options|
-              statements << foreign_key_in_create(o.name, to_table, options)
-            end
+          o.foreign_keys.each do |fk|
+            statements << accept(fk)
           end
 
-          if ActiveRecord::VERSION::MAJOR >= 7
-            statements.concat(o.check_constraints.map { |chk| accept chk })
-          elsif ActiveRecord::VERSION::MAJOR == 6 && ActiveRecord::VERSION::MINOR >= 1
-            statements.concat(
-              o.check_constraints.map { |expression, options| check_constraint_in_create o.name, expression, options }
-            )
-          end
+          statements.concat(o.check_constraints.map { |chk| accept chk })
 
           create_sql << "(#{statements.join ', '}) " if statements.any?
 

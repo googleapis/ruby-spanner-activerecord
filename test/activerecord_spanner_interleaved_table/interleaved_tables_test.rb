@@ -1,4 +1,4 @@
-# Copyright 2021 Google LLC
+# Copyright 2023 Google LLC
 #
 # Use of this source code is governed by an MIT-style
 # license that can be found in the LICENSE file or at
@@ -10,8 +10,6 @@ require_relative "./model_helper"
 require_relative "../mock_server/spanner_mock_server"
 require_relative "../test_helper"
 
-return if ActiveRecord::gem_version >= Gem::Version.create('7.1.0')
-
 require_relative "models/singer"
 require_relative "models/album"
 require_relative "models/track"
@@ -22,6 +20,10 @@ module TestInterleavedTables
   class InterleavedTablesTest < Minitest::Test
     def setup
       super
+      if ActiveRecord.version >= Gem::Version.create("7.2.0")
+        ActiveRecord::ConnectionAdapters.register("spanner", "ActiveRecord::ConnectionAdapters::SpannerAdapter")
+      end
+
       @server = GRPC::RpcServer.new
       @port = @server.add_http2_port "localhost:0", :this_port_is_insecure
       @mock = SpannerMockServer.new
@@ -34,7 +36,7 @@ module TestInterleavedTables
       # Register INFORMATION_SCHEMA queries on the mock server.
       TestInterleavedTables::register_select_tables_result @mock
       TestInterleavedTables::register_singers_columns_result @mock
-      TestInterleavedTables::register_singers_primary_key_columns_result @mock
+      TestInterleavedTables::register_singers_primary_and_parent_key_columns_result @mock
       TestInterleavedTables::register_albums_columns_result @mock
       TestInterleavedTables::register_albums_primary_key_columns_result @mock
       TestInterleavedTables::register_albums_primary_and_parent_key_columns_result @mock
@@ -48,7 +50,7 @@ module TestInterleavedTables
         project: "test-project",
         instance: "test-instance",
         database: "testdb",
-      )
+        )
       ActiveRecord::Base.logger = nil
     end
 
@@ -92,9 +94,7 @@ module TestInterleavedTables
     end
 
     def test_find_album
-      # Selecting a single album should only use the albumid column, and not the singerid column that is technically also
-      # part of the primary key.
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find [1, 1]
       refute_nil album.albumid, "albumid should not be nil"
@@ -107,6 +107,7 @@ module TestInterleavedTables
       singer = Singer.find 1
 
       album = Album.create singer: singer, title: "Random Title"
+      assert album.albumid
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length
       mutation = commit_request.mutations[0]
@@ -128,7 +129,7 @@ module TestInterleavedTables
     end
 
     def test_update_album
-      sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      sql_album = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       @mock.put_statement_result sql_album, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find [1, 1]
 
@@ -153,7 +154,7 @@ module TestInterleavedTables
     end
 
     def test_destroy_album
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1)
       album = Album.find [1, 1]
       album.destroy
@@ -202,7 +203,7 @@ module TestInterleavedTables
     end
 
     def test_update_album_in_transaction
-      select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       update_sql = "UPDATE `albums` SET `title` = @p1 WHERE `albums`.`singerid` = @p2 AND `albums`.`albumid` = @p3"
       @mock.put_statement_result select_sql, TestInterleavedTables::create_random_albums_result(1)
       @mock.put_statement_result update_sql, StatementResult.new(1)
@@ -228,7 +229,7 @@ module TestInterleavedTables
     end
 
     def test_destroy_album_in_transaction
-      select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      select_sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       delete_sql = "DELETE FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2"
       @mock.put_statement_result select_sql, TestInterleavedTables::create_random_albums_result(1)
       @mock.put_statement_result delete_sql, StatementResult.new(1)
@@ -279,9 +280,7 @@ module TestInterleavedTables
     end
 
     def test_find_track
-      # Selecting a single album should only use the trackid column, and not the singerid and albumid columns that are
-      # technically also part of the primary key.
-      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = 1 AND `tracks`.`albumid` = 1 AND `tracks`.`trackid` = 1 LIMIT @p1"
+      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(1)
       track = Track.find [1, 1, 1]
       refute_nil track.trackid, "trackid should not be nil"
@@ -292,7 +291,7 @@ module TestInterleavedTables
     def test_create_track
       sql = "SELECT `singers`.* FROM `singers` WHERE `singers`.`singerid` = @p1 LIMIT @p2"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_singers_result(1, 1)
-      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = 1 AND `albums`.`albumid` = 1 LIMIT @p1"
+      sql = "SELECT `albums`.* FROM `albums` WHERE `albums`.`singerid` = @p1 AND `albums`.`albumid` = @p2 LIMIT @p3"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_albums_result(1, 1, 1)
       album = Album.find [1, 1]
 
@@ -323,7 +322,7 @@ module TestInterleavedTables
     end
 
     def test_update_track
-      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = 1 AND `tracks`.`albumid` = 1 AND `tracks`.`trackid` = 1 LIMIT @p1"
+      sql_track = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
       @mock.put_statement_result sql_track, TestInterleavedTables::create_random_tracks_result(1, 1, 1, 1)
       track = Track.find [1, 1, 1]
 
@@ -352,7 +351,7 @@ module TestInterleavedTables
     end
 
     def test_destroy_track
-      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = 2 AND `tracks`.`albumid` = 3 AND `tracks`.`trackid` = 1 LIMIT @p1"
+      sql = "SELECT `tracks`.* FROM `tracks` WHERE `tracks`.`singerid` = @p1 AND `tracks`.`albumid` = @p2 AND `tracks`.`trackid` = @p3 LIMIT @p4"
       @mock.put_statement_result sql, TestInterleavedTables::create_random_tracks_result(1, 1, 2, 3)
       track = Track.find [2, 3, 1]
       track.destroy
@@ -410,18 +409,10 @@ module TestInterleavedTables
     end
 
     def test_delete_all
-      # composite_primary_keys v12 generates a query with a WHERE EXISTS clause.
-      # This disables the use of mutations for delete_all.
-      delete_sql = "DELETE FROM `tracks` WHERE EXISTS ((SELECT `tracks`.`singerid`, `tracks`.`albumid`, `tracks`.`trackid` FROM `tracks` `cpk_child` WHERE `tracks`.`singerid` = `cpk_child`.`singerid` AND `tracks`.`albumid` = `cpk_child`.`albumid` AND `tracks`.`trackid` = `cpk_child`.`trackid`))"
-      @mock.put_statement_result delete_sql, StatementResult.new(5)
-
       original_verbosity = $VERBOSE
       $VERBOSE = nil
       Track.delete_all
       $VERBOSE = original_verbosity
-
-      delete_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == delete_sql }
-      return unless delete_requests.empty?
 
       commit_request = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::CommitRequest) }.first
       assert_equal 1, commit_request.mutations.length

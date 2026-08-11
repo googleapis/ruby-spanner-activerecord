@@ -26,9 +26,6 @@ module TestMigrationsWithMockServer
 
   # Tests executing a simple migration on a mock Spanner server.
   class SpannerMigrationsMockServerTest < Minitest::Test
-    VERSION_6_1_0 = Gem::Version.create('6.1.0')
-    VERSION_7_1_0 = Gem::Version.create('7.1.0')
-
     def setup
       super
       if ActiveRecord.version >= Gem::Version.create("7.2.0")
@@ -76,25 +73,14 @@ module TestMigrationsWithMockServer
       super
     end
 
-    def is_7_1_or_higher?
-      ActiveRecord::gem_version >= VERSION_7_1_0
-    end
-
     def with_change_table table_name
       yield ActiveRecord::Base.connection.update_table_definition(table_name, ActiveRecord::Base.connection)
     end
 
     def migration_context
-      if ActiveRecord.gem_version >= Gem::Version.create("7.1.0")
-        ActiveRecord::MigrationContext.new(
-          "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
-        )
-      else
-        ActiveRecord::MigrationContext.new(
-          "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
-          ActiveRecord::SchemaMigration
-        )
-      end
+      ActiveRecord::MigrationContext.new(
+        "#{Dir.pwd}/test/migrations_with_mock_server/db/migrate",
+      )
     end
 
     def test_execute_migrations
@@ -261,44 +247,42 @@ module TestMigrationsWithMockServer
       assert_equal expectedDdl, ddl_requests[2].statements[4]
     end
 
-    if ActiveRecord::gem_version < Gem::Version.create('7.1.0')
-      def test_interleaved_table_with_uuid_pk
-        context = migration_context
+    def test_interleaved_table_with_uuid_pk
+      context = migration_context
 
-        select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-        register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
-        select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
-        register_empty_select_index_columns_result select_albums_index_columns_sql
-        select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
-        MockServerTests::register_empty_select_indexes_result @mock, select_albums_indexes_sql
+      select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
+      register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
+      select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_albums_index_columns_sql
+      select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
+      MockServerTests::register_empty_select_indexes_result @mock, select_albums_indexes_sql
 
-        select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
-        register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
-        select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
-        register_empty_select_index_columns_result select_tracks_index_columns_sql
-        select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
-        MockServerTests::register_empty_select_indexes_result @mock, select_tracks_indexes_sql
+      select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
+      register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
+      select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_tracks_index_columns_sql
+      select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
+      MockServerTests::register_empty_select_indexes_result @mock, select_tracks_indexes_sql
 
-        register_version_result "1", "10"
+      register_version_result "1", "10"
 
-        context.migrate 10
+      context.migrate 10
 
-        # The migration should create the migration tables and the singers, albums and tracks tables in one request.
-        ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
-        # The migration simulation also creates the two migration metadata tables.
-        assert_equal 3, ddl_requests.length
-        assert_equal 2, ddl_requests[2].statements.length
+      # The migration should create the migration tables and the singers, albums and tracks tables in one request.
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      # The migration simulation also creates the two migration metadata tables.
+      assert_equal 3, ddl_requests.length
+      assert_equal 2, ddl_requests[2].statements.length
 
-        expectedDdl = "CREATE TABLE `parent_with_uuid_pk` "
-        expectedDdl << "(`parentid` UUID NOT NULL, `first_name` STRING(MAX), `last_name` STRING(MAX)) "
-        expectedDdl << "PRIMARY KEY (`parentid`)"
-        assert_equal expectedDdl, ddl_requests[2].statements[0]
+      expectedDdl = "CREATE TABLE `parent_with_uuid_pk` "
+      expectedDdl << "(`parentid` UUID NOT NULL, `first_name` STRING(MAX), `last_name` STRING(MAX)) "
+      expectedDdl << "PRIMARY KEY (`parentid`)"
+      assert_equal expectedDdl, ddl_requests[2].statements[0]
 
-        expectedDdl = "CREATE TABLE `child_with_uuid_pk` "
-        expectedDdl << "(`parentid` UUID NOT NULL, `childid` INT64 NOT NULL GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE), `title` STRING(MAX)) "
-        expectedDdl << "PRIMARY KEY (`parentid`, `childid`), INTERLEAVE IN PARENT `parent_with_uuid_pk`"
-        assert_equal expectedDdl, ddl_requests[2].statements[1]
-      end
+      expectedDdl = "CREATE TABLE `child_with_uuid_pk` "
+      expectedDdl << "(`parentid` UUID NOT NULL, `childid` INT64 NOT NULL GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE), `title` STRING(MAX)) "
+      expectedDdl << "PRIMARY KEY (`parentid`, `childid`), INTERLEAVE IN PARENT `parent_with_uuid_pk`"
+      assert_equal expectedDdl, ddl_requests[2].statements[1]
     end
 
     def test_create_table_with_commit_timestamp
@@ -368,8 +352,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
@@ -388,8 +371,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_add_not_null
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
 
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
       register_select_single_column_result select_column_sql, "age", "INT64"
@@ -409,8 +391,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_column_remove_not_null
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
       register_select_single_column_result select_column_sql, "age", "INT64"
       select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
@@ -429,8 +410,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_rename_column
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       # Cloud Spanner does not support renaming a column, so instead the migration will create a new column, copy the
       # data from the old column to the new column, and then drop the old column.
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
@@ -896,8 +876,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "picture"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
@@ -915,8 +894,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_change_changes_column_with_options
-      MockServerTests::register_singers_primary_key_columns_result @mock unless is_7_1_or_higher?
-      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock if is_7_1_or_higher?
+      MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "picture"
       register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
       select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
@@ -984,7 +962,7 @@ module TestMigrationsWithMockServer
     end
 
     def test_create_join_table_with_column_options
-      MockServerTests::register_join_table_primary_key_result @mock if is_7_1_or_higher?
+      MockServerTests::register_join_table_primary_key_result @mock
       MockServerTests::register_join_table_key_columns_result @mock, "artists_musics", "artist_id", "music_id"
       MockServerTests::register_join_table_columns_result @mock, "artists_musics", "artist_id", "music_id"
 
@@ -1188,9 +1166,7 @@ module TestMigrationsWithMockServer
 
     def register_ar_internal_metadata_results
       # CREATE TABLE `ar_internal_metadata` (`key` STRING(MAX) NOT NULL, `value` STRING(MAX), `created_at` TIMESTAMP NOT NULL, `updated_at` TIMESTAMP NOT NULL) PRIMARY KEY (`key`)
-      sql = ActiveRecord::gem_version < VERSION_7_1_0 \
-          ? "SELECT `ar_internal_metadata`.* FROM `ar_internal_metadata` WHERE `ar_internal_metadata`.`key` = @p1 LIMIT @p2"
-          : "SELECT * FROM `ar_internal_metadata` WHERE `ar_internal_metadata`.`key` = @p1 ORDER BY `ar_internal_metadata`.`key` ASC LIMIT 1"
+      sql = "SELECT * FROM `ar_internal_metadata` WHERE `ar_internal_metadata`.`key` = @p1 ORDER BY `ar_internal_metadata`.`key` ASC LIMIT 1"
 
       key = Google::Cloud::Spanner::V1::StructType::Field.new name: "key", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       value = Google::Cloud::Spanner::V1::StructType::Field.new name: "value", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1205,9 +1181,7 @@ module TestMigrationsWithMockServer
     end
 
     def register_ar_internal_metadata_insert_result
-      sql = ActiveRecord::gem_version < VERSION_7_1_0 \
-          ? "INSERT INTO `ar_internal_metadata` (`key`, `value`, `created_at`, `updated_at`) VALUES (@p1, @p2, @p3, @p4)"
-          : "INSERT INTO `ar_internal_metadata` (`key`, `value`, `created_at`, `updated_at`) VALUES ('environment', 'default_env', %"
+      sql = "INSERT INTO `ar_internal_metadata` (`key`, `value`, `created_at`, `updated_at`) VALUES ('environment', 'default_env', %"
       @mock.put_statement_result sql, StatementResult.new(1)
     end
 
@@ -1456,9 +1430,7 @@ module TestMigrationsWithMockServer
       end
       @mock.put_statement_result sql, StatementResult.new(result_set)
 
-      update_sql = ActiveRecord::gem_version < VERSION_7_1_0 \
-          ? "INSERT INTO `schema_migrations` (`version`) VALUES (@p1)"
-          : "INSERT INTO `schema_migrations` (`version`) VALUES ('%"
+      update_sql = "INSERT INTO `schema_migrations` (`version`) VALUES ('%"
       @mock.put_statement_result update_sql, StatementResult.new(1)
     end
 

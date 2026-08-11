@@ -4,9 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require "composite_primary_keys"
-
-class CreateParentAndChildWithUuidPk < ActiveRecord::Migration[6.0]
+class CreateParentAndChildWithUuidPk < ActiveRecord::Migration[7.1]
   def change
     # Execute the entire migration as one DDL batch.
     connection.ddl_batch do

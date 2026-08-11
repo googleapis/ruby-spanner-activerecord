@@ -15,7 +15,6 @@ module ActiveRecord
   end
 
   class Base
-    VERSION_7_1 = Gem::Version.create "7.1.0"
     VERSION_7_2 = Gem::Version.create "7.2.0"
 
     # Creates an object (or multiple objects) and saves it to the database. This method will use mutations instead
@@ -88,7 +87,6 @@ module ActiveRecord
       end
 
       if _should_use_standard_insert_record? values
-        return super values if ActiveRecord.gem_version < VERSION_7_1
         return super
       end
 
@@ -108,12 +106,8 @@ module ActiveRecord
 
     def self._insert_record_dml values, returning
       primary_key_value = _set_primary_key_value values, false
-      if ActiveRecord::VERSION::MAJOR >= 7
-        im = Arel::InsertManager.new arel_table
-        im.insert(values.transform_keys { |name| arel_table[name] })
-      else
-        im = arel_table.compile_insert _substitute_values(values)
-      end
+      im = Arel::InsertManager.new arel_table
+      im.insert(values.transform_keys { |name| arel_table[name] })
       result = connection.insert(im, "#{self} Create", primary_key || false, primary_key_value)
 
       _convert_primary_key result, returning
@@ -131,7 +125,6 @@ module ActiveRecord
       # Rails 7.1 and higher supports composite primary keys, and therefore require the provider to return an array
       # instead of a single value in all cases. The order of the values should be equal to the order of the returning
       # columns (or the primary key if no returning columns were specified).
-      return primary_key_value if ActiveRecord.gem_version < VERSION_7_1
       return primary_key_value if primary_key_value.is_a?(Array) && primary_key_value.length == 1
       return [primary_key_value] unless primary_key_value.is_a? Array
 
@@ -270,12 +263,7 @@ module ActiveRecord
         value = next_sequence_value
       end
 
-      values[primary_key] =
-        if ActiveRecord::VERSION::MAJOR >= 7
-          ActiveModel::Attribute.from_database primary_key, value, type
-        else
-          value
-        end
+      values[primary_key] = ActiveModel::Attribute.from_database primary_key, value, type
 
       value
     end
@@ -289,12 +277,8 @@ module ActiveRecord
 
       if primary_key_value.nil?
         primary_key_value = next_sequence_value
-        if ActiveRecord::VERSION::MAJOR >= 7
-          values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value,
-                                                                     ActiveModel::Type::BigInteger.new
-        else
-          values[primary_key] = primary_key_value
-        end
+        values[primary_key] = ActiveModel::Attribute.from_database primary_key, primary_key_value,
+                                                                   ActiveModel::Type::BigInteger.new
       end
 
       primary_key_value
