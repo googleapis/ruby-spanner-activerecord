@@ -15,6 +15,8 @@ module ActiveRecord
       module DatabaseStatements
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
         TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
+        PARAM_KEYS = (1..100).map { |i| "p#{i}".freeze }.freeze
+        private_constant :PARAM_KEYS
 
         # DDL, DML and DQL Statements
 
@@ -338,47 +340,42 @@ module ActiveRecord
 
         # Translates binds to Spanner types and params.
         def to_types_and_params binds
-          types = to_types binds
-          params = to_params binds
+          return [{}, {}] if binds.empty?
+
+          types = {}
+          params = {}
+          binds.each_with_index do |bind, i|
+            key = PARAM_KEYS[i] || "p#{i + 1}"
+            bind_value = bind.respond_to?(:value) ? bind.value : bind
+
+            if bind.respond_to? :type
+              model_type = bind.type
+              types[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                           .convert_active_model_type_to_spanner(model_type)
+              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                            .serialize_with_transaction_isolation_level(model_type, bind_value, :dml)
+            elsif bind.instance_of? Symbol
+              types[key] = :STRING
+              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                            .serialize_with_transaction_isolation_level(:STRING, bind_value, :dml)
+            elsif bind.instance_of?(TrueClass) || bind.instance_of?(FalseClass)
+              types[key] = :BOOL
+              params[key] = bind_value
+            else
+              types[key] = :INT64
+              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+                            .serialize_with_transaction_isolation_level(ActiveModel::Type::Integer, bind_value, :dml)
+            end
+          end
           [types, params]
         end
 
         def to_types binds
-          binds.enum_for(:each_with_index).to_h do |bind, i|
-            type = :INT64
-            if bind.respond_to? :type
-              type = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                     .convert_active_model_type_to_spanner(bind.type)
-            elsif bind.instance_of? Symbol
-              # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
-              type = :STRING
-            elsif bind.instance_of?(TrueClass) || bind.instance_of?(FalseClass)
-              type = :BOOL
-            end
-            [
-              # Generates binds for named parameters in the format `@p1, @p2, ...`
-              "p#{i + 1}", type
-            ]
-          end
+          to_types_and_params(binds)[0]
         end
 
         def to_params binds
-          binds.enum_for(:each_with_index).to_h do |bind, i|
-            type = if bind.respond_to? :type
-                     bind.type
-                   elsif bind.instance_of? Symbol
-                     # This ensures that for example :environment is sent as the string 'environment' to Cloud Spanner.
-                     :STRING
-                   else
-                     # The Cloud Spanner default type is INT64 if no other type is known.
-                     ActiveModel::Type::Integer
-                   end
-            bind_value = bind.respond_to?(:value) ? bind.value : bind
-            value = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                    .serialize_with_transaction_isolation_level(type, bind_value, :dml)
-
-            ["p#{i + 1}", value]
-          end
+          to_types_and_params(binds)[1]
         end
 
         # An insert/update/delete statement could use mutations in some specific circumstances.
