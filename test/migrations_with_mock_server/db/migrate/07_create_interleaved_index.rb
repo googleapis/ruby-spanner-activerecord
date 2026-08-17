@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateInterleavedIndex < ActiveRecord::Migration[6.0]
+class CreateInterleavedIndex < ActiveRecord::Migration[7.1]
   def change
     # Start a DDL batch that will be used for the entire change.
     connection.ddl_batch do

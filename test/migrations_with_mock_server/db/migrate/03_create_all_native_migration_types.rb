@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateAllNativeMigrationTypes < ActiveRecord::Migration[6.0]
+class CreateAllNativeMigrationTypes < ActiveRecord::Migration[7.1]
   def change
     # Create a table with all native migration types.
     # https://api.rubyonrails.org/v6.1.3.2/classes/ActiveRecord/ConnectionAdapters/SchemaStatements.html#method-i-add_column

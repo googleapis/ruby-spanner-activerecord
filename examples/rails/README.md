@@ -55,7 +55,7 @@ If you are not familiar with Active Record, you can read more about it on [Ruby 
     ruby --version
     rails --version
     ```
-    The versions should be Ruby 2.6 or higher and Rails 6.0 or higher.
+    The versions should be Ruby 3.2 or higher and Rails 7.1 or higher.
 1. Create a new Rails project:
 
     ```shell
