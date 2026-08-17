@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateTablesWithoutBatching < ActiveRecord::Migration[6.0]
+class CreateTablesWithoutBatching < ActiveRecord::Migration[7.1]
   def change
     # Create two tables without using DDL batching.
     create_table :table1 do |t|

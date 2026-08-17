@@ -473,10 +473,6 @@ module ActiveRecord
           TableDefinition.new self, args[0], options: args[1]
         end
 
-        def able_to_ddl_batch? table_name
-          [ActiveRecord::InternalMetadata.table_name, ActiveRecord::SchemaMigration.table_name].exclude? table_name.to_s
-        end
-
         def _change_column table_name, column_name, type, **options # rubocop:disable Metrics/AbcSize
           column = information_schema do |i|
             i.table_column table_name, column_name

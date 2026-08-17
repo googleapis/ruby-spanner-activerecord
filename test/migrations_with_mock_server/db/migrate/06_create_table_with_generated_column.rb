@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateTableWithGeneratedColumn < ActiveRecord::Migration[6.0]
+class CreateTableWithGeneratedColumn < ActiveRecord::Migration[7.1]
   def change
     create_table :singers do |t|
       t.string :first_name, limit: 100
