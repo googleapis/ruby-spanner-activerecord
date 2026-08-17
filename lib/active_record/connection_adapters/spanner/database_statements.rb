@@ -15,6 +15,12 @@ module ActiveRecord
       module DatabaseStatements
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
         TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
+        REQUEST_TAG_PREFIXES = [
+          "/*request_tag:true,",
+          "/*_request_tag='true',",
+          "/*_request_tag:true,"
+        ].freeze
+        private_constant :REQUEST_TAG_PREFIXES
 
         # DDL, DML and DQL Statements
 
@@ -96,15 +102,10 @@ module ActiveRecord
         end
 
         def append_request_tag_from_query_logs sql, binds
-          possible_prefixes = [
-            "/*request_tag:true,",
-            "/*_request_tag='true',",
-            "/*_request_tag:true,",
-            "/*_request_tag='true',"
-          ]
-          possible_prefixes.each do |prefix|
+          REQUEST_TAG_PREFIXES.each do |prefix|
             if sql.start_with? prefix
               append_request_tag_from_query_logs_with_format sql, binds, prefix
+              break
             end
           end
         end
@@ -114,14 +115,16 @@ module ActiveRecord
           return unless end_of_comment
 
           request_tag = sql[prefix.length, end_of_comment - prefix.length]
-          options = binds.find { |bind| bind.is_a? RequestOptions } || RequestOptions.new
-          if options.request_tag == ""
-            options.request_tag = request_tag
+          options = binds.find { |bind| bind.is_a? RequestOptions }
+          if options
+            options.request_tag = if options.request_tag.empty?
+                                    request_tag
+                                  else
+                                    "#{options.request_tag},#{request_tag}"
+                                  end
           else
-            options.request_tag += ",#{request_tag}"
+            binds.append RequestOptions.new(request_tag: request_tag)
           end
-
-          binds.append options
         end
 
         def sql_for_insert sql, pk, binds, returning
