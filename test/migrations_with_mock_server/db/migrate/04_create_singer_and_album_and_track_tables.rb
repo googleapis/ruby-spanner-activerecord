@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[6.0]
+class CreateSingerAndAlbumAndTrackTables < ActiveRecord::Migration[7.1]
   def change
     # Record the current primary key prefix type to reset it after running this change.
     current_prefix_type = ActiveRecord::Base.primary_key_prefix_type

@@ -8,12 +8,6 @@ require "active_record/gem_version"
 require "activerecord_spanner_adapter/relation"
 
 module ActiveRecord
-  class TableMetadata # :nodoc:
-    # This attr_reader is private in ActiveRecord 6.0.x and public in 6.1.x. This makes sure it is always available in
-    # the Spanner adapter.
-    attr_reader :arel_table
-  end
-
   class Base
     VERSION_7_2 = Gem::Version.create "7.2.0"
 

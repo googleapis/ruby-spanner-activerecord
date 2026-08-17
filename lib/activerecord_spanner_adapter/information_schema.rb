@@ -19,7 +19,6 @@ module ActiveRecordSpannerAdapter
 
     def initialize connection
       @connection = connection
-      @mutex = Mutex.new
     end
 
     def tables table_name: nil, schema_name: "", view: nil

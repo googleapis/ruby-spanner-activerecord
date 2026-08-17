@@ -459,25 +459,5 @@ module ActiveRecordSpannerAdapter
       raise
     end
     # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-
-
-    ##
-    # Retrieves the delay value from Google::Cloud::AbortedError or
-    # GRPC::Aborted
-    def delay_from_aborted err
-      return nil if err.nil?
-      if err.respond_to?(:metadata) && err.metadata["google.rpc.retryinfo-bin"]
-        retry_info = Google::Rpc::RetryInfo.decode err.metadata["google.rpc.retryinfo-bin"]
-        seconds = retry_info["retry_delay"].seconds
-        nanos = retry_info["retry_delay"].nanos
-        return seconds if nanos.zero?
-        return seconds + (nanos / 1_000_000_000.0)
-      end
-      # No metadata? Try the inner error
-      delay_from_aborted err.cause
-    rescue StandardError
-      # Any error indicates the backoff should be handled elsewhere
-      nil
-    end
   end
 end
