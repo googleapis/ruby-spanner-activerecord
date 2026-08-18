@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateBitReversedSequence < ActiveRecord::Migration[6.0]
+class CreateBitReversedSequence < ActiveRecord::Migration[7.1]
   def change
     connection.start_batch_ddl
     connection.execute "create sequence test_sequence OPTIONS (sequence_kind = 'bit_reversed_positive')"

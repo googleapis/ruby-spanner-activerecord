@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateNullFilteredIndex < ActiveRecord::Migration[6.0]
+class CreateNullFilteredIndex < ActiveRecord::Migration[7.1]
   def change
     connection.ddl_batch do
       add_index :singers, :picture, null_filtered: true

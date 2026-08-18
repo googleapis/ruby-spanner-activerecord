@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateTableWithCommitTimestamp < ActiveRecord::Migration[6.0]
+class CreateTableWithCommitTimestamp < ActiveRecord::Migration[7.1]
   def change
     create_table :table1 do |t|
       t.string :value

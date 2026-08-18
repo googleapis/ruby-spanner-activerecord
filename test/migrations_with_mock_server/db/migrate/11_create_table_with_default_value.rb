@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-class CreateTableWithDefaultValue < ActiveRecord::Migration[6.0]
+class CreateTableWithDefaultValue < ActiveRecord::Migration[7.1]
   def change
     create_table :singers do |t|
       t.string :name, null: false, default: "no name"
