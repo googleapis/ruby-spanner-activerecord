@@ -15,7 +15,7 @@ module ActiveRecord
       module DatabaseStatements
         RequestOptions = Google::Cloud::Spanner::V1::RequestOptions
         TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
-        PARAM_KEYS = (1..100).map { |i| "p#{i}".freeze }.freeze
+        PARAM_KEYS = (1..950).map { |i| "p#{i}".freeze }.freeze
         private_constant :PARAM_KEYS
 
         # DDL, DML and DQL Statements
