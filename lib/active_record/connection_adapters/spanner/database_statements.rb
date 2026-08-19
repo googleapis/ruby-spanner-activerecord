@@ -342,33 +342,33 @@ module ActiveRecord
         private
 
         # Translates binds to Spanner types and params.
-        def to_types_and_params binds
+        def to_types_and_params binds # rubocop:disable Metrics/AbcSize
           return [{}, {}] if binds.empty?
 
+          converter = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
+          integer_type = ActiveModel::Type::Integer
           types = {}
           params = {}
-          binds.each_with_index do |bind, i|
-            key = PARAM_KEYS[i] || "p#{i + 1}"
+          index = 0
+          binds.each do |bind|
+            key = PARAM_KEYS[index] || "p#{index + 1}"
             bind_value = bind.respond_to?(:value) ? bind.value : bind
 
             if bind.respond_to? :type
               model_type = bind.type
-              types[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                           .convert_active_model_type_to_spanner(model_type)
-              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                            .serialize_with_transaction_isolation_level(model_type, bind_value, :dml)
+              types[key] = converter.convert_active_model_type_to_spanner model_type
+              params[key] = converter.serialize_with_transaction_isolation_level model_type, bind_value, :dml
             elsif bind.instance_of? Symbol
               types[key] = :STRING
-              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                            .serialize_with_transaction_isolation_level(:STRING, bind_value, :dml)
+              params[key] = converter.serialize_with_transaction_isolation_level :STRING, bind_value, :dml
             elsif bind.instance_of?(TrueClass) || bind.instance_of?(FalseClass)
               types[key] = :BOOL
               params[key] = bind_value
             else
               types[key] = :INT64
-              params[key] = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-                            .serialize_with_transaction_isolation_level(ActiveModel::Type::Integer, bind_value, :dml)
+              params[key] = converter.serialize_with_transaction_isolation_level integer_type, bind_value, :dml
             end
+            index += 1
           end
           [types, params]
         end
