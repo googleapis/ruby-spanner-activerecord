@@ -1,5 +1,18 @@
 # Changelog
 
+### 2.7.0 (2026-08-19)
+
+#### Features
+
+* drop ActiveRecord 7.0 support ([#410](https://github.com/googleapis/ruby-spanner-activerecord/issues/410)) 
+### Performance Improvements
+
+* avoid method cache invalidation during Arel compilation ([#415](https://github.com/googleapis/ruby-spanner-activerecord/issues/415)) 
+* fast O(1) type lookup map in SpannerActiveRecordConverter ([#418](https://github.com/googleapis/ruby-spanner-activerecord/issues/418)) 
+* freeze request tag prefixes and prevent duplicate option appends ([#417](https://github.com/googleapis/ruby-spanner-activerecord/issues/417)) 
+* memoize Snapshot.from_grpc method arity ([#419](https://github.com/googleapis/ruby-spanner-activerecord/issues/419)) 
+* serialize query types and params in a single pass ([#416](https://github.com/googleapis/ruby-spanner-activerecord/issues/416)) 
+
 ### 2.6.0 (2026-07-09)
 
 #### Features
