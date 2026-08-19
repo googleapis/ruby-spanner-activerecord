@@ -17,67 +17,67 @@ class ArelVisitorTest < TestHelper::MockActiveRecordTest
   end
 
   def test_compile_basic_select
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     sql = @visitor.compile query.ast
     assert_equal "SELECT * FROM `users`", sql
   end
 
   def test_compile_statement_hint
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     query.optimizer_hints "statement_hint: @{USE_ADDITIONAL_PARALLELISM=TRUE}"
     sql = @visitor.compile query.ast
     assert_equal " @{USE_ADDITIONAL_PARALLELISM=TRUE}SELECT  * FROM `users`", sql
   end
 
   def test_compile_table_hint
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     query.optimizer_hints "table_hint: users@{FORCE_INDEX=idx_users_name}"
     sql = @visitor.compile query.ast
     assert_equal "SELECT  * FROM `users`@{FORCE_INDEX=idx_users_name}", sql
   end
 
   def test_compile_table_hint_with_alias
-    table_alias = @table.alias("u")
-    query = Arel::SelectManager.new(table_alias).project(Arel.star)
+    table_alias = @table.alias "u"
+    query = Arel::SelectManager.new(table_alias).project Arel.star
     query.optimizer_hints "table_hint: users@{FORCE_INDEX=idx_users_name}"
     sql = @visitor.compile query.ast
     assert_equal "SELECT  * FROM `users`@{FORCE_INDEX=idx_users_name} `u`", sql
   end
 
   def test_compile_staleness_hints
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     query.optimizer_hints "max_staleness: 10.5"
     collector = Arel::Collectors::Composite.new(
       Arel::Collectors::SQLString.new,
       Arel::Collectors::Bind.new
     )
-    _sql, binds = @visitor.compile(query.ast, collector)
+    _sql, binds = @visitor.compile query.ast, collector
     staleness_hint = binds.find { |bind| bind.is_a? Arel::Visitors::StalenessHint }
     refute_nil staleness_hint
     assert_equal({ max_staleness: 10.5 }, staleness_hint.value)
   end
 
   def test_compile_request_priority_hint
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     query.optimizer_hints "priority: PRIORITY_LOW"
     collector = Arel::Collectors::Composite.new(
       Arel::Collectors::SQLString.new,
       Arel::Collectors::Bind.new
     )
-    _sql, binds = @visitor.compile(query.ast, collector)
+    _sql, binds = @visitor.compile query.ast, collector
     request_options = binds.find { |bind| bind.is_a? Google::Cloud::Spanner::V1::RequestOptions }
     refute_nil request_options
     assert_equal :PRIORITY_LOW, request_options.priority
   end
 
   def test_compile_comment_tags
-    query = @table.project(Arel.star)
+    query = @table.project Arel.star
     query.comment "request_tag: select_users", "transaction_tag: tx_users"
     collector = Arel::Collectors::Composite.new(
       Arel::Collectors::SQLString.new,
       Arel::Collectors::Bind.new
     )
-    _sql, binds = @visitor.compile(query.ast, collector)
+    _sql, binds = @visitor.compile query.ast, collector
     request_options = binds.find { |bind| bind.is_a? Google::Cloud::Spanner::V1::RequestOptions }
     refute_nil request_options
     assert_equal "select_users", request_options.request_tag
@@ -86,9 +86,24 @@ class ArelVisitorTest < TestHelper::MockActiveRecordTest
 
   def test_compile_pending_commit_timestamp_attribute
     time_type = ActiveRecord::Type::Spanner::Time.new
-    attribute = ActiveModel::Attribute.from_user("created_at", :commit_timestamp, time_type)
+    attribute = ActiveModel::Attribute.from_user "created_at", :commit_timestamp, time_type
     collector = Arel::Collectors::SQLString.new
     @visitor.send :visit_ActiveModel_Attribute, attribute, collector
     assert_equal "PENDING_COMMIT_TIMESTAMP()", collector.value
+  end
+
+  def test_collector_does_not_redefine_accessors_dynamically
+    collector = Arel::Collectors::SQLString.new
+    assert_respond_to collector, :hints
+    assert_respond_to collector, :hints=
+    assert_respond_to collector, :table_hints
+    assert_respond_to collector, :table_hints=
+    assert_respond_to collector, :join_hints
+    assert_respond_to collector, :join_hints=
+
+    # Ensure multiple compile calls run cleanly without re-defining methods
+    query = @table.project Arel.star
+    3.times { @visitor.compile query.ast }
+    assert_equal "SELECT * FROM `users`", @visitor.compile(query.ast)
   end
 end

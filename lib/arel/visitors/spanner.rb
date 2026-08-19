@@ -5,6 +5,14 @@
 # https://opensource.org/licenses/MIT.
 
 module Arel # :nodoc: all
+  module Collectors
+    class SQLString
+      attr_accessor :hints
+      attr_accessor :table_hints
+      attr_accessor :join_hints
+    end
+  end
+
   module Visitors
     class StalenessHint
       attr_reader :value
@@ -24,9 +32,9 @@ module Arel # :nodoc: all
 
     class Spanner < Arel::Visitors::ToSql
       def compile node, collector = Arel::Collectors::SQLString.new
-        collector.class.module_eval { attr_accessor :hints }
-        collector.class.module_eval { attr_accessor :table_hints }
-        collector.class.module_eval { attr_accessor :join_hints }
+        unless collector.respond_to? :hints=
+          collector.class.attr_accessor :hints, :table_hints, :join_hints
+        end
         collector.hints = {}
         collector.table_hints = {}
         collector.join_hints = {}

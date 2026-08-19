@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "google/cloud/spanner"
 
 module Google
   module Cloud
@@ -23,6 +24,10 @@ module Google
       end
 
       class Session
+        def self.snapshot_from_grpc_arity
+          @snapshot_from_grpc_arity ||= Snapshot.method(:from_grpc).arity
+        end
+
         def commit_transaction transaction, mutations = [], commit_options: nil
           ensure_service!
 
@@ -69,8 +74,7 @@ module Google
           snp_grpc = service.create_snapshot \
             path, timestamp: timestamp || read_timestamp,
             staleness: staleness || exact_staleness
-          num_args = Snapshot.method(:from_grpc).arity
-          if num_args == 3
+          if Session.snapshot_from_grpc_arity == 3
             Snapshot.from_grpc snp_grpc, self, nil
           else
             Snapshot.from_grpc snp_grpc, self
