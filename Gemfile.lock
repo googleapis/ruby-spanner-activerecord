@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerecord-spanner-adapter (2.6.0)
+    activerecord-spanner-adapter (2.7.0)
       activerecord (>= 7.1, < 9)
       google-cloud-spanner (~> 2.25)
       google-cloud-spanner-v1 (~> 1.7)
@@ -349,7 +349,7 @@ DEPENDENCIES
 CHECKSUMS
   activemodel (7.1.6) sha256=f72f510018a560b5969e3ffc88214441ff09eed60b310feba678a597b2a2e721
   activerecord (7.1.6) sha256=1aa298cd7fc97ed8639ebb05a46bd17243a1218d89945bdc2bac1e61e673f079
-  activerecord-spanner-adapter (2.6.0)
+  activerecord-spanner-adapter (2.7.0)
   activesupport (7.1.6) sha256=7f12140a813b1c4922a322663e547129aef1840fc512fa262378f6d7e7fd3a7c
   addressable (2.9.0) sha256=7fdf6ac3660f7f4e867a0838be3f6cf722ace541dd97767fa42bc6cfa980c7af
   appraisal (2.5.0) sha256=36989221be127913b0dba8d114da2001e6b2dceea7bd4951200eaba764eed3ce
