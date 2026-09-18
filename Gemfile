@@ -9,7 +9,7 @@ unless ENV["APPRAISAL_INITIALIZED"] || ENV["APPRAISAL_UNDER_TEST"] || (ENV["BUND
 end
 gem "docker-api"
 gem "irb"
-gem "minitest", "~> 5.27.0"
+gem "minitest", "~> 6.0.0"
 gem "minitest-rg", "~> 5.4.0"
 gem "mutex_m"
 gem "ostruct"
