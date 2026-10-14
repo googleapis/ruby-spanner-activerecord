@@ -342,11 +342,10 @@ module ActiveRecord
         private
 
         # Translates binds to Spanner types and params.
-        def to_types_and_params binds # rubocop:disable Metrics/AbcSize
+        def to_types_and_params binds
           return [{}, {}] if binds.empty?
 
           converter = ActiveRecord::Type::Spanner::SpannerActiveRecordConverter
-          integer_type = ActiveModel::Type::Integer
           types = {}
           params = {}
           index = 0
@@ -365,12 +364,22 @@ module ActiveRecord
               types[key] = :BOOL
               params[key] = bind_value
             else
-              types[key] = :INT64
-              params[key] = converter.serialize_with_transaction_isolation_level integer_type, bind_value, :dml
+              types[key] = untyped_bind_type bind_value
+              params[key] = bind_value
             end
             index += 1
           end
           [types, params]
+        end
+
+        def untyped_bind_type value
+          case value
+          when ::String, ::Float, ::BigDecimal, ::Time, ::Date
+            Google::Cloud::Spanner::Convert.field_for_object value
+          else
+            # Preserve the existing fallback for nil and unsupported values.
+            :INT64
+          end
         end
 
         def to_types binds
