@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.7.1 (2026-10-19)
+
+#### Documentation
+
+* trigger a release to verify the new publishing pipeline ([#439](https://github.com/googleapis/ruby-spanner-activerecord/issues/439)) 
+
 ### 2.7.0 (2026-08-19)
 
 #### Features
