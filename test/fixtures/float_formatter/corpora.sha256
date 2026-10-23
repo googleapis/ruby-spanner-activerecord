@@ -1,0 +1,9 @@
+# Expected SHA256 of nlohmann/json 3.11.3, nlohmann::json(double).dump() output.
+# Hash each record as: 16 lowercase hex digits + space + exact token + LF.
+# exponent_boundaries: exponents 0..2046, mantissas 0, 1, 2, 2^51-1, 2^51,
+# 2^52-2, 2^52-1; positive then negative for each pair, in that order.
+# random_bits: 20,000 steps of the 64-bit LCG, seed 0x0123456789abcdef,
+# multiplier 6364136223846793005, increment 1442695040888963407; skip nonfinite.
+# Columns: corpus name, finite value count, expected SHA256.
+exponent_boundaries 28658 c02e8e4a612173729212e365f59532fd3eba5ff28c4e070b81def69e595456fd
+random_bits 19996 d1e106a7f35477be12acce6f784464b9f62c62f2cd2fa3787e57063f1c0361cf
