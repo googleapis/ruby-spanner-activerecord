@@ -18,6 +18,8 @@ require "active_record/connection_adapters/spanner/type_metadata"
 require "active_record/connection_adapters/spanner/quoting"
 require "active_record/type/spanner/array"
 require "active_record/type/spanner/bytes"
+require "active_record/type/spanner/json"
+require "activerecord_spanner_adapter/json_conversion"
 require "active_record/type/spanner/spanner_active_record_converter"
 require "active_record/type/spanner/time"
 require "active_record/type/spanner/uuid"
@@ -254,7 +256,7 @@ module ActiveRecord
           m.register_type "INT64", Type::Integer.new(limit: 8)
           register_class_with_limit m, %r{^STRING}i, Type::String
           m.register_type "TIMESTAMP", ActiveRecord::Type::Spanner::Time.new
-          m.register_type "JSON", ActiveRecord::Type::Json.new
+          m.register_type "JSON", ActiveRecord::Type::Spanner::Json.new
           m.register_type "UUID", ActiveRecord::Type::Spanner::Uuid.new
 
           register_array_types m
@@ -270,7 +272,7 @@ module ActiveRecord
           m.register_type %r{^ARRAY<INT64>}i, Type::Spanner::Array.new(Type::Integer.new(limit: 8))
           m.register_type %r{^ARRAY<STRING\((MAX|d+)\)>}i, Type::Spanner::Array.new(Type::String.new)
           m.register_type %r{^ARRAY<TIMESTAMP>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Time.new)
-          m.register_type %r{^ARRAY<JSON>}i, Type::Spanner::Array.new(ActiveRecord::Type::Json.new)
+          m.register_type %r{^ARRAY<JSON>}i, Type::Spanner::Array.new(Type::Spanner::Json.new)
           m.register_type %r{^ARRAY<UUID>}i, Type::Spanner::Array.new(ActiveRecord::Type::Spanner::Uuid.new)
         end
 
