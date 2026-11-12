@@ -70,24 +70,24 @@ GEM
       googleapis-common-protos-types (~> 1.15)
       googleauth (~> 1.12)
       grpc (>= 1.84.1, < 2.a)
-    google-cloud-core (1.9.0)
+    google-cloud-core (1.9.1)
       google-cloud-env (>= 1.0, < 3.a)
       google-cloud-errors (~> 1.0)
     google-cloud-env (2.4.1)
       base64 (~> 0.2)
       faraday (>= 1.0, < 3.a)
     google-cloud-errors (1.7.1)
-    google-cloud-spanner (2.36.0)
+    google-cloud-spanner (2.37.1)
       bigdecimal (~> 3.0)
       concurrent-ruby (~> 1.0)
       google-cloud-core (~> 1.7)
       google-cloud-spanner-admin-database-v1 (~> 1.4)
       google-cloud-spanner-admin-instance-v1 (~> 1.6)
-      google-cloud-spanner-v1 (~> 1.6)
-    google-cloud-spanner-admin-database-v1 (1.6.1)
-      gapic-common (>= 0.25.0, < 2.a)
+      google-cloud-spanner-v1 (~> 1.12)
+    google-cloud-spanner-admin-database-v1 (1.16.0)
+      gapic-common (~> 1.6)
       google-cloud-errors (~> 1.0)
-      grpc-google-iam-v1 (~> 1.1)
+      grpc-google-iam-v1 (~> 1.11)
     google-cloud-spanner-admin-instance-v1 (1.6.0)
       gapic-common (>= 0.25.0, < 2.a)
       google-cloud-errors (~> 1.0)
@@ -166,10 +166,10 @@ GEM
     grpc (1.85.0-x86_64-linux-musl)
       google-protobuf (>= 3.25, < 5.0)
       googleapis-common-protos-types (~> 1.0)
-    grpc-google-iam-v1 (1.10.0)
+    grpc-google-iam-v1 (1.13.0)
       google-protobuf (>= 3.18, < 5.a)
-      googleapis-common-protos (~> 1.4)
-      grpc (~> 1.41)
+      googleapis-common-protos (~> 1.9)
+      grpc (>= 1.84.1, < 2.a)
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     io-console (0.9.5)
@@ -374,11 +374,11 @@ CHECKSUMS
   faraday-net_http (3.5.0) sha256=2e7094c34e38754ee048cc3df47376f8657005d9375f8473bce1c3b526a22e36
   faraday-retry (2.4.0) sha256=7b79c48fb7e56526faf247b12d94a680071ff40c9fda7cf1ec1549439ad11ebe
   gapic-common (1.6.1) sha256=b4d5c2b1a68f30bb316581e447678377972773ce44d3f5959580b1df075a801e
-  google-cloud-core (1.9.0) sha256=ab55409f51488e8deefb6edcc1ce4771dfb5da2fe7b3bc075709a030c2b682a4
+  google-cloud-core (1.9.1) sha256=6590e393cbeadf018e6880038e19348d2ccfc83000625c569a9b21ab3b450af0
   google-cloud-env (2.4.1) sha256=987cc58afc50ce2903128ab4dcd442159be4457246b8137e41d49d5c3fc590dd
   google-cloud-errors (1.7.1) sha256=818bcf30998d10f28f30532a2595b49438cb7abf42f6ac495843078839987207
-  google-cloud-spanner (2.36.0) sha256=91abbf55d6ce8e054edd838977a907152ff9ff491f34690409bbe6b9a82c0c5c
-  google-cloud-spanner-admin-database-v1 (1.6.1) sha256=6b8758e4def80d69e9ee64a42078d3a59ab028a638f7a849abd8130cf85add9b
+  google-cloud-spanner (2.37.1) sha256=c7da2d5a17ade932fc752486e1389ed26cfd7dabc4fc5f236be9d18c6ee38322
+  google-cloud-spanner-admin-database-v1 (1.16.0) sha256=e6f35a6b01f6355a7c5134167025f0a10fc1e2bdad527047f874b069e64aaec7
   google-cloud-spanner-admin-instance-v1 (1.6.0) sha256=1775b56518665854b27af393378761e6ff9b12156d746168df7bb14ce0138d54
   google-cloud-spanner-v1 (1.21.0) sha256=b95d1102d4b9b3af1370cdd4477ea34fed6fda6aa575ef0f091d1d64ae2e2c44
   google-logging-utils (0.2.2) sha256=ad2436ef22e918e2b1c3ad2bbaf5949f42f5389d49fd37e41b43bbdd3068e27c
@@ -404,7 +404,7 @@ CHECKSUMS
   grpc (1.85.0-x86_64-darwin) sha256=e451ef4d733408530db44028197e8d9449743fcaed2ef81801e537a3c03d1516
   grpc (1.85.0-x86_64-linux-gnu) sha256=1623b7d7c9a7c8a2f4709ffa00ad98fb873a530cf7003de76fc9136adebcaa9d
   grpc (1.85.0-x86_64-linux-musl) sha256=dfc3ffa78de52c9b491d580ca445e0a4f62fbbc88c5d9e0c24abcdb812133d7b
-  grpc-google-iam-v1 (1.10.0) sha256=13a4ace4f7495b913f202880a5431f7e53633af3dd6d7df8c4224bd2dac23a9a
+  grpc-google-iam-v1 (1.13.0) sha256=2d0ccd3ca06c7d5894db5b5319b91a1cc397a8e9b65cb1a6459de6e27881ad62
   i18n (1.15.2) sha256=00f9eb62412fe593b2a65a97daa75300d37abb8f7202ec748e94b6d46a9dd1b5
   io-console (0.9.5) sha256=83dd9bbf4c4680416629245b39cd4212eb5f4d9a4ea91804870c1f6b846414d5
   irb (1.19.0) sha256=55ee56acbdd6c9fe06a2e6909f46a24e5c41f45f16906bab04e8049cf46f1d27
