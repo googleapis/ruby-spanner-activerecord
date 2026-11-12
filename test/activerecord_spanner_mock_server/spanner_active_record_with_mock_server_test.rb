@@ -693,6 +693,79 @@ module MockServerTests
       assert_equal timestamp.utc.rfc3339(9), request.params["p1"]
     end
 
+    def test_untyped_binds_from_arel_sql_are_typed_by_ruby_class
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE first_name = @p1 AND active = @p2 AND weight = @p3 " \
+                   "AND balance = @p4 AND last_performance = @p5 AND created_at = @p6 AND birth_date = @p7 AND age = @p8"
+      @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(1)
+
+      time = ::Time.parse("2021-05-12T10:30:00+02:00")
+      date_time = ::DateTime.new(2021, 5, 12, 10, 30, 0, "+02:00")
+      Singer.where(
+        Arel.sql(
+          "first_name = ? AND active = ? AND weight = ? AND balance = ? AND last_performance = ? " \
+          "AND created_at = ? AND birth_date = ? AND age = ?",
+          "Alice", true, 1.5, BigDecimal("12.34"), time, date_time, ::Date.new(2021, 5, 12), 42
+        )
+      ).to_a
+
+      request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
+      refute_nil request
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal "Alice", request.params["p1"]
+      assert_equal :BOOL, request.param_types["p2"].code
+      assert_equal true, request.params["p2"]
+      assert_equal :FLOAT64, request.param_types["p3"].code
+      assert_equal 1.5, request.params["p3"]
+      assert_equal :NUMERIC, request.param_types["p4"].code
+      assert_equal "12.34", request.params["p4"]
+      assert_equal :TIMESTAMP, request.param_types["p5"].code
+      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p5"]
+      assert_equal :TIMESTAMP, request.param_types["p6"].code
+      assert_equal "2021-05-12T08:30:00.000000000Z", request.params["p6"]
+      assert_equal :DATE, request.param_types["p7"].code
+      assert_equal "2021-05-12", request.params["p7"]
+      assert_equal :INT64, request.param_types["p8"].code
+      assert_equal "42", request.params["p8"]
+    end
+
+    def test_untyped_time_with_zone_bind_is_a_timestamp
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE last_performance = @p1"
+      @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(1)
+
+      time = ActiveSupport::TimeZone["America/Los_Angeles"].local(2021, 5, 12, 10, 30, 0)
+      assert_instance_of ActiveSupport::TimeWithZone, time
+      Singer.where(Arel.sql("last_performance = ?", time)).to_a
+
+      request = @mock.requests.select { |req| req.is_a?(ExecuteSqlRequest) && req.sql == select_sql }.first
+      refute_nil request
+      assert_equal :TIMESTAMP, request.param_types["p1"].code
+      assert_equal "2021-05-12T17:30:00.000000000Z", request.params["p1"]
+    end
+
+    def test_untyped_nil_and_unsupported_binds_preserve_the_integer_fallback
+      binds = [nil, [], Object.new]
+      types, params = Singer.connection.send(:to_types_and_params, binds)
+
+      assert_equal({ "p1" => :INT64, "p2" => :INT64, "p3" => :INT64 }, types)
+      binds.each_with_index do |bind, index|
+        assert_same bind, params["p#{index + 1}"]
+      end
+    end
+
+    def test_where_with_positional_string_placeholder
+      # Before ActiveRecord 8.1, `where("col = ?", value)` inlines the value into the SQL instead of binding it.
+      skip "Requires Rails version 8.1 or higher" if ActiveRecord.version < Gem::Version.create("8.1.0")
+      select_sql = "SELECT `singers`.* FROM `singers` WHERE (first_name = @p1)"
+      @mock.put_statement_result select_sql, MockServerTests::create_random_singers_result(1)
+
+      Singer.where("first_name = ?", "Alice").to_a
+
+      request = @mock.requests.select {|req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == select_sql }.first
+      refute_nil request
+      assert_equal :STRING, request.param_types["p1"].code
+      assert_equal "Alice", request.params["p1"]
+    end
+
     def test_create_singer_with_picture
       insert_sql = "INSERT INTO `singers` (`first_name`, `last_name`, `picture`, `id`) VALUES (@p1, @p2, @p3, @p4)"
       @mock.put_statement_result insert_sql, StatementResult.new(1)
