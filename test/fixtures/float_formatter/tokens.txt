@@ -1,0 +1,71 @@
+# Expected tokens from nlohmann/json 3.11.3, nlohmann::json(double).dump().
+# Generated using the independent compiled C++ oracle, never the Ruby formatter.
+# Columns: IEEE-754 binary64 hexadecimal bits, exact JSON token, case description.
+0000000000000000	0.0	positive zero
+8000000000000000	-0.0	negative zero
+0000000000000001	5e-324	smallest positive subnormal
+0000000000000002	1e-323	second positive subnormal
+8000000000000001	-5e-324	smallest negative subnormal
+000fffffffffffff	2.225073858507201e-308	largest positive subnormal
+0010000000000000	2.2250738585072014e-308	minimum positive normal
+0010000000000001	2.225073858507202e-308	minimum positive normal successor
+7fefffffffffffff	1.7976931348623157e+308	largest finite positive value
+ffefffffffffffff	-1.7976931348623157e+308	largest finite negative magnitude
+433fffffffffffff	9.007199254740991e+15	integer precision boundary predecessor
+4340000000000000	9.007199254740992e+15	integer precision boundary
+4340000000000001	9.007199254740994e+15	integer precision boundary successor
+3ff0000000000000	1.0	one
+bff0000000000000	-1.0	negative one
+3fe0000000000000	0.5	binary fraction
+3fb999999999999a	0.1	decimal fraction
+3f634663919fd014	0.0023528999999999998	nlohmann longer decimal
+3ff3d8c7e28240b8	1.240425	nlohmann shorter decimal
+400921fb54442d18	3.141592653589793	pi
+42d6bcc41e900000	100000000000000.0	large exact integer float
+3f50000000000000	0.0009765625	small exact binary fraction
+3fefffffffffffff	0.9999999999999999	one -1
+bfefffffffffffff	-0.9999999999999999	negative one -1
+3ff0000000000001	1.0000000000000002	one 1
+bff0000000000001	-1.0000000000000002	negative one 1
+3f1a36e2eb1c432c	9.999999999999999e-05	lower fixed notation boundary -1
+bf1a36e2eb1c432c	-9.999999999999999e-05	negative lower fixed notation boundary -1
+3f1a36e2eb1c432d	0.0001	lower fixed notation boundary 0
+bf1a36e2eb1c432d	-0.0001	negative lower fixed notation boundary 0
+3f1a36e2eb1c432e	0.00010000000000000002	lower fixed notation boundary 1
+bf1a36e2eb1c432e	-0.00010000000000000002	negative lower fixed notation boundary 1
+3ee4f8b588e368f0	9.999999999999999e-06	small scientific number -1
+bee4f8b588e368f0	-9.999999999999999e-06	negative small scientific number -1
+3ee4f8b588e368f1	1e-05	small scientific number 0
+bee4f8b588e368f1	-1e-05	negative small scientific number 0
+3ee4f8b588e368f2	1.0000000000000003e-05	small scientific number 1
+bee4f8b588e368f2	-1.0000000000000003e-05	negative small scientific number 1
+430c6bf52633ffff	999999999999999.9	upper fixed notation boundary -1
+c30c6bf52633ffff	-999999999999999.9	negative upper fixed notation boundary -1
+430c6bf526340000	1e+15	upper fixed notation boundary 0
+c30c6bf526340000	-1e+15	negative upper fixed notation boundary 0
+430c6bf526340001	1.0000000000000001e+15	upper fixed notation boundary 1
+c30c6bf526340001	-1.0000000000000001e+15	negative upper fixed notation boundary 1
+2ce32d2335df4552	1.838639451725799e-92	deterministic sample 1
+ca18dd5ae3c45eb9	-9.084938291167941e+48	deterministic sample 2
+860f53667996eed4	-1.7257423766123035e-279	deterministic sample 3
+e21299d828cea893	-2.6778909169587644e+164	deterministic sample 4
+c60c9ae76aeb1026	-2.832911260854019e+29	deterministic sample 5
+044096810dda31fd	3.404283677272497e-288	deterministic sample 6
+f750ba5cd9cfcdc8	-5.393859848927963e+266	deterministic sample 7
+d85091117d6ce577	-2.611040628554583e+117	deterministic sample 8
+0c11bf36eba4e03a	1.549197886606312e-250	deterministic sample 9
+0df922c6e861b181	2.3560094091984846e-241	deterministic sample 10
+e3ffaef9e3b7b3fc	-4.8976830634895363e+173	deterministic sample 11
+b8641c0ab2a8289b	-4.727729718970044e-37	deterministic sample 12
+76197f2e7152898e	7.84046789284113e+260	deterministic sample 13
+38d0dcb70ccd2145	5.074274142550697e-35	deterministic sample 14
+7f2c0d6bd4209570	3.8474773167913083e+304	deterministic sample 15
+3cc17db3a57455ff	4.85473395791945e-16	deterministic sample 16
+132bb33884ef2022	2.5110431046370852e-216	deterministic sample 17
+5b647112c22b0549	1.8136979596815955e+132	deterministic sample 18
+4107f48f3013a624	196241.89847497747	deterministic sample 19
+6d8dd69a8d3b91a3	5.2664852351984844e+219	deterministic sample 20
+3427b9497ffef7f6	1.8897079234047594e-57	deterministic sample 21
+26b1c32b4e6a218d	2.6869706031560697e-122	deterministic sample 22
+8ad2b586c9c55a18	-1.557529638364818e-256	deterministic sample 23
+019eff1de6c23f87	7.2319881056703685e-301	deterministic sample 24

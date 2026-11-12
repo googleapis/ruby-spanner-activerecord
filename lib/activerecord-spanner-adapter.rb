@@ -5,6 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 require "activerecord_spanner_adapter/version"
+require "activerecord_spanner_adapter/json_conversion"
 
 if defined?(Rails)
   module ActiveRecord
