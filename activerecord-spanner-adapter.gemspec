@@ -38,7 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "minitest-rg", "~> 5.4"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "redcarpet", "~> 3.0"
-  spec.add_development_dependency "simplecov", "~> 0.9"
+  spec.add_development_dependency "simplecov", "~> 1.0"
   spec.add_development_dependency "yard", "~> 0.9"
   spec.add_development_dependency "yard-doctest", "~> 0.1.13"
 end
