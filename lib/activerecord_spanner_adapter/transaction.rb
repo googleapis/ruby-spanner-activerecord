@@ -37,6 +37,10 @@ module ActiveRecordSpannerAdapter
       @mutations << mutation
     end
 
+    def mutations?
+      !@mutations.empty?
+    end
+
     # Begins the transaction.
     #
     # Read-only and PDML transactions are started by executing a BeginTransaction RPC.
