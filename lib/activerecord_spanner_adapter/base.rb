@@ -84,16 +84,18 @@ module ActiveRecord
         return super
       end
 
-      # Mutations cannot be used in combination with an auto-generated primary key,
-      # as mutations do not support a THEN RETURN clause.
-      if buffered_mutations? \
-        && has_auto_generated_primary_key? \
-        && !_has_all_primary_key_values?(primary_key, values) \
-        && !connection.use_client_side_id_for_mutations
-        raise StatementInvalid, "Mutations cannot be used to create records that use an auto-generated primary key."
-      end
+      if buffered_mutations?
+        connection.ensure_writes_allowed "MUTATION (insert)"
+        # Mutations cannot be used in combination with an auto-generated primary key,
+        # as mutations do not support a THEN RETURN clause.
+        if has_auto_generated_primary_key? \
+          && !_has_all_primary_key_values?(primary_key, values) \
+          && !connection.use_client_side_id_for_mutations
+          raise StatementInvalid, "Mutations cannot be used to create records that use an auto-generated primary key."
+        end
 
-      return _buffer_record values, :insert, returning if buffered_mutations?
+        return _buffer_record values, :insert, returning
+      end
 
       _insert_record_dml values, returning
     end
@@ -199,6 +201,8 @@ module ActiveRecord
     end
 
     def self._buffer_record values, method, returning
+      connection.ensure_writes_allowed "MUTATION (#{method})"
+
       primary_key_value =
         if primary_key.is_a? Array
           _set_composite_primary_key_values primary_key, values, true
@@ -217,7 +221,7 @@ module ActiveRecord
       mutation = Google::Cloud::Spanner::V1::Mutation.new(
         "#{method}": write
       )
-      connection.current_spanner_transaction.buffer mutation
+      connection.exec_mutation mutation
 
       _convert_primary_key primary_key_value, returning
     end
@@ -350,6 +354,7 @@ module ActiveRecord
     def _update_row attribute_names, attempted_action = "update"
       return super unless self.class.buffered_mutations?
 
+      self.class.connection.ensure_writes_allowed "MUTATION (update)"
       if locking_enabled?
         _execute_version_check attempted_action
         attribute_names << self.class.locking_column
@@ -367,7 +372,7 @@ module ActiveRecord
           values: [grpc_values.list_value]
         )
       )
-      self.class.connection.current_spanner_transaction.buffer mutation
+      self.class.connection.exec_mutation mutation
       1 # Affected rows
     end
 
@@ -407,6 +412,8 @@ module ActiveRecord
 
     def _delete_row
       return super unless self.class.buffered_mutations?
+
+      self.class.connection.ensure_writes_allowed "MUTATION (delete)"
       if locking_enabled?
         _execute_version_check "destroy"
       end
@@ -425,7 +432,7 @@ module ActiveRecord
           key_set: { keys: [list_value] }
         )
       )
-      self.class.connection.current_spanner_transaction.buffer mutation
+      self.class.connection.exec_mutation mutation
       1 # Affected rows
     end
 

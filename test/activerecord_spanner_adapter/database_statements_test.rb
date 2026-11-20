@@ -140,4 +140,92 @@ class DatabaseStatementsTest < TestHelper::MockActiveRecordTest
 
     assert_empty binds
   end
+
+  def test_write_query_allows_read_statements_and_hinted_reads
+    [
+      "SELECT * FROM users",
+      " @{USE_ADDITIONAL_PARALLELISM=true}SELECT * FROM users",
+      "@{OPTIMIZER_STATISTICS_PACKAGE='a}b'} SELECT * FROM users",
+      "/* comment */ -- line\n # hash comment\n @{FORCE_INDEX=idx} (SELECT 1)",
+      "# hash comment\nSELECT * FROM users",
+      "SELECT 1 /* \xFF */".dup.force_encoding(Encoding::UTF_8),
+      "WITH cte AS (SELECT 1) SELECT * FROM cte",
+      "GRAPH FinGraph MATCH (n) RETURN n.id",
+      "FROM Singers |> SELECT Id",
+      "SHOW TABLES",
+      "EXPLAIN SELECT 1",
+      "BEGIN",
+      "COMMIT",
+      "ROLLBACK"
+    ].each do |sql|
+      refute @adapter.write_query?(sql), "Expected write_query? to be false for: #{sql}"
+    end
+  end
+
+  def test_write_query_detects_dml_ddl_hinted_writes_and_unknown_writes
+    [
+      "INSERT INTO users (id) VALUES (1)",
+      "UPDATE users SET name = 'a'",
+      "DELETE FROM users WHERE id = 1",
+      "# hash comment\nUPDATE users SET name = 'a'",
+      " @{USE_ADDITIONAL_PARALLELISM=true}UPDATE users SET name = 'a'",
+      "@{OPTIMIZER_STATISTICS_PACKAGE='a}b'} DELETE FROM users WHERE id = 1",
+      "/* tag */ @{a=1} (INSERT INTO users (id) VALUES (1))",
+      "UPDATE users SET name = '\xFF'".dup.force_encoding(Encoding::UTF_8),
+      "CREATE TABLE users (id INT64) PRIMARY KEY (id)",
+      "ALTER TABLE users ADD COLUMN name STRING(MAX)",
+      "DROP TABLE users",
+      "RENAME TABLE users TO people",
+      "GRANT SELECT ON TABLE users TO ROLE reader",
+      "REVOKE SELECT ON TABLE users FROM ROLE reader",
+      "ANALYZE",
+      "TRUNCATE TABLE users",
+      "UPDATE_CUSTOM SELECT 1"
+    ].each do |sql|
+      assert @adapter.write_query?(sql), "Expected write_query? to be true for: #{sql}"
+    end
+  end
+
+  def test_sql_statement_type_with_statement_hints_and_ddl_keywords
+    assert_equal :dql, @adapter.send(:sql_statement_type, " @{USE_ADDITIONAL_PARALLELISM=true}SELECT * FROM users")
+    assert_equal :dql, @adapter.send(:sql_statement_type, "# hash comment\nSELECT * FROM users")
+    assert_equal :dml, @adapter.send(:sql_statement_type, " @{USE_ADDITIONAL_PARALLELISM=true}UPDATE users SET name = 'a'")
+    assert_equal :dml, @adapter.send(:sql_statement_type, "# hash comment\nUPDATE users SET name = 'a'")
+    assert_equal :dml, @adapter.send(:sql_statement_type, "@{a='}'} DELETE FROM users WHERE id = 1")
+    assert_equal :dml, @adapter.send(:sql_statement_type, "/* c */ @{a=1} INSERT INTO users (id) VALUES (1)")
+    assert_equal :dml, @adapter.send(:sql_statement_type, "UPDATE users SET name = '\xFF'".dup.force_encoding(Encoding::UTF_8))
+    assert_equal :ddl, @adapter.send(:sql_statement_type, "CREATE TABLE users (id INT64) PRIMARY KEY (id)")
+    assert_equal :ddl, @adapter.send(:sql_statement_type, "RENAME TABLE users TO people")
+    assert_equal :ddl, @adapter.send(:sql_statement_type, "GRANT SELECT ON TABLE users TO ROLE reader")
+    assert_equal :ddl, @adapter.send(:sql_statement_type, "REVOKE SELECT ON TABLE users FROM ROLE reader")
+    assert_equal :ddl, @adapter.send(:sql_statement_type, "ANALYZE")
+  end
+
+  def test_internal_execute_raises_read_only_error_when_preventing_writes
+    @adapter.stub :preventing_writes?, true do
+      [
+        "UPDATE users SET name = 'a' WHERE id = 1",
+        "/*request_tag:true,write_tag*/ @{USE_ADDITIONAL_PARALLELISM=true}UPDATE users SET name = 'a' WHERE id = 1",
+        "CREATE TABLE users (id INT64) PRIMARY KEY (id)"
+      ].each do |sql|
+        binds = []
+        error = assert_raises ActiveRecord::ReadOnlyError do
+          @adapter.send :internal_execute, sql, "SQL", binds
+        end
+        assert_match(/Write query attempted while in readonly mode/, error.message)
+        assert_empty binds
+      end
+    end
+  end
+
+  def test_replica_config_enables_preventing_writes
+    replica_adapter = ActiveRecord::ConnectionAdapters::SpannerAdapter.new(
+      connection, nil, nil, { project: project_id, instance: instance_id, database: database_id, replica: true }
+    )
+    assert replica_adapter.preventing_writes?
+    error = assert_raises ActiveRecord::ReadOnlyError do
+      replica_adapter.execute "UPDATE users SET name = 'a' WHERE id = 1"
+    end
+    assert_match(/Write query attempted while in readonly mode/, error.message)
+  end
 end
