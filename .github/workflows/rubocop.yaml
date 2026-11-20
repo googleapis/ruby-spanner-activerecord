@@ -21,7 +21,7 @@ jobs:
     - name: setup ruby
       uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0 # v1.342.0
       with:
-        ruby-version: '4.0.9'
+        ruby-version: '4.0.10'
     - name: cache gems
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
