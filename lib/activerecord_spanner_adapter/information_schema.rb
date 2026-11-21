@@ -5,7 +5,7 @@
 # https://opensource.org/licenses/MIT.
 
 require "active_record/connection_adapters/abstract/quoting"
-require "activerecord_spanner_adapter/information_schema"
+require "active_record/connection_adapters/spanner/quoting"
 require "activerecord_spanner_adapter/table"
 require "activerecord_spanner_adapter/index"
 require "activerecord_spanner_adapter/foreign_key"
@@ -14,6 +14,7 @@ require "activerecord_spanner_adapter/foreign_key"
 module ActiveRecordSpannerAdapter
   class InformationSchema
     include ActiveRecord::ConnectionAdapters::Quoting
+    include ActiveRecord::ConnectionAdapters::Spanner::Quoting
 
     attr_reader :connection
 
@@ -426,8 +427,11 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    # TODO: Switch INFORMATION_SCHEMA queries from Kernel#format + quote interpolation
+    # to Spanner query parameters (@param / params: + types:), and update SpannerMockServer to match
+    # on parameters as well as SQL.
     def execute_query sql, params = {}
-      params = params.transform_values { |v| quote v }
+      params = params.transform_values { |v| quote v&.to_s }
       sql = format sql, params
 
       @connection.execute_query(sql).rows

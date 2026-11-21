@@ -276,6 +276,61 @@ module MockServerTests
       assert_equal :insert, insert.operation
     end
 
+    def test_execute_version_check_quotes_single_primary_key_and_table_and_locking_column
+      assert_version_check_quotes_sql(
+        table_name: "ver`tbl",
+        primary_key: "id`pk",
+        locking_column: "lock\\ver",
+        id_value: 1,
+        lock_value: 7,
+        expected_sql: "SELECT 1 FROM `ver\\`tbl` WHERE `id\\`pk` = @id AND `lock\\\\ver` = @lock_version",
+        expected_params: { "id" => "1", "lock_version" => "7" }
+      )
+    end
+
+    def test_execute_version_check_quotes_composite_primary_key_and_table_and_locking_column
+      assert_version_check_quotes_sql(
+        table_name: "comp`tbl",
+        primary_key: ["pk`1", "pk\\2"],
+        locking_column: "lock`ver",
+        id_value: [10, 20],
+        lock_value: 3,
+        expected_sql: "SELECT 1 FROM `comp\\`tbl` WHERE `pk\\`1`=@id0 AND `pk\\\\2`=@id1 AND `lock\\`ver` = @lock_version",
+        expected_params: { "id0" => "10", "id1" => "20", "lock_version" => "3" }
+      )
+    end
+
+    def assert_version_check_quotes_sql(
+      table_name:, primary_key:, locking_column:, id_value:, lock_value:, expected_sql:, expected_params:
+    )
+      model_class = Class.new ActiveRecord::Base do
+        self.table_name = table_name
+        self.primary_key = primary_key
+        self.locking_column = locking_column
+
+        def self.name
+          "SpecialVersionedModel"
+        end
+      end
+
+      record = model_class.allocate
+      register_version_check_result true, expected_sql
+
+      record.stub :id_in_database, id_value do
+        record.stub :read_attribute_before_type_cast, lock_value do
+          record.send :_execute_version_check, "update"
+        end
+      end
+
+      execute_request = @mock.requests.find do |request|
+        request.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && request.sql == expected_sql
+      end
+      assert execute_request
+      expected_params.each do |param_name, expected_value|
+        assert_equal expected_value, execute_request.params[param_name]
+      end
+    end
+
     def register_insert_versioned_singer_result
       sql = "INSERT INTO `versioned_singers` (`first_name`, `last_name`, `lock_version`, `id`) " \
             "VALUES (@p1, @p2, @p3, @p4)"
@@ -303,8 +358,7 @@ module MockServerTests
       sql
     end
 
-    def register_version_check_result result
-      sql = "SELECT 1 FROM `versioned_singers` WHERE `id` = @id AND `lock_version` = @lock_version"
+    def register_version_check_result result, sql = "SELECT 1 FROM `versioned_singers` WHERE `id` = @id AND `lock_version` = @lock_version"
       col = Google::Cloud::Spanner::V1::StructType::Field.new name: "", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::INT64)
 
       metadata = Google::Cloud::Spanner::V1::ResultSetMetadata.new row_type: Google::Cloud::Spanner::V1::StructType.new

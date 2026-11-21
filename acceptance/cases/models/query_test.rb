@@ -171,6 +171,35 @@ module ActiveRecord
         assert_equal "SELECT `comments`.* FROM `comments` WHERE `comments`.`comment` = 'Comment - 2'",
                      Comment.where(comment: 'Comment - 2').to_sql
       end
+
+      def test_googlesql_quoting_roundtrip
+        connection = ActiveRecord::Base.connection
+
+        raw_string = (0x00..0x7f).map { |code| code.chr Encoding::UTF_8 }.join + "Café🎵"
+        quoted_string = connection.quote raw_string
+        result_string = connection.select_value "SELECT #{quoted_string}"
+        assert_equal raw_string, result_string
+
+        raw_bytes = (0x00..0xff).map { |byte| byte.chr Encoding::BINARY }.join.b
+        quoted_bytes = connection.quoted_binary raw_bytes
+        result_bytes = connection.select_value "SELECT #{quoted_bytes}"
+        result_bytes.rewind
+        assert_equal raw_bytes, result_bytes.read
+
+        ((0x00..0x1f).to_a << 0x7f).each do |code|
+          control_alias = "col#{code.chr Encoding::UTF_8}name"
+          quoted_control_alias = connection.quote_column_name control_alias
+          control_result = connection.exec_query "SELECT 1 AS #{quoted_control_alias}"
+          assert_equal [control_alias], control_result.columns
+        end
+
+        special_alias = "col`name\\1\n\0🎵"
+        quoted_alias = connection.quote_column_name special_alias
+        result = connection.exec_query "SELECT 1 AS #{quoted_alias}"
+        assert_equal [special_alias], result.columns
+
+        refute connection.table_exists?("posts' OR '1'='1\\")
+      end
     end
   end
 end
