@@ -421,7 +421,7 @@ module TestMigrationsWithMockServer
       MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
       select_fk_sql = foreign_keys_sql "singers"
       register_empty_select_foreign_key_result select_fk_sql
-      update_data_sql = "UPDATE singers SET `age_at_insert` = `age` WHERE true"
+      update_data_sql = "UPDATE `singers` SET `age_at_insert` = `age` WHERE true"
       @mock.put_statement_result update_data_sql, StatementResult.new(100)
 
       # Note: Renaming a column in a DDL batch is not supported, as it involves copying data from one column to another.
@@ -435,6 +435,38 @@ module TestMigrationsWithMockServer
       assert_equal 1, ddl_requests[1].statements.length
       assert_equal "ALTER TABLE `singers` ADD COLUMN `age_at_insert` INT64", ddl_requests[0].statements[0]
       assert_equal "ALTER TABLE `singers` DROP COLUMN `age`", ddl_requests[1].statements[0]
+      update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_data_sql }
+      assert_equal 1, update_requests.length
+    end
+
+    def test_rename_column_quotes_special_table_and_column_names
+      table_name = "singers`bad"
+      old_col = "old`col"
+      new_col = "new\\col"
+
+      MockServerTests::register_key_columns_result @mock, MockServerTests.primary_key_columns_sql(table_name, parent_keys: false)
+      MockServerTests::register_key_columns_result @mock, MockServerTests.primary_key_columns_sql(table_name, parent_keys: true)
+      MockServerTests::register_commit_timestamps_result @mock, table_name, old_col
+      select_column_sql = MockServerTests.table_columns_sql table_name, column_name: old_col
+      register_select_single_column_result select_column_sql, old_col, "INT64"
+      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers`bad' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
+      register_empty_select_index_columns_result select_index_columns_sql
+      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers`bad' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      select_fk_sql = foreign_keys_sql table_name
+      register_empty_select_foreign_key_result select_fk_sql
+      update_data_sql = "UPDATE `singers\\`bad` SET `new\\\\col` = `old\\`col` WHERE true"
+      @mock.put_statement_result update_data_sql, StatementResult.new(10)
+
+      with_change_table table_name do |t|
+        t.rename old_col, new_col
+      end
+
+      ddl_requests = @database_admin_mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::Admin::Database::V1::UpdateDatabaseDdlRequest) }
+      assert_equal 2, ddl_requests.length
+      assert_equal ["ALTER TABLE `singers\\`bad` ADD COLUMN `new\\\\col` INT64"], ddl_requests[0].statements
+      assert_equal ["ALTER TABLE `singers\\`bad` DROP COLUMN `old\\`col`"], ddl_requests[1].statements
+
       update_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == update_data_sql }
       assert_equal 1, update_requests.length
     end

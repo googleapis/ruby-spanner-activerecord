@@ -527,7 +527,7 @@ module ActiveRecord
         def copy_data table_name, src_column_name, dest_column_name
           sql = "UPDATE %<table>s SET %<dest_column_name>s = %<src_column_name>s WHERE true"
           values = {
-            table: table_name,
+            table: quote_table_name(table_name),
             dest_column_name: quote_column_name(dest_column_name),
             src_column_name: quote_column_name(src_column_name)
           }

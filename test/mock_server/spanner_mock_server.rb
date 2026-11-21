@@ -91,6 +91,8 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     validate_transaction request.session, transaction_id if transaction_id && transaction_id != ""
 
     raise @errors[request.sql].pop if @errors[request.sql] && !@errors[request.sql].empty?
+    # TODO: Support matching statement results by (sql, params) so InformationSchema can
+    # use parameterized queries instead of interpolating quoted values into SQL.
     result = get_statement_result(request.sql).clone
     if result.result_type == StatementResult::EXCEPTION
       raise result.result

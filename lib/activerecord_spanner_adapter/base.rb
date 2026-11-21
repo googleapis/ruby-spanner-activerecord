@@ -442,31 +442,32 @@ module ActiveRecord
       locking_column = self.class.locking_column
       previous_lock_value = read_attribute_before_type_cast locking_column
 
+      connection = self.class.connection
       primary_key = self.class.primary_key
       if primary_key.is_a? Array
-        pk_sql = ""
+        pk_conditions = []
         params = {}
         param_types = {}
         id = id_in_database
         primary_key.each_with_index do |col, idx|
-          pk_sql.concat "`#{col}`=@id#{idx}"
-          pk_sql.concat " AND " if idx < primary_key.length - 1
+          pk_conditions << "#{connection.quote_column_name col}=@id#{idx}"
 
           params["id#{idx}"] = id[idx]
           param_types["id#{idx}"] = :INT64
         end
+        pk_sql = pk_conditions.join " AND "
         params["lock_version"] = previous_lock_value
         param_types["lock_version"] = :INT64
       else
-        pk_sql = "`#{self.class.primary_key}` = @id"
+        pk_sql = "#{connection.quote_column_name primary_key} = @id"
         params = { "id" => id_in_database, "lock_version" => previous_lock_value }
         param_types = { "id" => :INT64, "lock_version" => :INT64 }
       end
 
       # We need to check the version using a SELECT query, as a mutation cannot include a WHERE clause.
-      sql = "SELECT 1 FROM `#{self.class.arel_table.name}` " \
-            "WHERE #{pk_sql} AND `#{locking_column}` = @lock_version"
-      locked_row = self.class.connection.raw_connection.execute_query sql, params: params, types: param_types
+      sql = "SELECT 1 FROM #{connection.quote_table_name self.class.arel_table.name} " \
+            "WHERE #{pk_sql} AND #{connection.quote_column_name locking_column} = @lock_version"
+      locked_row = connection.raw_connection.execute_query sql, params: params, types: param_types
       raise ActiveRecord::StaleObjectError.new(self, attempted_action) unless locked_row.rows.any?
     end
   end

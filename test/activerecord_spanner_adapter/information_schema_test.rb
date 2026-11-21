@@ -471,4 +471,32 @@ lines>],
     assert_equal cc.name, "chk_accounts_name"
     assert_equal cc.expression, "name IN ('bob')"
   end
+
+  def test_escapes_table_and_schema_names_with_googlesql_quoting
+    set_mocked_result []
+    malicious_name = "accounts\\' OR 1=1 -- \n\r\0"
+    info_schema.table malicious_name, schema_name: "sch'ema\\1"
+
+    assert_sql_equal(
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='sch\\'ema\\\\1' AND TABLE_NAME='accounts\\\\\\' OR 1=1 -- \\n\\r\\x00'",
+      last_executed_sql
+    )
+  end
+
+  def test_escapes_column_and_index_names_with_googlesql_quoting
+    set_mocked_result []
+    info_schema.index_columns "ord'ers", schema_name: "s'1", index_name: "idx\\' OR '1'='1"
+
+    assert_sql_equal(
+      "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='ord\\'ers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = 's\\'1' AND INDEX_NAME='idx\\\\\\' OR \\'1\\'=\\'1' ORDER BY ORDINAL_POSITION ASC",
+      last_executed_sql
+    )
+  end
+
+  def test_execute_query_coerces_non_string_and_nil_params
+    set_mocked_result []
+    info_schema.send :execute_query, "SELECT %<a>s, %<b>s, %<c>s", a: :sym, b: 123, c: nil
+
+    assert_sql_equal "SELECT 'sym', '123', NULL", last_executed_sql
+  end
 end
