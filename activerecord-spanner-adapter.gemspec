@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "autotest-suffix", "~> 1.1"
   spec.add_development_dependency "bundler", [">= 2.0", "< 5.0"]
   spec.add_development_dependency "google-style", "~> 1.32.0"
-  spec.add_development_dependency "minitest", "~> 5.10"
+  spec.add_development_dependency "minitest", "~> 6.0"
   spec.add_development_dependency "minitest-autotest", "~> 1.0"
   spec.add_development_dependency "minitest-focus", "~> 1.1"
   spec.add_development_dependency "minitest-rg", "~> 5.4"
