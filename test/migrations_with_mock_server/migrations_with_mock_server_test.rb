@@ -43,7 +43,7 @@ module TestMigrationsWithMockServer
       end
       @server.wait_till_running
       # Register INFORMATION_SCHEMA queries on the mock server.
-      register_empty_select_tables_result "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''"
+      register_empty_select_tables_result tables_sql(table_name: false), params: { schema_name: "" }
       register_schema_migrations_table_result
       register_schema_migrations_columns_result
       register_schema_migrations_primary_key_result
@@ -198,19 +198,13 @@ module TestMigrationsWithMockServer
 
     def test_interleaved_table
       context = migration_context
-      select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
-      select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_albums_index_columns_sql
-      select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_albums_indexes_sql
+      register_single_select_tables_result tables_sql, "albums", "singers", "NO_ACTION", params: { table_name: "albums", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_albumid" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_albumid" }
 
-      select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
-      register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
-      select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_tracks_index_columns_sql
-      select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_tracks_indexes_sql
+      register_single_select_tables_result tables_sql, "tracks", "albums", "NO_ACTION", params: { table_name: "tracks", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "tracks", schema_name: "", index_name: "index_tracks_on_trackid" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "tracks", schema_name: "", index_name: "index_tracks_on_trackid" }
 
       register_version_result "1", "4"
 
@@ -250,19 +244,13 @@ module TestMigrationsWithMockServer
     def test_interleaved_table_with_uuid_pk
       context = migration_context
 
-      select_albums_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_albums_table_sql, "albums", "singers", "NO_ACTION"
-      select_albums_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_albums_index_columns_sql
-      select_albums_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_albumid' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_albums_indexes_sql
+      register_single_select_tables_result tables_sql, "albums", "singers", "NO_ACTION", params: { table_name: "albums", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_albumid" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_albumid" }
 
-      select_tracks_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='tracks'"
-      register_single_select_tables_result select_tracks_table_sql, "tracks", "albums", "NO_ACTION"
-      select_tracks_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_tracks_index_columns_sql
-      select_tracks_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='tracks' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_tracks_on_trackid' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_tracks_indexes_sql
+      register_single_select_tables_result tables_sql, "tracks", "albums", "NO_ACTION", params: { table_name: "tracks", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "tracks", schema_name: "", index_name: "index_tracks_on_trackid" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "tracks", schema_name: "", index_name: "index_tracks_on_trackid" }
 
       register_version_result "1", "10"
 
@@ -334,12 +322,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_drop_column
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
-      select_fk_sql = foreign_keys_sql "singers"
-      register_empty_select_foreign_key_result select_fk_sql
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_foreign_key_result foreign_keys_sql, params: { table_name: "singers", constraint_schema: "" }
 
       with_change_table :singers do |t|
         t.remove :age
@@ -354,11 +339,9 @@ module TestMigrationsWithMockServer
     def test_change_column
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
-      register_select_single_column_result select_column_sql, "age", "INT64"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_select_single_column_result select_column_sql, "age", "INT64", params: { table_name: "singers", schema_name: "", column_name: "age" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.change :age, :decimal
@@ -374,11 +357,9 @@ module TestMigrationsWithMockServer
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
 
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
-      register_select_single_column_result select_column_sql, "age", "INT64"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_select_single_column_result select_column_sql, "age", "INT64", params: { table_name: "singers", schema_name: "", column_name: "age" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.change :age, :integer, **{null: false}
@@ -393,11 +374,9 @@ module TestMigrationsWithMockServer
     def test_change_column_remove_not_null
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
-      register_select_single_column_result select_column_sql, "age", "INT64"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_select_single_column_result select_column_sql, "age", "INT64", params: { table_name: "singers", schema_name: "", column_name: "age" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.change :age, :integer, **{null: true}
@@ -414,13 +393,10 @@ module TestMigrationsWithMockServer
       # Cloud Spanner does not support renaming a column, so instead the migration will create a new column, copy the
       # data from the old column to the new column, and then drop the old column.
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "age"
-      register_select_single_column_result select_column_sql, "age", "INT64"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
-      select_fk_sql = foreign_keys_sql "singers"
-      register_empty_select_foreign_key_result select_fk_sql
+      register_select_single_column_result select_column_sql, "age", "INT64", params: { table_name: "singers", schema_name: "", column_name: "age" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_foreign_key_result foreign_keys_sql, params: { table_name: "singers", constraint_schema: "" }
       update_data_sql = "UPDATE singers SET `age_at_insert` = `age` WHERE true"
       @mock.put_statement_result update_data_sql, StatementResult.new(100)
 
@@ -441,12 +417,9 @@ module TestMigrationsWithMockServer
 
     def test_interleaved_index
       context = migration_context
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_table_sql, "albums", "singers", "NO_ACTION"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singerid_and_title' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singerid_and_title' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_single_select_tables_result tables_sql, "albums", "singers", "NO_ACTION", params: { table_name: "albums", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singerid_and_title" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singerid_and_title" }
       register_version_result "1", "7"
 
       context.migrate 7
@@ -462,12 +435,9 @@ module TestMigrationsWithMockServer
 
     def test_null_filtered_index
       context = migration_context
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_picture' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_picture' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_picture" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_picture" }
       register_version_result "1", "8"
 
       context.migrate 8
@@ -483,12 +453,9 @@ module TestMigrationsWithMockServer
 
     def test_index_storing
       context = migration_context
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_full_name' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_full_name' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_indexes_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_full_name" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_full_name" }
       register_version_result "1", "9"
 
       context.migrate 9
@@ -503,12 +470,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_references_column_type_adds_column_and_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_table_sql, "albums"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_column_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_column_sql
+      register_single_select_tables_result tables_sql, "albums", params: { table_name: "albums", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
 
       [:references, :belongs_to].each do |method|
         ActiveRecord::Base.connection.ddl_batch do
@@ -528,12 +492,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_references_column_adds_foreign_key_and_no_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_table_sql, "albums"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_column_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_column_sql
+      register_single_select_tables_result tables_sql, "albums", params: { table_name: "albums", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
 
       [:references, :belongs_to].each do |method|
         ActiveRecord::Base.connection.ddl_batch do
@@ -558,18 +519,12 @@ module TestMigrationsWithMockServer
     end
 
     def test_remove_references_column_removes_index_and_column
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_table_sql, "albums"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' AND SPANNER_IS_MANAGED=FALSE"
-      register_single_select_indexes_result select_index_sql, "index_albums_on_singer_id"
-      select_all_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      register_single_select_indexes_result select_all_indexes_sql, "index_albums_on_singer_id"
-      select_index_column_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' ORDER BY ORDINAL_POSITION ASC"
-      register_single_select_index_columns_result select_index_column_sql, "index_albums_on_singer_id", "singer_id"
-      select_all_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_single_select_index_columns_result select_all_index_columns_sql, "index_albums_on_singer_id", "singer_id"
-      select_fk_sql = foreign_keys_sql "albums"
-      register_empty_select_foreign_key_result select_fk_sql
+      register_single_select_tables_result tables_sql, "albums", params: { table_name: "albums", schema_name: "" }
+      register_single_select_indexes_result indexes_sql(index_name: true), "index_albums_on_singer_id", params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      register_single_select_indexes_result indexes_sql, "index_albums_on_singer_id", params: { table_name: "albums", schema_name: "" }
+      register_single_select_index_columns_result index_columns_sql(index_name: true), "index_albums_on_singer_id", "singer_id", params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      register_single_select_index_columns_result index_columns_sql, "index_albums_on_singer_id", "singer_id", params: { table_name: "albums", schema_name: "" }
+      register_empty_select_foreign_key_result foreign_keys_sql, params: { table_name: "albums", constraint_schema: "" }
 
       [:remove_references, :remove_belongs_to].each do |method|
         ActiveRecord::Base.connection.ddl_batch do
@@ -589,18 +544,12 @@ module TestMigrationsWithMockServer
     end
 
     def test_remove_references_column_removes_foreign_key_and_column
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='albums'"
-      register_single_select_tables_result select_table_sql, "albums"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_all_indexes_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_all_indexes_sql
-      select_index_column_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_albums_on_singer_id' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_column_sql
-      select_all_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='albums' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_all_index_columns_sql
-      select_fk_sql = foreign_keys_sql "albums"
-      register_single_select_foreign_key_result select_fk_sql, "albums", "singers", "singer_id", "singer_id", "fk_albums_singer"
+      register_single_select_tables_result tables_sql, "albums", params: { table_name: "albums", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "albums", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "albums", schema_name: "", index_name: "index_albums_on_singer_id" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "albums", schema_name: "" }
+      register_single_select_foreign_key_result foreign_keys_sql, "albums", "singers", "singer_id", "singer_id", "fk_albums_singer", params: { table_name: "albums", constraint_schema: "" }
 
       [:remove_references, :remove_belongs_to].each do |method|
         ActiveRecord::Base.connection.ddl_batch do
@@ -622,12 +571,9 @@ module TestMigrationsWithMockServer
     def test_references_column_with_polymorphic_adds_type
       index_name = "index_singers_on_person"
 
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "albums"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='#{index_name}' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_column_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='#{index_name}' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_column_sql
+      register_single_select_tables_result tables_sql, "albums", params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: index_name }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: index_name }
 
       ActiveRecord::Base.connection.ddl_batch do
         with_change_table :singers do |t|
@@ -695,12 +641,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_drop_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_TYPE='INDEX' AND SPANNER_IS_MANAGED=FALSE"
-      register_single_select_indexes_result select_index_sql, "full_name-index"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_single_select_index_columns_result select_index_columns_sql, "full_name-index", "full_name"
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      register_single_select_indexes_result indexes_sql(index_type: true), "full_name-index", params: { table_name: "singers", schema_name: "", index_type: "INDEX" }
+      register_single_select_index_columns_result index_columns_sql, "full_name-index", "full_name", params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.remove_index :full_name
@@ -715,12 +658,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_drop_index_with_name
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_TYPE='INDEX' AND SPANNER_IS_MANAGED=FALSE"
-      register_single_select_indexes_result select_index_sql, "some-index"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_single_select_index_columns_result select_index_columns_sql, "some-index", "some-column"
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      register_single_select_indexes_result indexes_sql(index_type: true), "some-index", params: { table_name: "singers", schema_name: "", index_type: "INDEX" }
+      register_single_select_index_columns_result index_columns_sql, "some-index", "some-column", params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.remove_index name: "some-index"
@@ -763,12 +703,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_column_creates_column_with_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
 
       ActiveRecord::Base.connection.ddl_batch do
         with_change_table :singers do |t|
@@ -784,12 +721,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_index_creates_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
 
       with_change_table :singers do |t|
         t.index :age
@@ -802,12 +736,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_index_creates_index_with_options
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_singers_on_age' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: "index_singers_on_age" }
 
       with_change_table :singers do |t|
         t.index :age, unique: true
@@ -820,12 +751,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_rename_index_renames_index
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_full_name' AND SPANNER_IS_MANAGED=FALSE"
-      register_single_select_indexes_result select_index_sql, "index_full_name"
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_full_name' ORDER BY ORDINAL_POSITION ASC"
-      register_single_select_index_columns_result select_index_columns_sql, "index_full_name", "full_name"
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      register_single_select_indexes_result indexes_sql(index_name: true), "index_full_name", params: { table_name: "singers", schema_name: "", index_name: "index_full_name" }
+      register_single_select_index_columns_result index_columns_sql(index_name: true), "index_full_name", "full_name", params: { table_name: "singers", schema_name: "", index_name: "index_full_name" }
 
       ActiveRecord::Base.connection.ddl_batch do
         with_change_table :singers do |t|
@@ -842,12 +770,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_remove_drops_single_column
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_fk_sql = foreign_keys_sql "singers"
-      register_empty_select_foreign_key_result select_fk_sql
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_foreign_key_result foreign_keys_sql, params: { table_name: "singers", constraint_schema: "" }
 
       with_change_table :singers do |t|
         t.remove :age
@@ -859,12 +784,9 @@ module TestMigrationsWithMockServer
     end
 
     def test_remove_drops_multiple_columns
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
-      select_fk_sql = foreign_keys_sql "singers"
-      register_empty_select_foreign_key_result select_fk_sql
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_foreign_key_result foreign_keys_sql, params: { table_name: "singers", constraint_schema: "" }
       with_change_table :singers do |t|
         t.remove :age, :full_name
       end
@@ -878,11 +800,9 @@ module TestMigrationsWithMockServer
     def test_change_changes_column
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "picture"
-      register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)", params: { table_name: "singers", schema_name: "", column_name: "picture" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.change :picture, :string
@@ -896,11 +816,9 @@ module TestMigrationsWithMockServer
     def test_change_changes_column_with_options
       MockServerTests::register_singers_primary_and_parent_key_columns_result @mock
       select_column_sql = MockServerTests.table_columns_sql "singers", column_name: "picture"
-      register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_columns_result select_column_sql, "picture", "BYTES(MAX)", params: { table_name: "singers", schema_name: "", column_name: "picture" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql, params: { table_name: "singers", schema_name: "" }
+      register_empty_select_index_columns_result index_columns_sql, params: { table_name: "singers", schema_name: "" }
 
       with_change_table :singers do |t|
         t.change :picture, :string, null: false
@@ -923,12 +841,9 @@ module TestMigrationsWithMockServer
     def test_creates_polymorphic_index_for_existing_table
       index_name = "index_singers_on_foo"
 
-      select_table_sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='singers'"
-      register_single_select_tables_result select_table_sql, "singers"
-      select_index_sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='#{index_name}' AND SPANNER_IS_MANAGED=FALSE"
-      MockServerTests::register_empty_select_indexes_result @mock, select_index_sql
-      select_index_columns_sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='#{index_name}' ORDER BY ORDINAL_POSITION ASC"
-      register_empty_select_index_columns_result select_index_columns_sql
+      register_single_select_tables_result tables_sql, "singers", params: { table_name: "singers", schema_name: "" }
+      MockServerTests::register_empty_select_indexes_result @mock, indexes_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: index_name }
+      register_empty_select_index_columns_result index_columns_sql(index_name: true), params: { table_name: "singers", schema_name: "", index_name: index_name }
 
       ActiveRecord::Base.connection.change_table :singers do |t|
         t.references :foo, polymorphic: true, index: true
@@ -1015,8 +930,7 @@ module TestMigrationsWithMockServer
     end
 
     def register_schema_migrations_table_result
-      sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='schema_migrations'"
-      register_empty_select_tables_result sql
+      register_empty_select_tables_result tables_sql, params: { schema_name: "", table_name: "schema_migrations" }
     end
 
     def register_schema_migrations_columns_result
@@ -1047,7 +961,7 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "schema_migrations", schema_name: "" }
     end
 
     def register_schema_migrations_primary_key_result
@@ -1071,12 +985,11 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "schema_migrations", schema_name: "" }
     end
 
     def register_ar_internal_metadata_table_result
-      sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='ar_internal_metadata'"
-      register_empty_select_tables_result sql
+      register_empty_select_tables_result tables_sql, params: { schema_name: "", table_name: "ar_internal_metadata" }
     end
 
     def register_ar_internal_metadata_columns_result
@@ -1137,7 +1050,7 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "ar_internal_metadata", schema_name: "" }
     end
 
     def register_ar_internal_metadata_primary_key_result
@@ -1161,7 +1074,7 @@ module TestMigrationsWithMockServer
         )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "ar_internal_metadata", schema_name: "" }
     end
 
     def register_ar_internal_metadata_results
@@ -1185,7 +1098,7 @@ module TestMigrationsWithMockServer
       @mock.put_statement_result sql, StatementResult.new(1)
     end
 
-    def register_empty_select_tables_result(sql)
+    def register_empty_select_tables_result(sql, params: nil)
       table_catalog = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_CATALOG", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       table_schema = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_SCHEMA", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1196,10 +1109,10 @@ module TestMigrationsWithMockServer
       metadata.row_type.fields.push table_catalog, table_schema, table_name, parent_table_name, on_delete_action
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_single_select_tables_result sql, table_name, parent_table_name = nil, on_delete_action = nil
+    def register_single_select_tables_result sql, table_name, parent_table_name = nil, on_delete_action = nil, params: nil
       col_table_catalog = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_CATALOG", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_table_schema = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_SCHEMA", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_table_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "TABLE_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1228,10 +1141,10 @@ module TestMigrationsWithMockServer
       end
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_single_select_columns_result sql, column_name, spanner_type, is_nullable = true
+    def register_single_select_columns_result sql, column_name, spanner_type, is_nullable = true, params: nil
       MockServerTests::register_commit_timestamps_result @mock, "singers", column_name
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1255,10 +1168,10 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_single_select_indexes_result sql, index_name
+    def register_single_select_indexes_result sql, index_name, params: nil
       col_index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_index_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_is_unique = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_UNIQUE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::BOOL)
@@ -1280,10 +1193,10 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_empty_select_index_columns_result sql
+    def register_empty_select_index_columns_result sql, params: nil
       col_index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_ordering = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_ORDERING", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1293,10 +1206,10 @@ module TestMigrationsWithMockServer
       metadata.row_type.fields.push col_index_name, col_column_name, col_column_ordering, col_ordinal_position
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_single_select_index_columns_result sql, index_name, column_name
+    def register_single_select_index_columns_result sql, index_name, column_name, params: nil
       col_index_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "INDEX_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column_ordering = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_ORDERING", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1314,12 +1227,11 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_select_single_column_result sql, column_name, spanner_type, is_nullable = true
+    def register_select_single_column_result sql, column_name, spanner_type, is_nullable = true, params: nil
       MockServerTests::register_commit_timestamps_result @mock, "singers", column_name
-      # "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='singers' AND COLUMN_NAME='age' ORDER BY ORDINAL_POSITION ASC"
       col_column_name = Google::Cloud::Spanner::V1::StructType::Field.new name: "COLUMN_NAME", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_spanner_type = Google::Cloud::Spanner::V1::StructType::Field.new name: "SPANNER_TYPE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_is_nullable = Google::Cloud::Spanner::V1::StructType::Field.new name: "IS_NULLABLE", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1341,10 +1253,10 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_empty_select_foreign_key_result sql
+    def register_empty_select_foreign_key_result sql, params: nil
       col_to_table = Google::Cloud::Spanner::V1::StructType::Field.new name: "to_table", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_primary_key = Google::Cloud::Spanner::V1::StructType::Field.new name: "primary_key", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
       col_column = Google::Cloud::Spanner::V1::StructType::Field.new name: "column", type: Google::Cloud::Spanner::V1::Type.new(code: Google::Cloud::Spanner::V1::TypeCode::STRING)
@@ -1356,10 +1268,10 @@ module TestMigrationsWithMockServer
       metadata.row_type.fields.push col_to_table, col_primary_key, col_column, col_name, col_on_update, col_on_delete
       result_set = Google::Cloud::Spanner::V1::ResultSet.new metadata: metadata
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
-    def register_single_select_foreign_key_result sql, from_table, to_table, pk_column_name, fk_column_name, constraint_name
+    def register_single_select_foreign_key_result sql, from_table, to_table, pk_column_name, fk_column_name, constraint_name, params: nil
       col_constraint_catalog = Field.new name: "CONSTRAINT_CATALOG", type: Type.new(code: TypeCode::STRING)
       col_constraint_schema = Field.new name: "CONSTRAINT_SCHEMA", type: Type.new(code: TypeCode::STRING)
       col_constraint_name = Field.new name: "CONSTRAINT_NAME", type: Type.new(code: TypeCode::STRING)
@@ -1409,7 +1321,7 @@ module TestMigrationsWithMockServer
       )
       result_set.rows.push row
 
-      @mock.put_statement_result sql, StatementResult.new(result_set)
+      @mock.put_statement_result sql, StatementResult.new(result_set), params: params
     end
 
     def register_version_result(from_version, to_version)
@@ -1434,8 +1346,32 @@ module TestMigrationsWithMockServer
       @mock.put_statement_result update_sql, StatementResult.new(1)
     end
 
-    def foreign_keys_sql table_name
-      sql = <<~SQL
+    def tables_sql table_name: true
+      sql = +"SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION"
+      sql << " FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name"
+      sql << " AND TABLE_NAME=@table_name" if table_name
+      sql
+    end
+
+    def indexes_sql index_name: false, index_type: false
+      sql = +"SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE"
+      sql << " FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name"
+      sql << " AND INDEX_NAME=@index_name" if index_name
+      sql << " AND INDEX_TYPE=@index_type" if index_type
+      sql << " AND SPANNER_IS_MANAGED=FALSE"
+      sql
+    end
+
+    def index_columns_sql index_name: false
+      sql = +"SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION"
+      sql << " FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name"
+      sql << " AND INDEX_NAME=@index_name" if index_name
+      sql << " ORDER BY ORDINAL_POSITION ASC"
+      sql
+    end
+
+    def foreign_keys_sql
+      <<~SQL
         SELECT CONSTRAINT_CATALOG, CONSTRAINT_SCHEMA, CONSTRAINT_NAME, UPDATE_RULE, DELETE_RULE,
                FK_CATALOG, FK_SCHEMA, FK_TABLE,
                PK_CATALOG, PK_SCHEMA, PK_TABLE,
@@ -1465,13 +1401,12 @@ module TestMigrationsWithMockServer
                                       AND PARENT.ORDINAL_POSITION = CHILD.POSITION_IN_UNIQUE_CONSTRAINT
               ORDER BY CHILD.TABLE_CATALOG, CHILD.TABLE_SCHEMA, CHILD.TABLE_NAME, CHILD.POSITION_IN_UNIQUE_CONSTRAINT
         ) FOREIGN_KEYS
-        WHERE FK_TABLE = '%<table_name>s'
-          AND FK_SCHEMA = ''
+        WHERE FK_TABLE = @table_name
+          AND FK_SCHEMA = @constraint_schema
         GROUP BY CONSTRAINT_CATALOG, CONSTRAINT_SCHEMA, CONSTRAINT_NAME, UPDATE_RULE, DELETE_RULE,
                  FK_CATALOG, FK_SCHEMA, FK_TABLE,
                  PK_CATALOG, PK_SCHEMA, PK_TABLE
       SQL
-      sql % { table_name: table_name }
     end
   end
 end

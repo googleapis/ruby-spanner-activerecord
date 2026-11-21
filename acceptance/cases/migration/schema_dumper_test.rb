@@ -99,6 +99,42 @@ module ActiveRecord
         ActiveRecord::SchemaDumper.dump connection, schema
         assert schema.string.include?("t.index [\"last_name\"], name: \"index_singers_on_last_name\", order: { last_name: :asc }, storing: [\"first_name\", \"tracks_count\"]"), schema.string
       end
+
+      def test_information_schema_parameterized_queries
+        info_schema = ActiveRecordSpannerAdapter::Connection.information_schema connector_config.symbolize_keys
+
+        assert_nil info_schema.table("singers' OR '1'='1")
+        assert_equal [], info_schema.tables(schema_name: "foo' OR '1'='1")
+        assert_equal [], info_schema.table_columns("singers\\")
+        assert_equal [], info_schema.table_columns("singers", column_name: "id' OR '1'='1")
+        assert_equal [], info_schema.table_primary_keys("singers' OR '1'='1")
+        assert_equal ["trackid"], info_schema.table_primary_keys("tracks", false).map(&:name)
+        assert_equal [], info_schema.indexes("singers' OR '1'='1", index_name: "idx'\\", index_type: "INDEX")
+        assert_equal [], info_schema.indexes("singers", index_type: "INDEX' OR '1'='1")
+        assert_equal [], info_schema.index_columns("singers", index_name: "idx' OR '1'='1")
+        assert_equal [], info_schema.foreign_keys("singers' OR '1'='1")
+        assert_equal [], info_schema.check_constraints("singers' OR '1'='1")
+
+        assert_equal [], info_schema.table_columns(nil)
+        assert_equal [], info_schema.table_primary_keys(nil)
+        assert_equal [], info_schema.indexes(nil)
+        assert_equal [], info_schema.index_columns(nil)
+        assert_equal [], info_schema.foreign_keys(nil)
+        assert_equal [], info_schema.check_constraints(nil)
+
+        ActiveRecord::Base.connection_pool.with_connection do |conn|
+          conn.create_table :checked_records, force: true do |t|
+            t.string :name, null: false
+            t.integer :age
+            t.check_constraint "age >= 0", name: "chk_checked_records_age"
+          end
+          check_constraints = info_schema.check_constraints "checked_records"
+          assert_equal ["chk_checked_records_age"], check_constraints.map(&:name)
+          assert_equal ["age >= 0"], check_constraints.map(&:expression)
+        ensure
+          conn.drop_table :checked_records, if_exists: true
+        end
+      end
     end
   end
 end
