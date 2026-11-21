@@ -97,7 +97,7 @@ module MockServerTests
     StatementResult.new result_set
   end
 
-  def self.primary_key_columns_sql table_name, parent_keys: false
+  def self.primary_key_columns_sql _table_name = nil, parent_keys: false
     sql = +"WITH TABLE_PK_COLS AS ( SELECT C.TABLE_CATALOG, C.TABLE_SCHEMA, C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, "
     sql << "C.COLUMN_ORDERING, C.ORDINAL_POSITION "
     sql << "FROM INFORMATION_SCHEMA.INDEX_COLUMNS C "
@@ -105,25 +105,25 @@ module MockServerTests
     sql << "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION "
     sql << "FROM TABLE_PK_COLS "
     sql << "INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME) "
-    sql << "WHERE TABLE_NAME = '%<table_name>s' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' "
+    sql << "WHERE TABLE_NAME = @table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name "
     unless parent_keys
       sql << "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN (   "
       sql << "SELECT COLUMN_NAME   FROM TABLE_PK_COLS   "
       sql << "WHERE TABLE_CATALOG = T.TABLE_CATALOG   AND TABLE_SCHEMA=T.TABLE_SCHEMA   AND TABLE_NAME = T.PARENT_TABLE_NAME )) "
     end
     sql << "ORDER BY ORDINAL_POSITION"
-    sql % { table_name: table_name}
+    sql
   end
 
-  def self.table_columns_sql table_name, column_name: nil
+  def self.table_columns_sql _table_name = nil, column_name: nil
     sql = +"SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, "
     sql << "CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, "
     sql << "IS_IDENTITY "
     sql << "FROM INFORMATION_SCHEMA.COLUMNS "
-    sql << "WHERE TABLE_NAME='%<table_name>s' AND TABLE_SCHEMA='' "
-    sql << "AND COLUMN_NAME='%<column_name>s' " if column_name
+    sql << "WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name "
+    sql << "AND COLUMN_NAME=@column_name " if column_name
     sql << "ORDER BY ORDINAL_POSITION ASC"
-    sql % { table_name: table_name, column_name: column_name }
+    sql
   end
 
   def self.create_columns_result_set
@@ -142,7 +142,7 @@ module MockServerTests
   end
 
   def self.register_select_tables_result spanner_mock_server
-    sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''"
+    sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name"
 
     table_catalog = Field.new name: "TABLE_CATALOG", type: Type.new(code: TypeCode::STRING)
     table_schema = Field.new name: "TABLE_SCHEMA", type: Type.new(code: TypeCode::STRING)
@@ -238,7 +238,7 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { schema_name: "" }
   end
 
   def self.register_singers_columns_result spanner_mock_server
@@ -335,37 +335,37 @@ module MockServerTests
       result_set.rows.push row
     end
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: table_name, schema_name: "" }
   end
 
   def self.register_singers_indexed_columns_result spanner_mock_server
-    sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC"
-    register_key_columns_result spanner_mock_server, sql
+    sql = "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC"
+    register_key_columns_result spanner_mock_server, sql, table_name: "singers"
   end
 
   def self.register_singers_indexes_result spanner_mock_server
-    sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='singers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_TYPE='INDEX' AND SPANNER_IS_MANAGED=FALSE"
-    register_key_columns_result spanner_mock_server, sql
+    sql = "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND INDEX_TYPE=@index_type AND SPANNER_IS_MANAGED=FALSE"
+    register_key_columns_result spanner_mock_server, sql, table_name: "singers", index_type: "INDEX"
   end
 
   def self.register_singers_primary_key_columns_result spanner_mock_server
     sql = self.primary_key_columns_sql "singers", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "singers"
   end
 
   def self.register_singers_primary_and_parent_key_columns_result spanner_mock_server
     sql = self.primary_key_columns_sql "singers", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "singers"
   end
 
   def self.register_versioned_singers_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "versioned_singers", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "versioned_singers"
   end
 
   def self.register_versioned_singers_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "versioned_singers", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "versioned_singers"
   end
 
   def self.register_albums_columns_result spanner_mock_server
@@ -408,17 +408,17 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "albums", schema_name: "" }
   end
 
   def self.register_albums_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "albums", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "albums"
   end
 
   def self.register_albums_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "albums", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "albums"
   end
 
   def self.register_all_types_columns_result spanner_mock_server
@@ -660,17 +660,17 @@ module MockServerTests
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "all_types", schema_name: "" }
   end
 
   def self.register_all_types_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "all_types", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "all_types"
   end
 
   def self.register_all_types_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "all_types", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "all_types"
   end
 
   def self.register_table_with_commit_timestamps_columns_result spanner_mock_server
@@ -713,17 +713,17 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "table_with_commit_timestamps", schema_name: "" }
   end
 
   def self.register_table_with_commit_timestamps_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_commit_timestamps", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_commit_timestamps"
   end
 
   def self.register_table_with_commit_timestamps_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_commit_timestamps", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_commit_timestamps"
   end
 
   def self.register_table_with_sequence_columns_result spanner_mock_server
@@ -766,17 +766,17 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "table_with_sequence", schema_name: "" }
   end
 
   def self.register_table_with_sequence_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_sequence", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_sequence"
   end
 
   def self.register_table_with_sequence_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_sequence", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_sequence"
   end
 
   def self.register_table_with_identity_columns_result spanner_mock_server
@@ -819,17 +819,17 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "table_with_identity", schema_name: "" }
   end
 
   def self.register_table_with_identity_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_identity", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_identity"
   end
 
   def self.register_table_with_identity_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "table_with_identity", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "table_with_identity"
   end
 
   def self.register_users_columns_result spanner_mock_server
@@ -872,17 +872,17 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "users", schema_name: "" }
   end
 
   def self.register_users_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "users", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "users"
   end
 
   def self.register_users_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "users", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "users"
   end
 
   def self.register_binary_projects_columns_result spanner_mock_server
@@ -936,20 +936,20 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "binary_projects", schema_name: "" }
   end
 
   def self.register_binary_projects_primary_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "binary_projects", parent_keys: false
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "binary_projects"
   end
 
   def self.register_binary_projects_primary_and_parent_key_columns_result spanner_mock_server
     sql = primary_key_columns_sql "binary_projects", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "binary_projects"
   end
 
-  def self.register_empty_select_indexes_result spanner_mock_server, sql
+  def self.register_empty_select_indexes_result spanner_mock_server, sql, params: nil
     col_index_name = Field.new name: "INDEX_NAME", type: Type.new(code: TypeCode::STRING)
     col_index_type = Field.new name: "INDEX_TYPE", type: Type.new(code: TypeCode::STRING)
     col_is_unique = Field.new name: "IS_UNIQUE", type: Type.new(code: TypeCode::BOOL)
@@ -961,14 +961,16 @@ module MockServerTests
     metadata.row_type.fields.push col_index_name, col_index_type, col_is_unique, col_is_null_filtered, col_parent_table_name, col_index_state
     result_set = ResultSet.new metadata: metadata
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: params
   end
 
   private
 
   def self.register_commit_timestamps_result spanner_mock_server, table_name, column_name = nil, commit_timestamps_col = nil
-    option_sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='#{table_name}' AND TABLE_SCHEMA=''"
-    option_sql << " AND COLUMN_NAME='#{column_name}'" if column_name
+    option_sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name"
+    option_sql << " AND COLUMN_NAME=@column_name" if column_name
+    params = { table_name: table_name, schema_name: "" }
+    params[:column_name] = column_name if column_name
     column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
     option_name = Field.new name: "OPTION_NAME", type: Type.new(code: TypeCode::STRING)
     option_type = Field.new name: "OPTION_TYPE", type: Type.new(code: TypeCode::STRING)
@@ -986,10 +988,12 @@ module MockServerTests
       )
     end
     result_set.rows.push row
-    spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result option_sql, StatementResult.new(result_set), params: params
   end
 
-  def self.register_key_columns_result spanner_mock_server, sql
+  def self.register_key_columns_result spanner_mock_server, sql, table_name:, index_type: nil
+    params = { table_name: table_name, schema_name: "" }
+    params[:index_type] = index_type if index_type
     index_name = Field.new name: "INDEX_NAME", type: Type.new(code: TypeCode::STRING)
     column_name = Field.new name: "COLUMN_NAME", type: Type.new(code: TypeCode::STRING)
     column_ordering = Field.new name: "COLUMN_ORDERING", type: Type.new(code: TypeCode::STRING)
@@ -1008,12 +1012,12 @@ module MockServerTests
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: params
   end
 
   def self.register_join_table_primary_key_result spanner_mock_server
     sql = MockServerTests.primary_key_columns_sql "artists_musics", parent_keys: true
-    register_key_columns_result spanner_mock_server, sql
+    register_key_columns_result spanner_mock_server, sql, table_name: "artists_musics"
   end
 
   def self.register_join_table_key_columns_result spanner_mock_server, table, col1, col2
@@ -1046,7 +1050,7 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: table, schema_name: "" }
   end
 
   def self.register_join_table_columns_result spanner_mock_server, table_name, col1, col2
@@ -1087,7 +1091,7 @@ module MockServerTests
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: table_name, schema_name: "" }
   end
 
 end

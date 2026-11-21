@@ -106,7 +106,7 @@ module TestInterleavedTables
   end
 
   def self.register_select_tables_result spanner_mock_server
-    sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''"
+    sql = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name"
 
     table_catalog = Field.new name: "TABLE_CATALOG", type: Type.new(code: TypeCode::STRING)
     table_schema = Field.new name: "TABLE_SCHEMA", type: Type.new(code: TypeCode::STRING)
@@ -146,7 +146,7 @@ module TestInterleavedTables
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { schema_name: "" }
   end
 
   def self.register_singers_columns_result spanner_mock_server
@@ -196,7 +196,7 @@ module TestInterleavedTables
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "singers", schema_name: "" }
   end
 
   def self.register_singers_primary_key_columns_result spanner_mock_server
@@ -228,7 +228,7 @@ module TestInterleavedTables
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "singers", schema_name: "" }
   end
 
   def self.register_albums_columns_result spanner_mock_server
@@ -278,7 +278,7 @@ module TestInterleavedTables
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "albums", schema_name: "" }
   end
 
   def self.register_albums_primary_key_columns_result spanner_mock_server
@@ -320,7 +320,7 @@ module TestInterleavedTables
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "albums", schema_name: "" }
   end
 
   def self.register_tracks_columns_result spanner_mock_server
@@ -390,7 +390,7 @@ module TestInterleavedTables
     )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "tracks", schema_name: "" }
   end
 
   def self.register_tracks_primary_key_columns_result spanner_mock_server
@@ -440,6 +440,6 @@ module TestInterleavedTables
       )
     result_set.rows.push row
 
-    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set)
+    spanner_mock_server.put_statement_result sql, StatementResult.new(result_set), params: { table_name: "tracks", schema_name: "" }
   end
 end
