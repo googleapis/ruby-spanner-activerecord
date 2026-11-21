@@ -241,8 +241,17 @@ module ActiveRecord
     end
 
     def self._set_composite_primary_key_value primary_key, values, is_mutation
-      value = values[primary_key]
-      type = ActiveModel::Type::BigInteger.new
+      # The values hash may use either string or symbol keys depending on the
+      # caller (upsert_all/insert_all! pass symbol keys). Resolve the existing
+      # value the same way the single-column path does, otherwise a missing
+      # lookup would silently treat the key as not provided.
+      key = values.key?(primary_key) ? primary_key : primary_key.to_sym
+      value = values[key]
+      # Derive the type from the column definition instead of unconditionally
+      # using BigInteger. Casting a non-integer key column (e.g. a STRING key)
+      # with BigInteger corrupts the value ("abc" -> 0), which writes a row
+      # with the wrong primary key.
+      type = type_for_attribute primary_key.to_s
 
       if value.is_a? ActiveModel::Attribute
         type = value.type
@@ -257,7 +266,7 @@ module ActiveRecord
         value = next_sequence_value
       end
 
-      values[primary_key] = ActiveModel::Attribute.from_database primary_key, value, type
+      values[key] = ActiveModel::Attribute.from_database primary_key, value, type
 
       value
     end
