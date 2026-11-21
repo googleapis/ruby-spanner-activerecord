@@ -78,21 +78,21 @@ module ActiveRecord
         # in the next major version. The default value is currently DISABLED to prevent
         # breaking changes to existing code.
         @default_sequence_kind = @config.fetch :default_sequence_kind, "DISABLED"
-        @use_auto_increment = @default_sequence_kind&.casecmp? "AUTO_INCREMENT"
-        @auto_increment_disabled = @default_sequence_kind&.casecmp? "DISABLED"
+        @use_auto_increment = use_auto_increment?
+        @auto_increment_disabled = "DISABLED".casecmp? @default_sequence_kind.to_s
         @use_client_side_id_for_mutations = self.class.type_cast_config_to_boolean(
           @config.fetch(:use_client_side_id_for_mutations, false)
         )
       end
 
       def use_auto_increment?
-        "AUTO_INCREMENT".casecmp?(@default_sequence_kind || "")
+        "AUTO_INCREMENT".casecmp? @default_sequence_kind.to_s
       end
 
       def use_identity?
-        !use_auto_increment? \
-        && @default_sequence_kind \
-        && !@default_sequence_kind.casecmp?("DISABLED")
+        return false unless @default_sequence_kind
+
+        !use_auto_increment? && !"DISABLED".casecmp?(@default_sequence_kind.to_s)
       end
 
       def max_identifier_length

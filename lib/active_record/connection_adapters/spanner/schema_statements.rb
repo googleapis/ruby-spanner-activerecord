@@ -23,6 +23,8 @@ module ActiveRecord
       module SchemaStatements
         VERSION_7_2 = Gem::Version.create "7.2.0"
         VERSION_8_1 = Gem::Version.create "8.1.0"
+        POSITIVE_INTEGER_STRING_REGX = /\A[1-9]\d*\z/
+        private_constant :POSITIVE_INTEGER_STRING_REGX
 
         def current_database
           @connection.database_id
@@ -456,7 +458,10 @@ module ActiveRecord
 
           sql_type = (native.is_a?(Hash) ? native[:name] : native).dup
 
-          sql_type = "#{sql_type}(#{limit || native[:limit]})" if [:string, :text, :binary].include? type
+          if [:string, :text, :binary].include? type
+            effective_limit = limit.nil? ? native[:limit] : limit
+            sql_type = "#{sql_type}(#{validated_type_limit effective_limit, type})"
+          end
           sql_type = "ARRAY<#{sql_type}>" if opts[:array]
 
           sql_type
@@ -464,6 +469,14 @@ module ActiveRecord
         # rubocop:enable Lint/UnusedMethodArgument
 
         private
+
+        def validated_type_limit limit, type
+          return limit.to_s if limit.is_a?(Integer) && limit.positive?
+          return "MAX" if limit.to_s.casecmp? "MAX"
+          return limit if limit.is_a?(String) && POSITIVE_INTEGER_STRING_REGX.match?(limit)
+
+          raise ArgumentError, "Invalid limit #{limit.inspect} for type #{type.inspect}"
+        end
 
         def schema_creation
           SchemaCreation.new self
