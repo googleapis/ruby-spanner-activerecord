@@ -4,6 +4,8 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+require "digest"
+require "pathname"
 require "google/cloud/spanner"
 require "spanner_client_ext"
 require "active_record/connection_adapters/spanner/type_mapping"
@@ -14,6 +16,9 @@ module ActiveRecordSpannerAdapter
   TransactionMutationLimitExceededError = Google::Cloud::Spanner::Errors::TransactionMutationLimitExceededError
 
   class Connection
+    @mutex = Mutex.new
+    @information_schemas_mutex = Mutex.new
+
     attr_reader :instance_id
     attr_reader :database_id
     attr_reader :spanner
@@ -21,18 +26,19 @@ module ActiveRecordSpannerAdapter
     attr_accessor :isolation_level
 
     def initialize config
+      config = config.symbolize_keys
       @instance_id = config[:instance]
       @database_id = config[:database]
       @isolation_level = config[:isolation_level]
+      @session_mutex = Mutex.new
       @spanner = self.class.spanners config
     end
 
     def self.spanners config
       config = config.symbolize_keys
-      @spanners ||= {}
-      @mutex ||= Mutex.new
       @mutex.synchronize do
-        @spanners[database_path(config)] ||= Google::Cloud::Spanner.new(
+        @spanners ||= {}
+        @spanners[client_cache_key(config)] ||= Google::Cloud::Spanner.new(
           project_id: config[:project],
           credentials: config[:credentials],
           emulator_host: config[:emulator_host],
@@ -44,6 +50,12 @@ module ActiveRecordSpannerAdapter
       end
     end
 
+    def self.reset_spanners!
+      @mutex.synchronize do
+        @spanners = {}
+      end
+    end
+
     def native_database_types
       NATIVE_DATABASE_TYPES
     end
@@ -52,46 +64,66 @@ module ActiveRecordSpannerAdapter
     # Call this method if you drop and recreate a database with the same name
     # to prevent the cached information to be used for the new database.
     def self.reset_information_schemas!
-      return unless @database
+      schemas_to_disconnect = nil
+      @information_schemas_mutex.synchronize do
+        next unless @information_schemas
 
-      @information_schemas.each_value do |info_schema|
-        info_schema.connection.disconnect!
+        schemas_to_disconnect = @information_schemas.values
+        @information_schemas = {}
       end
-      @information_schemas = {}
+
+      schemas_to_disconnect&.each do |info_schema|
+        info_schema.connection.disconnect!
+      rescue StandardError
+        nil
+      end
     end
 
     def self.information_schema config
-      @information_schemas ||= {}
-      @information_schemas[database_path(config)] ||=
-        ActiveRecordSpannerAdapter::InformationSchema.new new(config)
+      config = config.symbolize_keys
+      @information_schemas_mutex.synchronize do
+        @information_schemas ||= {}
+        @information_schemas[client_cache_key(config)] ||=
+          ActiveRecordSpannerAdapter::InformationSchema.new new(config)
+      end
     end
 
     def session
       @last_used = Time.current
-      @session ||= spanner.create_session instance_id, database_id
+      # TODO: Remove synchronized session creation once multiplexed sessions are supported.
+      @session || @session_mutex.synchronize do
+        @session ||= spanner.create_session instance_id, database_id
+      end
     end
     alias connect! session
 
     def active?
       # This method should not initialize a session.
-      unless @session
+      current_session = @session
+      unless current_session
         return false
       end
       # Assume that it is still active if it has been used in the past 50 minutes.
       if ((Time.current - @last_used) / 60).round < 50
         return true
       end
-      session.execute_query "SELECT 1"
+      current_session.execute_query "SELECT 1"
+      @last_used = Time.current
       true
     rescue StandardError
       false
     end
 
     def disconnect!
-      session.release!
+      session_to_release = @session_mutex.synchronize do
+        current_session = @session
+        @session = nil
+        current_session
+      end
+      return true unless session_to_release
+
+      session_to_release.release!
       true
-    ensure
-      @session = nil
     end
 
     def reset!
@@ -382,7 +414,111 @@ module ActiveRecordSpannerAdapter
     end
 
     def self.database_path config
+      config = config.symbolize_keys
       "#{config[:emulator_host]}/#{config[:project]}/#{config[:instance]}/#{config[:database]}"
+    end
+
+    # Builds an immutable, structured Array cache key for `@spanners` and `@information_schemas`
+    # containing `[emulator_host, project, instance, database, credentials_key, scope, timeout]`.
+    #
+    # - Isolates distinct credentials, scopes, timeouts, and effective ENV/configure defaults so
+    #   different ActiveRecord roles for the same database never share a client or schema session.
+    # - Uses a structured Array rather than string interpolation to avoid delimiter collisions
+    #   (e.g. `/` in file paths or emulator hosts).
+    # - Duplicates/freezes string and array components so caller mutations cannot corrupt Hash
+    #   lookups, and SHA-256 hashes Hash/`*_JSON` credentials to keep private keys out of cache keys.
+    private_class_method def self.client_cache_key config
+      emulator_host = effective_emulator_host config
+      [
+        emulator_host,
+        effective_project(config),
+        config[:instance]&.to_s&.dup&.freeze,
+        config[:database]&.to_s&.dup&.freeze,
+        credentials_cache_key(config, emulator_host),
+        scope_cache_key(config),
+        effective_timeout(config)
+      ]
+    end
+
+    private_class_method def self.effective_emulator_host config
+      emulator_host = config[:emulator_host].presence || Google::Cloud::Spanner.configure.emulator_host.presence
+      emulator_host&.to_s&.dup&.freeze
+    end
+
+    private_class_method def self.effective_project config
+      project = config[:project].nil? ? default_configured_project : config[:project]
+      project&.to_s&.dup&.freeze
+    end
+
+    private_class_method def self.default_configured_project
+      Google::Cloud::Spanner.configure.project_id || Google::Cloud.configure.project_id
+    end
+
+    private_class_method def self.credentials_cache_key config, emulator_host
+      credentials = config[:credentials]
+      if credentials.nil?
+        return nil if emulator_host
+
+        credentials = Google::Cloud::Spanner.configure.credentials || Google::Cloud.configure.credentials
+        return [:default_env, default_credentials_env_signature] unless credentials
+      end
+
+      normalize_credentials_key credentials
+    end
+
+    private_class_method def self.default_credentials_env_signature
+      env_vars = (Google::Cloud::Spanner::Credentials.env_vars + ["GOOGLE_APPLICATION_CREDENTIALS"]).uniq
+      values = env_vars.map { |env_var| ENV[env_var]&.b }
+      Digest::SHA256.hexdigest(Marshal.dump(values)).freeze
+    end
+
+    private_class_method def self.normalize_credentials_key credentials
+      case credentials
+      when Symbol
+        credentials
+      when String, Pathname
+        [:path, credentials.to_s.dup.freeze]
+      when Hash
+        canonical = canonicalize_hash credentials
+        begin
+          [:hash, Digest::SHA256.hexdigest(Marshal.dump(canonical)).freeze]
+        rescue TypeError
+          [:hash_object, canonical]
+        end
+      else
+        [:object, credentials]
+      end
+    end
+
+    private_class_method def self.canonicalize_hash value
+      case value
+      when Hash
+        normalized = value.each_with_object({}) do |(key, entry), result|
+          result[canonicalize_hash(key.to_s)] = canonicalize_hash entry
+        end
+        normalized.sort_by { |key, _| key.b }.to_h.freeze
+      when Array
+        value.map { |entry| canonicalize_hash entry }.freeze
+      when String
+        if value.encoding == Encoding::ASCII_8BIT || !value.valid_encoding?
+          value.dup.freeze
+        else
+          value.encode(Encoding::UTF_8).dup.freeze
+        end
+      else
+        value
+      end
+    end
+
+    private_class_method def self.scope_cache_key config
+      scope = config[:scope].nil? ? Google::Cloud::Spanner.configure.scope : config[:scope]
+      return nil if scope.nil?
+
+      Array(scope).map { |entry| entry.to_s.dup.freeze }.freeze
+    end
+
+    private_class_method def self.effective_timeout config
+      config[:timeout].nil? ? Google::Cloud::Spanner.configure.timeout : config[:timeout]
     end
 
     def session_not_found? err
