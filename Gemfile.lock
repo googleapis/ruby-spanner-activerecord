@@ -3,8 +3,8 @@ PATH
   specs:
     activerecord-spanner-adapter (2.7.1)
       activerecord (>= 7.1, < 9)
-      google-cloud-spanner (~> 2.25)
-      google-cloud-spanner-v1 (~> 1.7)
+      google-cloud-spanner (~> 2.37)
+      google-cloud-spanner-v1 (~> 1.12)
 
 GEM
   remote: https://rubygems.org/
