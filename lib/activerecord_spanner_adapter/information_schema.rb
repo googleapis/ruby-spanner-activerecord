@@ -4,17 +4,13 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-require "active_record/connection_adapters/abstract/quoting"
 require "activerecord_spanner_adapter/information_schema"
 require "activerecord_spanner_adapter/table"
 require "activerecord_spanner_adapter/index"
 require "activerecord_spanner_adapter/foreign_key"
 
-
 module ActiveRecordSpannerAdapter
   class InformationSchema
-    include ActiveRecord::ConnectionAdapters::Quoting
-
     attr_reader :connection
 
     def initialize connection
@@ -24,13 +20,14 @@ module ActiveRecordSpannerAdapter
     def tables table_name: nil, schema_name: "", view: nil
       sql = +"SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION"
       sql << " FROM INFORMATION_SCHEMA.TABLES"
-      sql << " WHERE TABLE_SCHEMA=%<schema_name>s"
-      sql << " AND TABLE_NAME=%<table_name>s" if table_name
+      sql << " WHERE TABLE_SCHEMA=@schema_name"
+      query_params = { schema_name: schema_name || "" }
+      if table_name
+        sql << " AND TABLE_NAME=@table_name"
+        query_params[:table_name] = table_name
+      end
 
-      rows = execute_query(
-        sql,
-        schema_name: schema_name || "", table_name: table_name
-      )
+      rows = execute_query sql, query_params
 
       rows.map do |row|
         table = Table.new(
@@ -66,18 +63,17 @@ module ActiveRecordSpannerAdapter
       sql << " CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION,"
       sql << " IS_IDENTITY"
       sql << " FROM INFORMATION_SCHEMA.COLUMNS"
-      sql << " WHERE TABLE_NAME=%<table_name>s"
-      sql << " AND TABLE_SCHEMA=%<schema_name>s"
-      sql << " AND COLUMN_NAME=%<column_name>s" if column_name
+      sql << " WHERE TABLE_NAME=@table_name"
+      sql << " AND TABLE_SCHEMA=@schema_name"
+      query_params = { table_name: table_name, schema_name: schema_name || "" }
+      if column_name
+        sql << " AND COLUMN_NAME=@column_name"
+        query_params[:column_name] = column_name
+      end
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
       column_options = column_options table_name, column_name, schema_name: schema_name
-      execute_query(
-        sql,
-        table_name: table_name,
-        column_name: column_name,
-        schema_name: schema_name
-      ).map do |row|
+      execute_query(sql, query_params).map do |row|
         _create_column table_name, row, primary_keys, column_options, schema_name: schema_name
       end
     end
@@ -136,9 +132,9 @@ module ActiveRecordSpannerAdapter
       sql << "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION "
       sql << "FROM TABLE_PK_COLS "
       sql << "INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME) "
-      sql << "WHERE TABLE_NAME = %<table_name>s "
+      sql << "WHERE TABLE_NAME = @table_name "
       sql << "AND TABLE_CATALOG = '' "
-      sql << "AND TABLE_SCHEMA = %<schema_name>s "
+      sql << "AND TABLE_SCHEMA = @schema_name "
       unless include_parent_keys
         sql << "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN ( "
         sql << "  SELECT COLUMN_NAME "
@@ -152,7 +148,7 @@ module ActiveRecordSpannerAdapter
       execute_query(
         sql,
         table_name: table_name,
-        schema_name: schema_name
+        schema_name: schema_name || ""
       ).map do |row|
         Index::Column.new \
           table_name,
@@ -173,20 +169,21 @@ module ActiveRecordSpannerAdapter
 
       sql = +"SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE"
       sql << " FROM INFORMATION_SCHEMA.INDEXES"
-      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " WHERE TABLE_NAME=@table_name"
       sql << " AND TABLE_CATALOG = ''"
-      sql << " AND TABLE_SCHEMA = %<schema_name>s"
-      sql << " AND INDEX_NAME=%<index_name>s" if index_name
-      sql << " AND INDEX_TYPE=%<index_type>s" if index_type
+      sql << " AND TABLE_SCHEMA = @schema_name"
+      query_params = { table_name: table_name, schema_name: schema_name || "" }
+      if index_name
+        sql << " AND INDEX_NAME=@index_name"
+        query_params[:index_name] = index_name
+      end
+      if index_type
+        sql << " AND INDEX_TYPE=@index_type"
+        query_params[:index_type] = index_type
+      end
       sql << " AND SPANNER_IS_MANAGED=FALSE"
 
-      execute_query(
-        sql,
-        table_name: table_name,
-        schema_name: schema_name,
-        index_name: index_name,
-        index_type: index_type
-      ).map do |row|
+      execute_query(sql, query_params).map do |row|
         columns = []
         storing = []
         table_indexes_columns.each do |c|
@@ -219,16 +216,17 @@ module ActiveRecordSpannerAdapter
     def index_columns table_name, schema_name: "", index_name: nil
       sql = +"SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION"
       sql << " FROM INFORMATION_SCHEMA.INDEX_COLUMNS"
-      sql << " WHERE TABLE_NAME=%<table_name>s"
+      sql << " WHERE TABLE_NAME=@table_name"
       sql << " AND TABLE_CATALOG = ''"
-      sql << " AND TABLE_SCHEMA = %<schema_name>s"
-      sql << " AND INDEX_NAME=%<index_name>s" if index_name
+      sql << " AND TABLE_SCHEMA = @schema_name"
+      query_params = { table_name: table_name, schema_name: schema_name || "" }
+      if index_name
+        sql << " AND INDEX_NAME=@index_name"
+        query_params[:index_name] = index_name
+      end
       sql << " ORDER BY ORDINAL_POSITION ASC"
 
-      execute_query(
-        sql,
-        table_name: table_name, schema_name: schema_name, index_name: index_name
-      ).map do |row|
+      execute_query(sql, query_params).map do |row|
         Index::Column.new \
           table_name,
           row["INDEX_NAME"],
@@ -278,15 +276,15 @@ module ActiveRecordSpannerAdapter
                                       AND PARENT.ORDINAL_POSITION = CHILD.POSITION_IN_UNIQUE_CONSTRAINT
               ORDER BY CHILD.TABLE_CATALOG, CHILD.TABLE_SCHEMA, CHILD.TABLE_NAME, CHILD.POSITION_IN_UNIQUE_CONSTRAINT
         ) FOREIGN_KEYS
-        WHERE FK_TABLE = %<table_name>s
-          AND FK_SCHEMA = %<constraint_schema>s
+        WHERE FK_TABLE = @table_name
+          AND FK_SCHEMA = @constraint_schema
         GROUP BY CONSTRAINT_CATALOG, CONSTRAINT_SCHEMA, CONSTRAINT_NAME, UPDATE_RULE, DELETE_RULE,
                  FK_CATALOG, FK_SCHEMA, FK_TABLE,
                  PK_CATALOG, PK_SCHEMA, PK_TABLE
       SQL
 
       rows = execute_query(
-        sql, table_name: from_table_name, constraint_schema: from_schema_name
+        sql, table_name: from_table_name, constraint_schema: from_schema_name || ""
       )
 
       rows.map do |row|
@@ -314,13 +312,13 @@ module ActiveRecordSpannerAdapter
             ON tc.CONSTRAINT_CATALOG = cc.CONSTRAINT_CATALOG
            AND tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA
            AND tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
-        WHERE tc.TABLE_NAME = %<table_name>s
-          AND tc.CONSTRAINT_SCHEMA = %<schema_name>s
+        WHERE tc.TABLE_NAME = @table_name
+          AND tc.CONSTRAINT_SCHEMA = @schema_name
           AND tc.CONSTRAINT_TYPE = 'CHECK'
-          AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%%' AND cc.CHECK_CLAUSE LIKE '%%IS NOT NULL')
+          AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')
       SQL
 
-      rows = execute_query sql, table_name: table_name, schema_name: schema_name
+      rows = execute_query sql, table_name: table_name, schema_name: schema_name || ""
 
       rows.map do |row|
         ActiveRecord::ConnectionAdapters::CheckConstraintDefinition.new(
@@ -406,17 +404,16 @@ module ActiveRecordSpannerAdapter
     def column_options table_name, column_name, schema_name: ""
       sql = +"SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE"
       sql << " FROM INFORMATION_SCHEMA.COLUMN_OPTIONS"
-      sql << " WHERE TABLE_NAME=%<table_name>s"
-      sql << " AND TABLE_SCHEMA=%<schema_name>s"
-      sql << " AND COLUMN_NAME=%<column_name>s" if column_name
+      sql << " WHERE TABLE_NAME=@table_name"
+      sql << " AND TABLE_SCHEMA=@schema_name"
+      query_params = { table_name: table_name, schema_name: schema_name || "" }
+      if column_name
+        sql << " AND COLUMN_NAME=@column_name"
+        query_params[:column_name] = column_name
+      end
 
       column_options = Hash.new { |h, k| h[k] = {} }
-      execute_query(
-        sql,
-        table_name: table_name,
-        schema_name: schema_name,
-        column_name: column_name
-      ).each_with_object(column_options) do |row, options|
+      execute_query(sql, query_params).each_with_object(column_options) do |row, options|
         next unless row["OPTION_TYPE"] == "BOOL"
 
         col = row["COLUMN_NAME"]
@@ -426,11 +423,10 @@ module ActiveRecordSpannerAdapter
       end
     end
 
-    def execute_query sql, params = {}
-      params = params.transform_values { |v| quote v }
-      sql = format sql, params
-
-      @connection.execute_query(sql).rows
+    def execute_query sql, params
+      query_params = params.transform_values { |value| value&.to_s }
+      query_types = query_params.transform_values { :STRING }
+      @connection.execute_query(sql, params: query_params, types: query_types).rows
     end
   end
 end
