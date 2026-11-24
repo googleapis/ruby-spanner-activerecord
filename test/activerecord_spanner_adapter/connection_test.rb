@@ -296,4 +296,31 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
     }
     assert err.message.include?("DDL cannot be executed during a transaction")
   end
+
+  def test_begin_transaction_exclude_txn_from_change_streams_permutations
+    transaction = connection.begin_transaction
+    assert_equal false, transaction.exclude_txn_from_change_streams
+    assert_equal false, transaction.begin_transaction_selector.begin.exclude_txn_from_change_streams
+    connection.rollback_transaction
+
+    [nil, false, true].each do |exclude_option|
+      expected = exclude_option || false
+      transaction = connection.begin_transaction exclude_txn_from_change_streams: exclude_option
+      assert_equal expected, transaction.exclude_txn_from_change_streams
+      assert_equal expected, transaction.begin_transaction_selector.begin.exclude_txn_from_change_streams
+      connection.rollback_transaction
+    end
+  end
+
+  def test_begin_transaction_uses_connection_isolation_level_or_override
+    connection.isolation_level = :repeatable_read
+
+    default_transaction = connection.begin_transaction
+    assert_equal :REPEATABLE_READ, default_transaction.begin_transaction_selector.begin.isolation_level
+    connection.rollback_transaction
+
+    override_transaction = connection.begin_transaction :serializable
+    assert_equal :SERIALIZABLE, override_transaction.begin_transaction_selector.begin.isolation_level
+    connection.rollback_transaction
+  end
 end

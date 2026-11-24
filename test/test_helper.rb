@@ -189,6 +189,10 @@ module MockGoogleSpanner
       "/project_id/1/instance_id/2/database_id/3/session/4"
     end
 
+    def service
+      @service ||= MockService.new
+    end
+
     def release!
       nil
     end
@@ -211,7 +215,20 @@ module MockGoogleSpanner
       Google::Cloud::Spanner::Transaction.from_grpc grpc, self
     end
 
-    def commit_transaction transaction, mutations
+    def create_empty_transaction exclude_txn_from_change_streams: false, previous_transaction_id: nil,
+                                 read_lock_mode: nil, transaction_tag: nil, isolation_level: nil
+      Google::Cloud::Spanner::Transaction.from_grpc(
+        nil,
+        self,
+        exclude_txn_from_change_streams: exclude_txn_from_change_streams,
+        previous_transaction_id: previous_transaction_id,
+        read_lock_mode: read_lock_mode,
+        transaction_tag: transaction_tag,
+        isolation_level: isolation_level
+      )
+    end
+
+    def commit_transaction transaction, mutations, commit_options: nil
       Time.now
     end
 
@@ -244,9 +261,16 @@ module MockGoogleSpanner
 
   class MockService
     attr_reader :connection_args
+    attr_reader :last_begin_transaction_options
 
     def initialize *args
       @connection_args = args
+      @last_begin_transaction_options = nil
+    end
+
+    def begin_transaction session_name, **options
+      @last_begin_transaction_options = options
+      Google::Cloud::Spanner::V1::Transaction.new id: SecureRandom.base64
     end
 
     def create_snapshot session_name, strong: nil, timestamp: nil,
