@@ -418,109 +418,6 @@ module ActiveRecordSpannerAdapter
       "#{config[:emulator_host]}/#{config[:project]}/#{config[:instance]}/#{config[:database]}"
     end
 
-    # Builds an immutable, structured Array cache key for `@spanners` and `@information_schemas`
-    # containing `[emulator_host, project, instance, database, credentials_key, scope, timeout]`.
-    #
-    # - Isolates distinct credentials, scopes, timeouts, and effective ENV/configure defaults so
-    #   different ActiveRecord roles for the same database never share a client or schema session.
-    # - Uses a structured Array rather than string interpolation to avoid delimiter collisions
-    #   (e.g. `/` in file paths or emulator hosts).
-    # - Duplicates/freezes string and array components so caller mutations cannot corrupt Hash
-    #   lookups, and SHA-256 hashes Hash/`*_JSON` credentials to keep private keys out of cache keys.
-    private_class_method def self.client_cache_key config
-      emulator_host = effective_emulator_host config
-      [
-        emulator_host,
-        effective_project(config),
-        config[:instance]&.to_s&.dup&.freeze,
-        config[:database]&.to_s&.dup&.freeze,
-        credentials_cache_key(config, emulator_host),
-        scope_cache_key(config),
-        effective_timeout(config)
-      ]
-    end
-
-    private_class_method def self.effective_emulator_host config
-      emulator_host = config[:emulator_host].presence || Google::Cloud::Spanner.configure.emulator_host.presence
-      emulator_host&.to_s&.dup&.freeze
-    end
-
-    private_class_method def self.effective_project config
-      project = config[:project].nil? ? default_configured_project : config[:project]
-      project&.to_s&.dup&.freeze
-    end
-
-    private_class_method def self.default_configured_project
-      Google::Cloud::Spanner.configure.project_id || Google::Cloud.configure.project_id
-    end
-
-    private_class_method def self.credentials_cache_key config, emulator_host
-      credentials = config[:credentials]
-      if credentials.nil?
-        return nil if emulator_host
-
-        credentials = Google::Cloud::Spanner.configure.credentials || Google::Cloud.configure.credentials
-        return [:default_env, default_credentials_env_signature] unless credentials
-      end
-
-      normalize_credentials_key credentials
-    end
-
-    private_class_method def self.default_credentials_env_signature
-      env_vars = (Google::Cloud::Spanner::Credentials.env_vars + ["GOOGLE_APPLICATION_CREDENTIALS"]).uniq
-      values = env_vars.map { |env_var| ENV[env_var]&.b }
-      Digest::SHA256.hexdigest(Marshal.dump(values)).freeze
-    end
-
-    private_class_method def self.normalize_credentials_key credentials
-      case credentials
-      when Symbol
-        credentials
-      when String, Pathname
-        [:path, credentials.to_s.dup.freeze]
-      when Hash
-        canonical = canonicalize_hash credentials
-        begin
-          [:hash, Digest::SHA256.hexdigest(Marshal.dump(canonical)).freeze]
-        rescue TypeError
-          [:hash_object, canonical]
-        end
-      else
-        [:object, credentials]
-      end
-    end
-
-    private_class_method def self.canonicalize_hash value
-      case value
-      when Hash
-        normalized = value.each_with_object({}) do |(key, entry), result|
-          result[canonicalize_hash(key.to_s)] = canonicalize_hash entry
-        end
-        normalized.sort_by { |key, _| key.b }.to_h.freeze
-      when Array
-        value.map { |entry| canonicalize_hash entry }.freeze
-      when String
-        if value.encoding == Encoding::ASCII_8BIT || !value.valid_encoding?
-          value.dup.freeze
-        else
-          value.encode(Encoding::UTF_8).dup.freeze
-        end
-      else
-        value
-      end
-    end
-
-    private_class_method def self.scope_cache_key config
-      scope = config[:scope].nil? ? Google::Cloud::Spanner.configure.scope : config[:scope]
-      return nil if scope.nil?
-
-      Array(scope).map { |entry| entry.to_s.dup.freeze }.freeze
-    end
-
-    private_class_method def self.effective_timeout config
-      config[:timeout].nil? ? Google::Cloud::Spanner.configure.timeout : config[:timeout]
-    end
-
     def session_not_found? err
       if err.respond_to?(:metadata) && err.metadata["google.rpc.resourceinfo-bin"]
         resource_info = Google::Rpc::ResourceInfo.decode err.metadata["google.rpc.resourceinfo-bin"]
@@ -595,5 +492,112 @@ module ActiveRecordSpannerAdapter
       raise
     end
     # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
+    class << self
+      private
+
+      # Builds an immutable, structured Array cache key for `@spanners` and `@information_schemas`
+      # containing `[emulator_host, project, instance, database, credentials_key, scope, timeout]`.
+      #
+      # - Isolates distinct credentials, scopes, timeouts, and effective ENV/configure defaults so
+      #   different ActiveRecord roles for the same database never share a client or schema session.
+      # - Uses a structured Array rather than string interpolation to avoid delimiter collisions
+      #   (e.g. `/` in file paths or emulator hosts).
+      # - Duplicates/freezes string and array components so caller mutations cannot corrupt Hash
+      #   lookups, and SHA-256 hashes Hash/`*_JSON` credentials to keep private keys out of cache keys.
+      def client_cache_key config
+        emulator_host = effective_emulator_host config
+        [
+          emulator_host,
+          effective_project(config),
+          config[:instance]&.to_s&.dup&.freeze,
+          config[:database]&.to_s&.dup&.freeze,
+          credentials_cache_key(config, emulator_host),
+          scope_cache_key(config),
+          effective_timeout(config)
+        ]
+      end
+
+      def effective_emulator_host config
+        emulator_host = config[:emulator_host].presence || Google::Cloud::Spanner.configure.emulator_host.presence
+        emulator_host&.to_s&.dup&.freeze
+      end
+
+      def effective_project config
+        project = config[:project].nil? ? default_configured_project : config[:project]
+        project&.to_s&.dup&.freeze
+      end
+
+      def default_configured_project
+        Google::Cloud::Spanner.configure.project_id || Google::Cloud.configure.project_id
+      end
+
+      def credentials_cache_key config, emulator_host
+        credentials = config[:credentials]
+        if credentials.nil?
+          return nil if emulator_host
+
+          credentials = Google::Cloud::Spanner.configure.credentials || Google::Cloud.configure.credentials
+          return [:default_env, default_credentials_env_signature] unless credentials
+        end
+
+        normalize_credentials_key credentials
+      end
+
+      def default_credentials_env_signature
+        env_vars = (Google::Cloud::Spanner::Credentials.env_vars + ["GOOGLE_APPLICATION_CREDENTIALS"]).uniq
+        values = env_vars.map { |env_var| ENV[env_var]&.b }
+        Digest::SHA256.hexdigest(Marshal.dump(values)).freeze
+      end
+
+      def normalize_credentials_key credentials
+        case credentials
+        when Symbol
+          credentials
+        when String, Pathname
+          [:path, credentials.to_s.dup.freeze]
+        when Hash
+          canonical = canonicalize_hash credentials
+          begin
+            [:hash, Digest::SHA256.hexdigest(Marshal.dump(canonical)).freeze]
+          rescue TypeError
+            [:hash_object, canonical]
+          end
+        else
+          [:object, credentials]
+        end
+      end
+
+      def canonicalize_hash value
+        case value
+        when Hash
+          normalized = value.each_with_object({}) do |(key, entry), result|
+            result[canonicalize_hash(key.to_s)] = canonicalize_hash entry
+          end
+          normalized.sort_by { |key, _| key.b }.to_h.freeze
+        when Array
+          value.map { |entry| canonicalize_hash entry }.freeze
+        when String
+          if value.encoding == Encoding::ASCII_8BIT || !value.valid_encoding?
+            value.dup.freeze
+          else
+            value.encode(Encoding::UTF_8).dup.freeze
+          end
+        else
+          value
+        end
+      end
+
+      def scope_cache_key config
+        scope = config[:scope].nil? ? Google::Cloud::Spanner.configure.scope : config[:scope]
+        return nil if scope.nil?
+
+        Array(scope).map { |entry| entry.to_s.dup.freeze }.freeze
+      end
+
+      def effective_timeout config
+        config[:timeout].nil? ? Google::Cloud::Spanner.configure.timeout : config[:timeout]
+      end
+    end
   end
 end
