@@ -228,14 +228,19 @@ module ActiveRecord
         def transaction requires_new: nil, isolation: nil, joinable: true, **kwargs, &block # rubocop:disable Metrics/PerceivedComplexity,Metrics/CyclomaticComplexity
           commit_options = kwargs.delete :commit_options
           exclude_from_streams = kwargs.delete :exclude_txn_from_change_streams
-          @_spanner_begin_transaction_options = {
-            exclude_txn_from_change_streams: exclude_from_streams
-          }
           if !requires_new && current_transaction.joinable?
             return super
           end
 
           backoff = 0.2
+          # ActiveRecord's `transaction` does not forward Spanner-specific options (such as
+          # `exclude_txn_from_change_streams`) when starting a transaction. Keep them on the
+          # adapter while `super` runs (including retries), and restore the previous value in
+          # `ensure` so nested calls do not overwrite an outer transaction's options.
+          previous_begin_options = @_spanner_begin_transaction_options
+          @_spanner_begin_transaction_options = {
+            exclude_txn_from_change_streams: exclude_from_streams
+          }
           begin
             super do
               # Once the transaction has been started by `super`, apply your custom options
@@ -262,8 +267,8 @@ module ActiveRecord
             sleep(delay_from_aborted(err) || backoff *= 1.3)
             retry
           ensure
-            # Clean up the instance variable to avoid leaking options.
-            @_spanner_begin_transaction_options = nil
+            # Restore previous options to avoid leaking or clobbering outer transaction options.
+            @_spanner_begin_transaction_options = previous_begin_options
           end
         end
 

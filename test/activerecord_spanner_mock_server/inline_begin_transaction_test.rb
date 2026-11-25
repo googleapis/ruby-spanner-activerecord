@@ -380,6 +380,439 @@ module MockServerTests
       assert_equal 1, commit_requests.length
     end
 
+    def test_error_on_first_statement_preserves_isolation_level_and_exclude_from_change_streams
+      insert_sql = register_insert_singer_result
+
+      [:serializable, :repeatable_read, nil].each do |isolation|
+        [true, false, nil].each do |exclude_from_streams|
+          @mock.push_error \
+            insert_sql,
+            GRPC::BadStatus.new(
+              GRPC::Core::StatusCodes::RESOURCE_EXHAUSTED,
+              "Too many requests"
+            )
+
+          transaction_options = build_transaction_options isolation, exclude_from_streams
+          ActiveRecord::Base.transaction(**transaction_options) do
+            Singer.create(first_name: "Dave", last_name: "Allison")
+          end
+
+          assert_begin_transaction_requests(
+            expected_isolation: _transaction_isolation_level_to_grpc(isolation),
+            expected_exclude: exclude_from_streams || false
+          )
+
+          @mock.requests.clear
+        end
+      end
+    end
+
+    def test_error_on_first_statement_uses_default_connection_isolation_level
+      insert_sql = register_insert_singer_result
+      ActiveRecord::Base.connection.isolation_level = :repeatable_read
+      @mock.push_error \
+        insert_sql,
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::RESOURCE_EXHAUSTED, "Too many requests")
+
+      ActiveRecord::Base.transaction exclude_txn_from_change_streams: true do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+    end
+
+    def test_error_on_first_statement_and_on_begin_transaction_preserves_options
+      insert_sql = register_insert_singer_result
+      @mock.push_error \
+        insert_sql,
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::FAILED_PRECONDITION, "Duplicate key")
+      @mock.push_error \
+        "begin_transaction",
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::PERMISSION_DENIED, "Not permitted")
+
+      err = assert_raises ActiveRecord::StatementInvalid do
+        ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
+      end
+      assert err.cause.is_a?(Google::Cloud::FailedPreconditionError)
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+    end
+
+    def test_error_on_first_batch_dml_preserves_isolation_level_and_exclude_from_change_streams
+      sql = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      error = GRPC::BadStatus.new GRPC::Core::StatusCodes::INVALID_ARGUMENT, "Invalid value"
+      @mock.put_statement_result sql, StatementResult.new(error)
+
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+
+      [:serializable, :repeatable_read, nil].each do |isolation|
+        [true, false, nil].each do |exclude_from_streams|
+          transaction_options = build_transaction_options isolation, exclude_from_streams
+
+          ActiveRecord::Base.transaction(**transaction_options) do
+            assert_raises Google::Cloud::Spanner::BatchUpdateError do
+              ActiveRecord::Base.dml_batch do
+                Singer.insert(singer1)
+                Singer.insert(singer2)
+              end
+            end
+          end
+
+          assert_begin_transaction_requests(
+            expected_isolation: _transaction_isolation_level_to_grpc(isolation),
+            expected_exclude: exclude_from_streams || false
+          )
+
+          @mock.requests.clear
+        end
+      end
+    end
+
+    def test_error_on_first_batch_dml_uses_default_connection_isolation_level_and_handles_begin_failure
+      sql = "INSERT OR IGNORE INTO `singers` (`first_name`,`last_name`) VALUES ('Alice', 'Ecila')"
+      error = GRPC::BadStatus.new GRPC::Core::StatusCodes::INVALID_ARGUMENT, "Invalid value"
+      @mock.put_statement_result sql, StatementResult.new(error)
+      @mock.push_error \
+        "begin_transaction",
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::PERMISSION_DENIED, "Not permitted")
+
+      ActiveRecord::Base.connection.isolation_level = :repeatable_read
+      singer1 = { first_name: "Alice", last_name: "Ecila" }
+      singer2 = { first_name: "Pete", last_name: "Etep" }
+
+      ActiveRecord::Base.transaction exclude_txn_from_change_streams: true do
+        assert_raises Google::Cloud::Spanner::BatchUpdateError do
+          ActiveRecord::Base.dml_batch do
+            Singer.insert(singer1)
+            Singer.insert(singer2)
+          end
+        end
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+    end
+
+    def test_mutation_only_commit_preserves_isolation_level_and_exclude_from_change_streams
+      [:serializable, :repeatable_read, nil].each do |isolation|
+        [true, false, nil].each do |exclude_from_streams|
+          transaction_options = build_transaction_options isolation, exclude_from_streams
+
+          ActiveRecord::Base.transaction(**transaction_options) do
+            ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+          end
+
+          assert_begin_transaction_requests(
+            expected_isolation: _transaction_isolation_level_to_grpc(isolation),
+            expected_exclude: exclude_from_streams || false
+          )
+          assert_equal 1, @mock.requests.count { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+
+          @mock.requests.clear
+        end
+      end
+    end
+
+    def test_mutation_only_commit_uses_default_connection_isolation_level
+      ActiveRecord::Base.connection.isolation_level = :repeatable_read
+
+      ActiveRecord::Base.transaction exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+    end
+
+    def test_mutation_only_commit_session_not_found_retries_with_options
+      deleted = false
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+        unless deleted
+          @mock.delete_all_sessions
+          deleted = true
+        end
+      end
+
+      begin_transaction_requests = assert_begin_transaction_requests(
+        expected_isolation: :REPEATABLE_READ,
+        expected_exclude: true,
+        count: 2
+      )
+      refute_equal begin_transaction_requests[0].session, begin_transaction_requests[1].session
+
+      commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+      assert_equal 1, commit_requests.length
+      assert_equal begin_transaction_requests[1].session, commit_requests.first.session
+    end
+
+    def test_mutation_only_commit_aborted_retries_with_options
+      aborted = false
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+        unless aborted
+          @mock.abort_next_transaction
+          aborted = true
+        end
+      end
+
+      assert_begin_transaction_requests(
+        expected_isolation: :REPEATABLE_READ,
+        expected_exclude: true,
+        count: 2
+      )
+      assert_equal 2, @mock.requests.count { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+    end
+
+    def test_error_on_first_statement_then_aborted_commit_retries_with_options
+      insert_sql = register_insert_singer_result
+      @mock.push_error \
+        insert_sql,
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::RESOURCE_EXHAUSTED, "Too many requests")
+
+      aborted = false
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+        unless aborted
+          abort_current_transaction
+          aborted = true
+        end
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+
+      sql_requests = @mock.requests.select { |req| req.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && req.sql == insert_sql }
+      assert_equal 3, sql_requests.length
+      assert sql_requests[0].transaction&.begin&.read_write
+      assert sql_requests[1].transaction&.id
+      assert sql_requests[2].transaction&.begin&.read_write
+      assert_equal :REPEATABLE_READ, sql_requests[2].transaction&.begin&.isolation_level
+      assert_equal true, sql_requests[2].transaction&.begin&.exclude_txn_from_change_streams
+    end
+
+    def test_mixed_mutation_and_failed_first_statement_preserves_options
+      insert_sql = register_insert_singer_result
+      @mock.push_error \
+        insert_sql,
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::RESOURCE_EXHAUSTED, "Too many requests")
+
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+
+      commit_requests = @mock.requests.select { |req| req.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+      assert_equal 1, commit_requests.length
+      assert_equal 1, commit_requests.first.mutations.length
+    end
+
+    def test_mixed_mutation_and_successful_sql_uses_inline_begin
+      insert_sql = register_insert_singer_result
+
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.connection.current_spanner_transaction.buffer build_singer_insert_mutation
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      begin_transaction_requests = @mock.requests.select { |request| request.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+      assert_empty begin_transaction_requests
+
+      assert_inline_begin_sql_requests insert_sql, expected_isolation: :REPEATABLE_READ, expected_exclude: true
+
+      commit_requests = @mock.requests.select { |request| request.is_a? Google::Cloud::Spanner::V1::CommitRequest }
+      assert_equal 1, commit_requests.length
+      assert_equal 1, commit_requests.first.mutations.length
+    end
+
+    def test_nested_joinable_transaction_preserves_outer_options_on_force_begin
+      insert_sql = register_insert_singer_result
+      @mock.push_error \
+        insert_sql,
+        GRPC::BadStatus.new(GRPC::Core::StatusCodes::RESOURCE_EXHAUSTED, "Too many requests")
+
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.transaction do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
+      end
+
+      assert_begin_transaction_requests expected_isolation: :REPEATABLE_READ, expected_exclude: true
+    end
+
+    def test_nested_joinable_transaction_preserves_outer_options_on_retry
+      insert_sql = register_insert_singer_result
+      aborted = false
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.transaction do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
+        unless aborted
+          abort_current_transaction
+          aborted = true
+        end
+      end
+
+      assert_inline_begin_sql_requests(
+        insert_sql,
+        expected_isolation: :REPEATABLE_READ,
+        expected_exclude: true,
+        count: 2
+      )
+    end
+
+    def test_nested_requires_new_transaction_preserves_outer_options_on_retry
+      insert_sql = register_insert_singer_result
+      aborted = false
+      ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+        ActiveRecord::Base.transaction requires_new: true do
+          Singer.create(first_name: "Dave", last_name: "Allison")
+        end
+        unless aborted
+          abort_current_transaction
+          aborted = true
+        end
+      end
+
+      assert_inline_begin_sql_requests(
+        insert_sql,
+        expected_isolation: :REPEATABLE_READ,
+        expected_exclude: true,
+        count: 2
+      )
+    end
+
+    def test_exception_in_transaction_does_not_leak_transaction_options
+      assert_raises(RuntimeError) do
+        ActiveRecord::Base.transaction isolation: :repeatable_read, exclude_txn_from_change_streams: true do
+          raise "boom"
+        end
+      end
+
+      insert_sql = register_insert_singer_result
+      ActiveRecord::Base.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_inline_begin_sql_requests(
+        insert_sql,
+        expected_isolation: :ISOLATION_LEVEL_UNSPECIFIED,
+        expected_exclude: false
+      )
+    end
+
+    def test_fallback_to_pdml_does_not_leak_transaction_options
+      update_sql = "UPDATE `singers` SET `last_name` = @p1 WHERE TRUE"
+      @mock.push_error \
+        update_sql,
+        GRPC::BadStatus.new(
+          GRPC::Core::StatusCodes::INVALID_ARGUMENT,
+          "Transaction mutation limit exceeded"
+        )
+      @mock.put_statement_result update_sql, StatementResult.new(10)
+
+      TableWithSequence.transaction isolation: :fallback_to_pdml, exclude_txn_from_change_streams: true do
+        Singer.update_all last_name: "Updated"
+      end
+
+      insert_sql = register_insert_singer_result
+      ActiveRecord::Base.transaction do
+        Singer.create(first_name: "Dave", last_name: "Allison")
+      end
+
+      assert_inline_begin_sql_requests(
+        insert_sql,
+        expected_isolation: :ISOLATION_LEVEL_UNSPECIFIED,
+        expected_exclude: false
+      )
+    end
+
+    def test_buffered_mutations_preserves_exclude_from_change_streams
+      [true, false, nil].each do |exclude_from_streams|
+        transaction_options = build_transaction_options :buffered_mutations, exclude_from_streams
+
+        User.transaction(**transaction_options) do
+          User.create!(email: "test@example.com", full_name: "Test User")
+        end
+
+        assert_begin_transaction_requests(
+          expected_isolation: :ISOLATION_LEVEL_UNSPECIFIED,
+          expected_exclude: exclude_from_streams || false
+        )
+
+        @mock.requests.clear
+      end
+    end
+
+    def test_buffered_mutations_aborted_retry_preserves_exclude_from_change_streams
+      aborted = false
+      User.transaction isolation: :buffered_mutations, exclude_txn_from_change_streams: true do
+        unless aborted
+          @mock.abort_next_transaction
+          aborted = true
+        end
+        User.create!(email: "test@example.com", full_name: "Test User")
+      end
+
+      assert_begin_transaction_requests(
+        expected_isolation: :ISOLATION_LEVEL_UNSPECIFIED,
+        expected_exclude: true,
+        count: 2
+      )
+    end
+
+    def build_transaction_options isolation, exclude_from_streams
+      transaction_options = { isolation: isolation }
+      transaction_options[:exclude_txn_from_change_streams] = exclude_from_streams unless exclude_from_streams.nil?
+      transaction_options
+    end
+
+    def assert_inline_begin_sql_requests sql, expected_isolation:, expected_exclude:, count: 1
+      sql_requests = @mock.requests.select do |request|
+        request.is_a?(Google::Cloud::Spanner::V1::ExecuteSqlRequest) && request.sql == sql
+      end
+      assert_equal count, sql_requests.length
+      sql_requests.each do |request|
+        begin_options = request.transaction&.begin
+        assert begin_options&.read_write
+        assert_equal expected_isolation, begin_options&.isolation_level
+        assert_equal expected_exclude, begin_options&.exclude_txn_from_change_streams
+      end
+      sql_requests
+    end
+
+    def assert_begin_transaction_requests expected_isolation:, expected_exclude:, count: 1
+      begin_transaction_requests = @mock.requests.select { |request| request.is_a? Google::Cloud::Spanner::V1::BeginTransactionRequest }
+      assert_equal count, begin_transaction_requests.length
+      begin_transaction_requests.each do |request|
+        begin_options = request.options
+        assert begin_options&.read_write
+        assert_equal expected_isolation, begin_options&.isolation_level
+        assert_equal expected_exclude, begin_options&.exclude_txn_from_change_streams
+      end
+      begin_transaction_requests
+    end
+
+    def build_singer_insert_mutation
+      Google::Cloud::Spanner::V1::Mutation.new(
+        insert: Google::Cloud::Spanner::V1::Mutation::Write.new(
+          table: "singers",
+          columns: ["id", "first_name", "last_name"],
+          values: [
+            Google::Protobuf::ListValue.new(
+              values: [
+                Google::Protobuf::Value.new(string_value: "1"),
+                Google::Protobuf::Value.new(string_value: "Dave"),
+                Google::Protobuf::Value.new(string_value: "Allison")
+              ]
+            )
+          ]
+        )
+      )
+    end
+
     def register_insert_singer_result
       sql = "INSERT INTO `singers` (`first_name`, `last_name`, `id`) VALUES (@p1, @p2, @p3)"
       @mock.put_statement_result sql, StatementResult.new(1)
