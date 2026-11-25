@@ -106,4 +106,102 @@ class ArelVisitorTest < TestHelper::MockActiveRecordTest
     3.times { @visitor.compile query.ast }
     assert_equal "SELECT * FROM `users`", @visitor.compile(query.ast)
   end
+
+  def test_compile_statement_hint_without_leading_space
+    query = @table.project Arel.star
+    query.optimizer_hints "statement_hint:@{USE_ADDITIONAL_PARALLELISM=TRUE}"
+    sql = @visitor.compile query.ast
+    assert_equal "@{USE_ADDITIONAL_PARALLELISM=TRUE}SELECT  * FROM `users`", sql
+  end
+
+  def test_compile_statement_hint_with_multiple_entries_and_quoted_values
+    query = @table.project Arel.star
+    query.optimizer_hints(
+      "statement_hint: @{FORCE_INDEX=`idx@{1}`, JOIN_METHOD=HASH_JOIN, " \
+      "spanner.optimizer_version=5, RATIO=-0.5, EXP=1e+5, TAG='a, b\\'} @{c', ESC=\"x\\\"y\", BK='a\\\\',\nMULTI=TRUE}"
+    )
+    sql = @visitor.compile query.ast
+    expected = " @{FORCE_INDEX=`idx@{1}`, JOIN_METHOD=HASH_JOIN, spanner.optimizer_version=5, " \
+               "RATIO=-0.5, EXP=1e+5, TAG='a, b\\'} @{c', ESC=\"x\\\"y\", BK='a\\\\',\nMULTI=TRUE}SELECT  * FROM `users`"
+    assert_equal expected, sql
+  end
+
+  def test_compile_table_hint_with_quoted_hint_value_containing_at_brace
+    query = @table.project Arel.star
+    query.optimizer_hints "table_hint: users@{FORCE_INDEX=`idx@{1}`}"
+    sql = @visitor.compile query.ast
+    assert_equal "SELECT  * FROM `users`@{FORCE_INDEX=`idx@{1}`}", sql
+  end
+
+  def test_compile_table_hint_with_whitespace_and_schema
+    query = @table.project Arel.star
+    query.optimizer_hints "table_hint: users @{FORCE_INDEX=idx_users_name}"
+    assert_equal "SELECT  * FROM `users`@{FORCE_INDEX=idx_users_name}", @visitor.compile(query.ast)
+
+    schema_table = Arel::Table.new "my_schema.users"
+    schema_query = schema_table.project Arel.star
+    schema_query.optimizer_hints "table_hint: my_schema.users@{FORCE_INDEX=idx}"
+    assert_equal "SELECT  * FROM `my_schema`.`users`@{FORCE_INDEX=idx}", @visitor.compile(schema_query.ast)
+  end
+
+  def test_rejects_invalid_statement_hints
+    [
+      "statement_hint:",
+      "statement_hint:   ",
+      "statement_hint: @{}",
+      "statement_hint: @{   }",
+      "statement_hint: @{A=1,}",
+      "statement_hint: @{,A=1}",
+      "statement_hint: @{A}",
+      "statement_hint: @{A=}",
+      "statement_hint: @{FÓO=1}",
+      "statement_hint: @{A=--}",
+      "statement_hint: @{A=--\n}",
+      "statement_hint: @{A=1--2}",
+      "statement_hint: @{A=..}",
+      "statement_hint: @{A=1;SELECT}",
+      "statement_hint: @{TAG='a\\'}",
+      "statement_hint: @{TAG='a\\\r'}",
+      "statement_hint: @{TAG='a\nb'}",
+      "statement_hint: @{TAG=\"a\rb\"}",
+      "statement_hint: @{A=1} @{B=2}",
+      "statement_hint: @{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT * FROM secrets UNION ALL ",
+      "statement_hint: @{USE_ADDITIONAL_PARALLELISM=TRUE}\nSELECT 1",
+      "statement_hint: SELECT 1; "
+    ].each do |invalid_hint|
+      query = @table.project Arel.star
+      query.optimizer_hints invalid_hint
+
+      error = assert_raises(ArgumentError, "Expected ArgumentError for #{invalid_hint.inspect}") do
+        @visitor.compile query.ast
+      end
+      assert_match(/Invalid Spanner statement hint/, error.message)
+    end
+  end
+
+  def test_rejects_invalid_table_hints
+    [
+      "table_hint:",
+      "table_hint:   ",
+      "table_hint: users",
+      "table_hint: @{FORCE_INDEX=idx}",
+      "table_hint: users@{}",
+      "table_hint: users@{A=--}",
+      "table_hint: users@{FORCE_INDEX=}",
+      "table_hint: users@{FORCE_INDEX=idx",
+      "table_hint: users@{FORCE_INDEX=idx,}",
+      "table_hint: users@{A=1} @{B=2}",
+      "table_hint: users@{FORCE_INDEX=idx} WHERE 1=1",
+      "table_hint: users@{FORCE_INDEX=idx} WHERE 1=1 @{B=2}",
+      "table_hint: users@{FORCE_INDEX=idx} WHERE 1=1 -- }"
+    ].each do |invalid_hint|
+      query = @table.project Arel.star
+      query.optimizer_hints invalid_hint
+
+      error = assert_raises(ArgumentError, "Expected ArgumentError for #{invalid_hint.inspect}") do
+        @visitor.compile query.ast
+      end
+      assert_match(/Invalid Spanner table hint/, error.message)
+    end
+  end
 end

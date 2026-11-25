@@ -21,6 +21,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   def initialize
     super
     @statement_results = {}
+    @parameterized_statement_results = {}
     @sessions = {}
     @transactions = {}
     @aborted_transactions = {}
@@ -29,8 +30,19 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     put_statement_result "SELECT 1", StatementResult.create_select1_result
   end
 
-  def put_statement_result sql, result
-    @statement_results[sql] = result
+  def put_statement_result sql, result, params: nil
+    if params&.any?
+      @parameterized_statement_results[sql] ||= []
+      normalized_params = normalize_params params
+      existing = @parameterized_statement_results[sql].find { |entry| entry[:params] == normalized_params }
+      if existing
+        existing[:result] = result
+      else
+        @parameterized_statement_results[sql] << { params: normalized_params, result: result }
+      end
+    else
+      @statement_results[sql] = result
+    end
   end
 
   def push_error sql_or_method, error
@@ -91,9 +103,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     validate_transaction request.session, transaction_id if transaction_id && transaction_id != ""
 
     raise @errors[request.sql].pop if @errors[request.sql] && !@errors[request.sql].empty?
-    # TODO: Support matching statement results by (sql, params) so InformationSchema can
-    # use parameterized queries instead of interpolating quoted values into SQL.
-    result = get_statement_result(request.sql).clone
+    result = get_statement_result(request.sql, request.params).clone
     if result.result_type == StatementResult::EXCEPTION
       raise result.result
     end
@@ -115,7 +125,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     response = Google::Cloud::Spanner::V1::ExecuteBatchDmlResponse.new
     first = true
     request.statements.each do |stmt|
-      result = get_statement_result(stmt.sql).clone
+      result = get_statement_result(stmt.sql, stmt.params).clone
       if result.result_type == StatementResult::EXCEPTION
         status.code = result.result.code
         status.message = result.result.message
@@ -189,8 +199,13 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
     @abort_next_transaction = true
   end
 
-  def get_statement_result sql
-    unless @statement_results.has_key? sql
+  def get_statement_result sql, params = nil
+    if params && @parameterized_statement_results.key?(sql)
+      normalized_params = normalize_params params.to_h
+      matched = @parameterized_statement_results[sql].find { |entry| entry[:params] == normalized_params }
+      return matched[:result] if matched
+    end
+    unless @statement_results.key? sql
       @statement_results.each do |key,value|
         if key.end_with?("%") && sql.start_with?(key.chop)
           return value
@@ -198,7 +213,7 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
       end
       raise GRPC::BadStatus.new(
         GRPC::Core::StatusCodes::INVALID_ARGUMENT,
-        "There's no result registered for #{sql}"
+        "There's no result registered for #{sql}#{" with params #{params.to_h}" if params}"
       )
     end
     @statement_results[sql]
@@ -209,6 +224,12 @@ class SpannerMockServer < Google::Cloud::Spanner::V1::Spanner::Service
   end
 
   private
+
+  def normalize_params params
+    params.each_with_object({}) do |(key, value), normalized|
+      normalized[key.to_s] = value.is_a?(Integer) || value.is_a?(Symbol) ? value.to_s : value
+    end
+  end
 
   def validate_session session
     unless @sessions.has_key? session

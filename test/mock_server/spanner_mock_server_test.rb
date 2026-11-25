@@ -137,4 +137,48 @@ describe "Spanner Mock Server" do
     end
     _(row_count).must_equal 100
   end
+
+  it "matches and rejects statements by params" do
+    sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME=@table_name"
+    unparameterized_sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES"
+    @mock.put_statement_result sql, StatementResult.create_single_int_result_set("TableId", 1),
+                               params: { table_name: "singers" }
+    @mock.put_statement_result sql, StatementResult.create_single_int_result_set("TableId", 2),
+                               params: { table_name: "albums" }
+    @mock.put_statement_result unparameterized_sql, StatementResult.create_single_int_result_set("TableId", 3), params: {}
+
+    session = @client.create_session Google::Cloud::Spanner::V1::CreateSessionRequest.new database: "projects/p/instances/i/databases/d"
+
+    singers_params, singers_types = Google::Cloud::Spanner::Convert.to_input_params_and_types(
+      { table_name: "singers" }, { table_name: :STRING }
+    )
+    albums_params, albums_types = Google::Cloud::Spanner::Convert.to_input_params_and_types(
+      { table_name: "albums" }, { table_name: :STRING }
+    )
+    missing_params, missing_types = Google::Cloud::Spanner::Convert.to_input_params_and_types(
+      { table_name: "tracks" }, { table_name: :STRING }
+    )
+
+    singers_res = @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new(
+      session: session.name, sql: sql, params: singers_params, param_types: singers_types
+    )
+    _(singers_res.rows[0].values[0].string_value).must_equal "1"
+
+    albums_res = @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new(
+      session: session.name, sql: sql, params: albums_params, param_types: albums_types
+    )
+    _(albums_res.rows[0].values[0].string_value).must_equal "2"
+
+    default_res = @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new(
+      session: session.name, sql: unparameterized_sql
+    )
+    _(default_res.rows[0].values[0].string_value).must_equal "3"
+
+    error = assert_raises Google::Cloud::InvalidArgumentError do
+      @client.execute_sql Google::Cloud::Spanner::V1::ExecuteSqlRequest.new(
+        session: session.name, sql: sql, params: missing_params, param_types: missing_types
+      )
+    end
+    _(error.message).must_include "tracks"
+  end
 end

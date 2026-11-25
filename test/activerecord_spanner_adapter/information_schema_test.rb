@@ -12,8 +12,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     :indexes_result, :index_columns_result,
     :check_constraints_result, :table_primary_key_result
 
-  def pk_sql table_name = "accounts"
-    "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_CATALOG, C.TABLE_SCHEMA, C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME) WHERE TABLE_NAME = '#{table_name}' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION"
+  def pk_sql
+    "WITH TABLE_PK_COLS AS ( SELECT C.TABLE_CATALOG, C.TABLE_SCHEMA, C.TABLE_NAME, C.COLUMN_NAME, C.INDEX_NAME, C.COLUMN_ORDERING, C.ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS C WHERE C.INDEX_TYPE = 'PRIMARY_KEY' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '') SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM TABLE_PK_COLS INNER JOIN INFORMATION_SCHEMA.TABLES T USING (TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME) WHERE TABLE_NAME = @table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION"
   end
 
   def setup
@@ -102,6 +102,11 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     ]
   end
 
+  def assert_executed_params expected_params_list
+    actual_params_list = last_executed_sqls.map { |entry| entry.options[:params].to_h }
+    assert_equal expected_params_list, actual_params_list
+  end
+
   def test_create_an_instance
     info_schema = ActiveRecordSpannerAdapter::InformationSchema.new connection
     assert_instance_of ActiveRecordSpannerAdapter::InformationSchema, info_schema
@@ -113,9 +118,10 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 1
 
     assert_sql_equal(
-      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name",
       last_executed_sql
     )
+    assert_executed_params [{ "schema_name" => "" }]
 
     result.each do |table|
       assert_instance_of ActiveRecordSpannerAdapter::Table, table
@@ -131,13 +137,19 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name",
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
+    assert_executed_params [
+      { "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "" }
+    ]
   end
 
   def test_list_all_table_with_indexes_view
@@ -146,12 +158,17 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
+    assert_executed_params [
+      { "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "" }
+    ]
   end
 
   def test_list_all_tables_with_full_view
@@ -160,12 +177,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=''",
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name",
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
@@ -177,9 +194,10 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_instance_of ActiveRecordSpannerAdapter::Table, table
 
     assert_sql_equal(
-      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name AND TABLE_NAME=@table_name",
       last_executed_sql
     )
+    assert_executed_params [{ "schema_name" => "", "table_name" => "accounts" }]
   end
 
   def test_table_with_columns_view
@@ -188,10 +206,10 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name AND TABLE_NAME=@table_name",
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
@@ -203,9 +221,9 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name AND TABLE_NAME=@table_name",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
@@ -217,12 +235,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='' AND TABLE_NAME='accounts'",
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name AND TABLE_NAME=@table_name",
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='accounts' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
@@ -238,8 +256,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
@@ -275,8 +293,8 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA=''",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
@@ -308,11 +326,16 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_sql_equal(
       [
         pk_sql,
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' AND COLUMN_NAME='account_id'",
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='accounts' AND TABLE_SCHEMA='' AND COLUMN_NAME='account_id' ORDER BY ORDINAL_POSITION ASC"
+        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name AND COLUMN_NAME=@column_name",
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, GENERATION_EXPRESSION, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT, ORDINAL_POSITION, IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_SCHEMA=@schema_name AND COLUMN_NAME=@column_name ORDER BY ORDINAL_POSITION ASC"
       ],
       last_executed_sqls
     )
+    assert_executed_params [
+      { "table_name" => "accounts", "schema_name" => "" },
+      { "table_name" => "accounts", "schema_name" => "", "column_name" => "account_id" },
+      { "table_name" => "accounts", "schema_name" => "", "column_name" => "account_id" }
+    ]
   end
 
   def test_list_table_indexes
@@ -323,11 +346,15 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='orders' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
+    assert_executed_params [
+      { "table_name" => "orders", "schema_name" => "" },
+      { "table_name" => "orders", "schema_name" => "" }
+    ]
 
     result.each do |index|
       assert_instance_of ActiveRecordSpannerAdapter::Index, index
@@ -356,11 +383,15 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
 
     assert_sql_equal(
       [
-        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
-        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME='orders' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_orders_on_user_id' AND SPANNER_IS_MANAGED=FALSE"
+        "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND INDEX_NAME=@index_name ORDER BY ORDINAL_POSITION ASC",
+        "SELECT INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND INDEX_NAME=@index_name AND SPANNER_IS_MANAGED=FALSE"
       ],
       last_executed_sqls
     )
+    assert_executed_params [
+      { "table_name" => "orders", "schema_name" => "", "index_name" => "index_orders_on_user_id" },
+      { "table_name" => "orders", "schema_name" => "", "index_name" => "index_orders_on_user_id" }
+    ]
 
     assert_equal index.table, "orders"
     assert_equal index.name, "index_orders_on_user_id"
@@ -382,9 +413,12 @@ class InformationSchemaTest < TestHelper::MockActiveRecordTest
     assert_equal result.length, 1
 
     assert_sql_equal(
-      "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='orders' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = '' AND INDEX_NAME='index_orders_on_user_id' ORDER BY ORDINAL_POSITION ASC",
-      last_executed_sqls
+      "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME=@table_name AND TABLE_CATALOG = '' AND TABLE_SCHEMA = @schema_name AND INDEX_NAME=@index_name ORDER BY ORDINAL_POSITION ASC",
+      last_executed_sql
     )
+    assert_executed_params [
+      { "table_name" => "orders", "schema_name" => "", "index_name" => "index_orders_on_user_id" }
+    ]
 
     column = result.first
     assert_equal column.table_name, "orders"
@@ -461,9 +495,10 @@ lines>],
     assert_equal results.length, 1
 
     assert_sql_equal(
-      "SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_CATALOG = cc.CONSTRAINT_CATALOG AND tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME WHERE tc.TABLE_NAME = 'accounts' AND tc.CONSTRAINT_SCHEMA = '' AND tc.CONSTRAINT_TYPE = 'CHECK' AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')",
+      "SELECT tc.TABLE_NAME, tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc INNER JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_CATALOG = cc.CONSTRAINT_CATALOG AND tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA AND tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME WHERE tc.TABLE_NAME = @table_name AND tc.CONSTRAINT_SCHEMA = @schema_name AND tc.CONSTRAINT_TYPE = 'CHECK' AND NOT (tc.CONSTRAINT_NAME LIKE 'CK_IS_NOT_NULL_%' AND cc.CHECK_CLAUSE LIKE '%IS NOT NULL')",
       last_executed_sql
     )
+    assert_executed_params [{ "table_name" => "accounts", "schema_name" => "" }]
 
     cc = results.first
     assert_instance_of ActiveRecord::ConnectionAdapters::CheckConstraintDefinition, cc
@@ -472,31 +507,123 @@ lines>],
     assert_equal cc.expression, "name IN ('bob')"
   end
 
-  def test_escapes_table_and_schema_names_with_googlesql_quoting
+  def test_special_characters_and_symbols_are_parameterized
     set_mocked_result []
-    malicious_name = "accounts\\' OR 1=1 -- \n\r\0"
-    info_schema.table malicious_name, schema_name: "sch'ema\\1"
+    info_schema.table :"ac'counts", schema_name: :"my'schema"
 
     assert_sql_equal(
-      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='sch\\'ema\\\\1' AND TABLE_NAME='accounts\\\\\\' OR 1=1 -- \\n\\r\\x00'",
+      "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, PARENT_TABLE_NAME, ON_DELETE_ACTION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=@schema_name AND TABLE_NAME=@table_name",
       last_executed_sql
+    )
+    assert_executed_params [{ "schema_name" => "my'schema", "table_name" => "ac'counts" }]
+    assert_equal(
+      {
+        "schema_name" => Google::Cloud::Spanner::V1::Type.new(code: :STRING),
+        "table_name" => Google::Cloud::Spanner::V1::Type.new(code: :STRING)
+      },
+      last_executed_sql.options[:types]
     )
   end
 
-  def test_escapes_column_and_index_names_with_googlesql_quoting
+  def test_foreign_keys_and_index_type_and_nil_schema_name_are_parameterized
     set_mocked_result []
-    info_schema.index_columns "ord'ers", schema_name: "s'1", index_name: "idx\\' OR '1'='1"
+    info_schema.tables schema_name: nil
+    assert_executed_params [{ "schema_name" => "" }]
 
-    assert_sql_equal(
-      "SELECT INDEX_NAME, COLUMN_NAME, COLUMN_ORDERING, ORDINAL_POSITION FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME='ord\\'ers' AND TABLE_CATALOG = '' AND TABLE_SCHEMA = 's\\'1' AND INDEX_NAME='idx\\\\\\' OR \\'1\\'=\\'1' ORDER BY ORDINAL_POSITION ASC",
-      last_executed_sql
-    )
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    set_mocked_result []
+    set_mocked_result []
+    info_schema.table_columns "orders", schema_name: nil
+    assert_executed_params [
+      { "table_name" => "orders", "schema_name" => "" },
+      { "table_name" => "orders", "schema_name" => "" },
+      { "table_name" => "orders", "schema_name" => "" }
+    ]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    info_schema.table_primary_keys "orders", schema_name: nil
+    assert_executed_params [{ "table_name" => "orders", "schema_name" => "" }]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    info_schema.index_columns "orders", schema_name: nil
+    assert_executed_params [{ "table_name" => "orders", "schema_name" => "" }]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    info_schema.foreign_keys "orders", from_schema_name: nil
+    assert_match(/WHERE FK_TABLE = @table_name\s+AND FK_SCHEMA = @constraint_schema/, last_executed_sql.sql)
+    assert_executed_params [{ "table_name" => "orders", "constraint_schema" => "" }]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    info_schema.check_constraints "orders", schema_name: nil
+    assert_executed_params [{ "table_name" => "orders", "schema_name" => "" }]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    set_mocked_result []
+    info_schema.indexes "orders", index_name: "idx_orders", index_type: "INDEX", schema_name: nil
+    assert_executed_params [
+      { "table_name" => "orders", "schema_name" => "", "index_name" => "idx_orders" },
+      { "table_name" => "orders", "schema_name" => "", "index_name" => "idx_orders", "index_type" => "INDEX" }
+    ]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    info_schema.table_primary_keys "orders", false, schema_name: "app"
+    assert_includes last_executed_sql.sql, "AND (T.PARENT_TABLE_NAME IS NULL OR COLUMN_NAME NOT IN"
+    assert_executed_params [{ "table_name" => "orders", "schema_name" => "app" }]
   end
 
-  def test_execute_query_coerces_non_string_and_nil_params
+  def test_nil_required_table_name_and_false_optional_filters
     set_mocked_result []
-    info_schema.send :execute_query, "SELECT %<a>s, %<b>s, %<c>s", a: :sym, b: 123, c: nil
+    info_schema.tables(table_name: false)
+    refute_includes last_executed_sql.sql, "@table_name"
+    assert_executed_params [{ "schema_name" => "" }]
 
-    assert_sql_equal "SELECT 'sym', '123', NULL", last_executed_sql
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    set_mocked_result []
+    set_mocked_result []
+    assert_equal [], info_schema.table_columns(nil, column_name: false)
+    last_executed_sqls.each { |executed| refute_includes executed.sql, "@column_name" }
+    assert_executed_params [
+      { "table_name" => nil, "schema_name" => "" },
+      { "table_name" => nil, "schema_name" => "" },
+      { "table_name" => nil, "schema_name" => "" }
+    ]
+    assert_equal(
+      {
+        "table_name" => Google::Cloud::Spanner::V1::Type.new(code: :STRING),
+        "schema_name" => Google::Cloud::Spanner::V1::Type.new(code: :STRING)
+      },
+      last_executed_sql.options[:types]
+    )
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    set_mocked_result []
+    assert_equal [], info_schema.indexes(nil, index_name: false, index_type: false)
+    last_executed_sqls.each do |executed|
+      refute_includes executed.sql, "@index_name"
+      refute_includes executed.sql, "@index_type"
+    end
+    assert_executed_params [
+      { "table_name" => nil, "schema_name" => "" },
+      { "table_name" => nil, "schema_name" => "" }
+    ]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    assert_equal [], info_schema.foreign_keys(nil)
+    assert_executed_params [{ "table_name" => nil, "constraint_schema" => "" }]
+
+    MockGoogleSpanner.clear_mocked_executed_sql_and_results
+    set_mocked_result []
+    assert_equal [], info_schema.check_constraints(nil)
+    assert_executed_params [{ "table_name" => nil, "schema_name" => "" }]
   end
 end

@@ -21,7 +21,7 @@ module ActiveRecordSpannerAdapter
       @sequence_number = 0
       @mutations = []
       @commit_options = commit_options
-      @exclude_txn_from_change_streams = exclude_txn_from_change_streams
+      @exclude_txn_from_change_streams = exclude_txn_from_change_streams || false
     end
 
     def active?
@@ -94,9 +94,19 @@ module ActiveRecordSpannerAdapter
     end
 
     # Forces a BeginTransaction RPC for a read/write transaction. This is used by a
-    # connection if the first statement of a transaction failed.
+    # connection if the first statement of a transaction failed, or when a transaction
+    # only contains mutations.
     def force_begin_read_write
-      @grpc_transaction = @connection.session.create_transaction
+      grpc_isolation = _transaction_isolation_level_to_grpc @isolation
+      # Session#create_transaction does not accept isolation_level:, so create an
+      # unstarted Transaction wrapper and begin it explicitly with the full options.
+      transaction = @connection.session.create_empty_transaction \
+        exclude_txn_from_change_streams: @exclude_txn_from_change_streams,
+        isolation_level: grpc_isolation
+      transaction.safe_begin_transaction! \
+        exclude_from_change_streams: @exclude_txn_from_change_streams,
+        isolation_level: grpc_isolation
+      @grpc_transaction = transaction
     end
 
     def next_sequence_number
@@ -149,7 +159,7 @@ module ActiveRecordSpannerAdapter
     end
 
     def shoot_and_forget_rollback
-      @connection.session.rollback @grpc_transaction.transaction_id if @committable
+      @connection.session.rollback @grpc_transaction.transaction_id if @committable && @grpc_transaction
     rescue StandardError
       # Ignored
     end

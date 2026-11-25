@@ -1338,6 +1338,20 @@ module MockServerTests
       assert_equal time, single_use.read_only.min_read_timestamp
     end
 
+    def test_invalid_optimizer_hint_raises_before_execute_sql
+      initial_execute_count = @mock.requests.count { |req| req.is_a? Google::Cloud::Spanner::V1::ExecuteSqlRequest }
+
+      assert_raises ArgumentError do
+        Singer.optimizer_hints("statement_hint: SELECT 1").find_by(id: 1)
+      end
+      assert_raises ArgumentError do
+        Singer.optimizer_hints("table_hint: singers@{FORCE_INDEX=idx} WHERE 1=1 @{B=2}").find_by(id: 1)
+      end
+
+      final_execute_count = @mock.requests.count { |req| req.is_a? Google::Cloud::Spanner::V1::ExecuteSqlRequest }
+      assert_equal initial_execute_count, final_execute_count
+    end
+
     def test_join_hint
       sql = "SELECT `singers`.* FROM `singers` INNER JOIN @{JOIN_METHOD=HASH_JOIN, FORCE_JOIN_ORDER=TRUE} albums ON albums.singer_id=singers.id WHERE (albums.title='test') ORDER BY `singers`.`id` ASC LIMIT @p1"
       @mock.put_statement_result sql, MockServerTests::create_random_singers_result(1)

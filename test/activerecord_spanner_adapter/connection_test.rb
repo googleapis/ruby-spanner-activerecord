@@ -54,6 +54,27 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
     assert_equal connection.active?, false
   end
 
+  def test_connection_active_updates_last_used_after_idle_timeout
+    connection.connect!
+    connection.instance_variable_set :@last_used, Time.current - 3600
+
+    assert_equal true, connection.active?
+    assert_equal ["SELECT 1"], last_executed_sqls.map(&:sql)
+
+    assert_equal true, connection.active?
+    assert_equal 1, last_executed_sqls.length
+  end
+
+  def test_connection_not_active_when_keepalive_fails
+    connection.connect!
+    stale_time = Time.current - 3600
+    connection.instance_variable_set :@last_used, stale_time
+    set_mocked_result { raise "database not available" }
+
+    assert_equal false, connection.active?
+    assert_equal stale_time, connection.instance_variable_get(:@last_used)
+  end
+
   def test_disconnect_connection
     set_mocked_result true
     assert_equal connection.disconnect!, true
@@ -295,5 +316,32 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
       connection.execute_ddl "CREATE TABLE FOO"
     }
     assert err.message.include?("DDL cannot be executed during a transaction")
+  end
+
+  def test_begin_transaction_exclude_txn_from_change_streams_permutations
+    transaction = connection.begin_transaction
+    assert_equal false, transaction.exclude_txn_from_change_streams
+    assert_equal false, transaction.begin_transaction_selector.begin.exclude_txn_from_change_streams
+    connection.rollback_transaction
+
+    [nil, false, true].each do |exclude_option|
+      expected = exclude_option || false
+      transaction = connection.begin_transaction exclude_txn_from_change_streams: exclude_option
+      assert_equal expected, transaction.exclude_txn_from_change_streams
+      assert_equal expected, transaction.begin_transaction_selector.begin.exclude_txn_from_change_streams
+      connection.rollback_transaction
+    end
+  end
+
+  def test_begin_transaction_uses_connection_isolation_level_or_override
+    connection.isolation_level = :repeatable_read
+
+    default_transaction = connection.begin_transaction
+    assert_equal :REPEATABLE_READ, default_transaction.begin_transaction_selector.begin.isolation_level
+    connection.rollback_transaction
+
+    override_transaction = connection.begin_transaction :serializable
+    assert_equal :SERIALIZABLE, override_transaction.begin_transaction_selector.begin.isolation_level
+    connection.rollback_transaction
   end
 end

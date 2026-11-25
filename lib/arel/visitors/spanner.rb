@@ -64,18 +64,46 @@ module Arel # :nodoc: all
         BIND_BLOCK
       end
 
-      def visit_table_hint v, collector
-        value = v.delete_prefix("table_hint:").strip
-        # TODO: This does not support FORCE_INDEX hints that reference an index that contains '@{' in the name.
-        start_of_hint_index = value.rindex "@{"
-        table_name = value[0, start_of_hint_index]
+      # TODO: Replace these regexes with a simple lexical parser/scanner for GoogleSQL
+      # optimizer hints (handling quoted identifiers, triple-quoted/raw strings, comments,
+      # and balanced @{...} blocks reliably without regex limitations).
+      HINT_KEY_REGX = /[A-Za-z_][A-Za-z0-9_.]*/
+      HINT_VALUE_REGX = /
+        '(?>[^'\\\n\r]|\\[^\n\r])*' |
+        "(?>[^"\\\n\r]|\\[^\n\r])*" |
+        `(?>[^`\\\n\r]|\\[^\n\r])*` |
+        #{HINT_KEY_REGX} |
+        -?(?>\d+(?>\.\d*)?|\.\d+)(?>[eE][+-]?\d+)?
+      /x
+      HINT_ENTRY_REGX = /#{HINT_KEY_REGX}\s*=\s*#{HINT_VALUE_REGX}/
+      HINT_BLOCK_REGX = /\A@\{\s*#{HINT_ENTRY_REGX}(?:\s*,\s*#{HINT_ENTRY_REGX})*\s*\}\z/
+      private_constant :HINT_KEY_REGX, :HINT_VALUE_REGX, :HINT_ENTRY_REGX, :HINT_BLOCK_REGX
+
+      def visit_table_hint hint, collector
+        value = hint.delete_prefix("table_hint:").strip
+        start_of_hint_index = value.index "@{"
+        unless start_of_hint_index&.positive? && value.end_with?("}")
+          raise ArgumentError, "Invalid Spanner table hint: #{hint.inspect}"
+        end
+
+        table_name = value[0, start_of_hint_index].rstrip
         table_hint = value[start_of_hint_index, value.length]
-        collector.table_hints[table_name] = table_hint if table_name && table_hint
+        unless HINT_BLOCK_REGX.match? table_hint
+          raise ArgumentError, "Invalid Spanner table hint: #{hint.inspect}"
+        end
+
+        collector.table_hints[table_name] = table_hint
       end
 
-      def visit_statement_hint v, collector
-        collector.hints[:statement_hint] =
-          StatementHint.new v.delete_prefix("statement_hint:")
+      def visit_statement_hint hint, collector
+        raw_hint = hint.delete_prefix "statement_hint:"
+        stripped_hint = raw_hint.strip
+        unless HINT_BLOCK_REGX.match? stripped_hint
+          raise ArgumentError, "Invalid Spanner statement hint: #{hint.inspect}"
+        end
+
+        formatted_hint = raw_hint.start_with?(/\s/) ? " #{stripped_hint}" : stripped_hint
+        collector.hints[:statement_hint] = StatementHint.new formatted_hint
       end
 
       # rubocop:disable Naming/MethodName, Metrics/AbcSize
