@@ -54,6 +54,27 @@ class SpannerConnectionTest < TestHelper::MockActiveRecordTest
     assert_equal connection.active?, false
   end
 
+  def test_connection_active_updates_last_used_after_idle_timeout
+    connection.connect!
+    connection.instance_variable_set :@last_used, Time.current - 3600
+
+    assert_equal true, connection.active?
+    assert_equal ["SELECT 1"], last_executed_sqls.map(&:sql)
+
+    assert_equal true, connection.active?
+    assert_equal 1, last_executed_sqls.length
+  end
+
+  def test_connection_not_active_when_keepalive_fails
+    connection.connect!
+    stale_time = Time.current - 3600
+    connection.instance_variable_set :@last_used, stale_time
+    set_mocked_result { raise "database not available" }
+
+    assert_equal false, connection.active?
+    assert_equal stale_time, connection.instance_variable_get(:@last_used)
+  end
+
   def test_disconnect_connection
     set_mocked_result true
     assert_equal connection.disconnect!, true
