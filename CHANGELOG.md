@@ -1,5 +1,14 @@
 # Changelog
 
+### 2.7.2 (2026-11-26)
+
+#### Bug Fixes
+
+* isolate cached Spanner clients by credentials ([#473](https://github.com/googleapis/ruby-spanner-activerecord/issues/473)) 
+* parameterize schema introspection queries ([#467](https://github.com/googleapis/ruby-spanner-activerecord/issues/467)) 
+* preserve transaction options on explicit begin and retry ([#472](https://github.com/googleapis/ruby-spanner-activerecord/issues/472)) 
+* validate Spanner optimizer hints and DDL column options ([#466](https://github.com/googleapis/ruby-spanner-activerecord/issues/466)) 
+
 ### 2.7.1 (2026-10-19)
 
 #### Documentation
