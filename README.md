@@ -60,6 +60,34 @@ development:
   database: "app-dev"
 ```
 
+### JSON numbers
+
+Spanner checks that JSON numbers round trip without losing decimal precision.
+The adapter formats finite floats with a pure Ruby port of nlohmann/json 3.11.3's
+Grisu2 algorithm before encoding JSON documents. The formatter requires no native
+extension or C++ library. This applies to `JSON` and `ARRAY<JSON>` attributes,
+query parameters, and mutation writes, without changing `Float#to_s` or the
+application's JSON encoder. The `json` gem can be upgraded within its supported
+2.x range.
+
+The port preserves the exact decimal digits chosen by nlohmann/json, including
+negative zero and subnormal values. Ruby's normal float formatting can choose
+different digits even when the result represents the same binary float.
+
+Requiring `activerecord-spanner-adapter` also applies the formatter to JSON Hash
+values sent through the Google Spanner client, including raw mutations. Native
+`FLOAT64` and `STRUCT` values keep their normal client encoding. Objects with
+custom `to_column_value` or `to_grpc_value_and_type` hooks retain control over
+their own conversion.
+
+Pre-encoded JSON strings pass through unchanged. For a direct client call with
+a JSON array or scalar, encode the whole document explicitly:
+
+```ruby
+payload = ActiveRecordSpannerAdapter::JsonEncoder.new.encode([1.240425])
+client.execute "SELECT @payload", params: { payload: payload }, types: { payload: :JSON }
+```
+
 ## Examples
 To get started with Rails, read the tutorial under [examples/rails/README.md](examples/rails/README.md).
 
