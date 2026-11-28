@@ -43,16 +43,13 @@ module ActiveRecord
 
         def internal_execute sql, name = "SQL", binds = [],
                              prepare: false, async: false, allow_retry: false # rubocop:disable Lint/UnusedMethodArgument
-          statement_type = sql_statement_type sql
           # Call `transform` to invoke any query transformers that might have been registered.
           sql = transform sql
-          append_request_tag_from_query_logs sql, binds
-
-          if preventing_writes? && [:dml, :ddl].include?(statement_type)
-            raise ActiveRecord::ReadOnlyError(
-              "Write query attempted while in readonly mode: #{sql}"
-            )
+          statement_type = sql_statement_type sql
+          if preventing_writes? && (statement_type != :dql || write_query?(sql))
+            ensure_writes_allowed sql
           end
+          append_request_tag_from_query_logs sql, binds
 
           if statement_type == :ddl
             execute_ddl sql
@@ -162,6 +159,7 @@ module ActiveRecord
         end
 
         def exec_mutation mutation
+          ensure_writes_allowed "MUTATION (#{mutation.operation})"
           @connection.current_transaction.buffer mutation
         end
 
@@ -202,6 +200,7 @@ module ActiveRecord
         alias exec_delete exec_update
 
         def truncate table_name, name = nil
+          ensure_writes_allowed "TRUNCATE #{Array(table_name).join(', ')}"
           Array(table_name).each do |t|
             log "TRUNCATE #{t}", name do
               @connection.truncate t
@@ -210,10 +209,13 @@ module ActiveRecord
         end
 
         def write_query? sql
-          sql_statement_type(sql) == :dml
+          !READ_QUERY.match? sql
+        rescue ArgumentError
+          !READ_QUERY.match? sql.b
         end
 
         def execute_ddl statements
+          ensure_writes_allowed Array(statements).join("; ")
           log "MIGRATION", "SCHEMA" do
             ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
               @connection.execute_ddl statements
@@ -288,6 +290,8 @@ module ActiveRecord
         end
 
         def begin_db_transaction
+          ensure_writes_allowed "BEGIN PDML" if @connection.isolation_level == :pdml
+
           log "BEGIN" do
             opts = @_spanner_begin_transaction_options || {}
             @connection.begin_transaction nil, **opts
@@ -316,16 +320,8 @@ module ActiveRecord
           opts = @_spanner_begin_transaction_options || {}
           # If isolation level is specified in the options, use that instead of the default isolation level.
           isolation_option = opts[:isolation] || isolation
-          if isolation_option.is_a? Hash
-            raise "Unsupported isolation level: #{isolation_option}" unless
-              isolation_option[:timestamp] || isolation_option[:staleness] || isolation_option[:strong]
-            raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`." \
-              if isolation_option.count != 1
-          else
-            raise "Unsupported isolation level: #{isolation_option}" unless
-              [:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml,
-               :fallback_to_pdml].include? isolation_option
-          end
+          validate_isolation_level! isolation_option
+          ensure_writes_allowed "BEGIN PDML" if isolation_option == :pdml
 
           log "BEGIN #{isolation_option}" do
             @connection.begin_transaction isolation_option, **opts.except(:isolation)
@@ -333,6 +329,8 @@ module ActiveRecord
         end
 
         def commit_db_transaction
+          ensure_writes_allowed "COMMIT" if preventing_writes? && @connection.current_transaction&.mutations?
+
           log "COMMIT" do
             @connection.commit_transaction
           end
@@ -344,7 +342,28 @@ module ActiveRecord
           end
         end
 
+        def ensure_writes_allowed sql # :nodoc:
+          return unless preventing_writes?
+
+          raise ActiveRecord::ReadOnlyError,
+                "Write query attempted while in readonly mode: #{sql}"
+        end
+
         private
+
+        def validate_isolation_level! isolation_option
+          if isolation_option.is_a? Hash
+            unless isolation_option[:timestamp] || isolation_option[:staleness] || isolation_option[:strong]
+              raise "Unsupported isolation level: #{isolation_option}"
+            end
+            if isolation_option.count != 1
+              raise "Only one option is supported. It must be one of `timestamp`, `staleness` or `strong`."
+            end
+          elsif ![:serializable, :repeatable_read, :read_only, :buffered_mutations, :pdml,
+                  :fallback_to_pdml].include?(isolation_option)
+            raise "Unsupported isolation level: #{isolation_option}"
+          end
+        end
 
         # Translates binds to Spanner types and params.
         def to_types_and_params binds # rubocop:disable Metrics/AbcSize
@@ -422,27 +441,45 @@ module ActiveRecord
           )
         end
 
-        COMMENT_REGEX = %r{(?:--.*\n)*|/\*(?:[^*]|\*[^/])*\*/}m \
+        COMMENT_REGEX = %r{(?:--.*\n)|/\*(?>[^*]++|\*(?!/))*\*/} \
             unless defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
         COMMENT_REGEX = ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX \
             if defined? ActiveRecord::ConnectionAdapters::AbstractAdapter::COMMENT_REGEX
 
+        HASH_COMMENT_REGEX = /#.*\n/
+        private_constant :HASH_COMMENT_REGEX
+
+        STATEMENT_HINT_REGEX = %r(@\{(?>[^}'"]++|'(?>\\.|[^'\\])*'|"(?>\\.|[^"\\])*")*\})
+        private_constant :STATEMENT_HINT_REGEX
+
         private_class_method def self.build_sql_statement_regexp *parts # :nodoc:
-          parts = parts.map { |part| /#{part}/i }
-          /\A(?:[(\s]|#{COMMENT_REGEX})*#{Regexp.union(*parts)}/
+          parts = parts.map { |part| /#{part}\b/i }
+          /\A(?>(?:[(\s]|#{COMMENT_REGEX}|#{HASH_COMMENT_REGEX}|#{STATEMENT_HINT_REGEX})*)#{Regexp.union(*parts)}/
         end
 
-        DDL_REGX = build_sql_statement_regexp(:create, :alter, :drop).freeze
+        DDL_REGX = build_sql_statement_regexp(:create, :alter, :drop, :rename, :grant, :revoke, :analyze).freeze
         private_constant :DDL_REGX
 
         DML_REGX = build_sql_statement_regexp(:insert, :delete, :update).freeze
         private_constant :DML_REGX
 
+        # Mirrors ActiveRecord's DEFAULT_READ_QUERY so read-only transactions (BEGIN/COMMIT/ROLLBACK/SAVEPOINT/RELEASE)
+        # and read queries (including Spanner FROM/GRAPH/SHOW syntax) are permitted in read-only mode.
+        READ_QUERY = build_sql_statement_regexp(
+          :begin, :commit, :explain, :from, :graph, :release, :rollback, :savepoint, :select, :show, :with
+        ).freeze
+        private_constant :READ_QUERY
+
         def sql_statement_type sql
-          case sql
-          when DDL_REGX
+          match_statement_type sql
+        rescue ArgumentError
+          match_statement_type sql.b
+        end
+
+        def match_statement_type sql
+          if DDL_REGX.match? sql
             :ddl
-          when DML_REGX
+          elsif DML_REGX.match? sql
             :dml
           else
             :dql
